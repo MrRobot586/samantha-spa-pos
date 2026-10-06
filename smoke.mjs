@@ -1,0 +1,442 @@
+/* Smoke test de Samantha Spa POS: levanta servidor + Chrome headless por CDP
+ * (sin dependencias), carga la app y recorre el flujo completo: login y
+ * roles, venta con método de pago, gate/apertura/corte de caja, moneda en
+ * vivo con tasa BCV, XSS y viewport móvil. Reporta errores de consola,
+ * excepciones y recursos 404.
+ *
+ * Requisitos: python3, google-chrome-stable. Uso: `npm run smoke`. */
+import { spawn } from 'node:child_process';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const RAIZ = dirname(fileURLToPath(import.meta.url));
+const esperar = ms => new Promise(r => setTimeout(r, ms));
+
+function servidor() {
+    const p = spawn('python3', ['-u', '-m', 'http.server', '0', '--bind', '127.0.0.1', '--directory', RAIZ],
+        { stdio: ['ignore', 'pipe', 'pipe'] });
+    return new Promise((ok, ko) => {
+        let out = '';
+        const t = setTimeout(() => ko(new Error('servidor sin puerto')), 8000);
+        p.stdout.on('data', d => {
+            out += d;
+            const m = out.match(/port (\d+)/);
+            if (m) { clearTimeout(t); ok({ proc: p, url: `http://127.0.0.1:${m[1]}` }); }
+        });
+    });
+}
+
+function chrome() {
+    const p = spawn('google-chrome-stable', [
+        '--headless=new', '--no-sandbox', '--disable-gpu', '--remote-debugging-port=0',
+        '--user-data-dir=/tmp/opencode/chrome-smoke-' + Date.now(),
+        '--disable-extensions', 'about:blank'
+    ], { stdio: ['ignore', 'ignore', 'pipe'] });
+    return new Promise((ok, ko) => {
+        let err = '';
+        const t = setTimeout(() => ko(new Error('chrome sin DevTools: ' + err.slice(-300))), 15000);
+        p.stderr.on('data', d => {
+            err += d;
+            const m = err.match(/DevTools listening on (ws:\/\/\S+)/);
+            if (m) { clearTimeout(t); ok({ proc: p, ws: m[1] }); }
+        });
+    });
+}
+
+const errores = [];
+
+async function main() {
+    const srv = await servidor();
+    const chr = await chrome();
+    console.log(`servidor ${srv.url} | chrome ok`);
+
+    const ws = new WebSocket(chr.ws);
+    await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
+
+    let id = 0;
+    const pend = new Map();
+    ws.onmessage = ev => {
+        const m = JSON.parse(ev.data);
+        if (m.id && pend.has(m.id)) { pend.get(m.id)(m); pend.delete(m.id); return; }
+        if (m.method === 'Runtime.exceptionThrown') {
+            errores.push('Excepción: ' + (m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text));
+        }
+        if (m.method === 'Log.entryAdded' && m.params.entry.level === 'error') {
+            errores.push('Log: ' + m.params.entry.text);
+        }
+        if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') {
+            errores.push('console.error: ' + m.params.args.map(a => a.value ?? a.description).join(' '));
+        }
+    };
+    const send = (method, params = {}, sessionId) => new Promise((res, rej) => {
+        const i = ++id;
+        pend.set(i, m => m.error ? rej(new Error(method + ': ' + m.error.message)) : res(m.result));
+        ws.send(JSON.stringify({ id: i, method, params, ...(sessionId ? { sessionId } : {}) }));
+    });
+
+    const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
+    const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
+    await send('Runtime.enable', {}, sessionId);
+    await send('Log.enable', {}, sessionId);
+    await send('Page.enable', {}, sessionId);
+
+    const evaluar = async expr => {
+        const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true }, sessionId);
+        if (r.exceptionDetails) throw new Error('evaluate: ' + (r.exceptionDetails.exception?.description || r.exceptionDetails.text));
+        return r.result.value;
+    };
+
+    await send('Page.navigate', { url: srv.url }, sessionId);
+    for (let i = 0; i < 50; i++) {
+        if (await evaluar(`document.readyState === 'complete'`)) break;
+        await esperar(100);
+    }
+    await esperar(600);
+
+    const checks = [];
+    const check = async (nombre, expr) => {
+        try {
+            const v = await evaluar(expr);
+            checks.push([v ? 'OK  ' : 'FALLO', nombre, JSON.stringify(v)]);
+        } catch (e) {
+            checks.push(['FALLO', nombre, e.message]);
+        }
+    };
+
+    await check('título', `document.title`);
+
+    // --- Login ---------------------------------------------------------------
+    await check('pantalla de login visible', `!document.getElementById('login-screen').classList.contains('is-hidden')`);
+    await check('app oculta sin sesión', `document.body.classList.contains('is-logged-out')`);
+
+    await evaluar(`document.getElementById('login-pin').value = '0000'; document.getElementById('form-login').requestSubmit(); true`);
+    await esperar(150);
+    await check('PIN incorrecto → error inline', `document.getElementById('login-error').textContent`);
+    await check('PIN incorrecto → sigue sin sesión', `document.body.classList.contains('is-logged-out')`);
+
+    await evaluar(`document.getElementById('login-user').value = 'admin'; document.getElementById('login-pin').value = '1234'; document.getElementById('form-login').requestSubmit(); true`);
+    await esperar(300);
+    await check('login admin → app visible', `!document.body.classList.contains('is-logged-out')`);
+    await check('chip del usuario', `document.getElementById('user-chip-name').textContent`);
+    await check('admin ve el botón Usuarios', `!document.getElementById('btn-users').classList.contains('is-hidden')`);
+    await check('nav admin: 6 pestañas visibles', `[...document.querySelectorAll('.sidebar__nav .nav-btn')].filter(b => !b.classList.contains('is-hidden')).length === 6`);
+    await check('dashboard admin ve alertas de stock', `!document.getElementById('dash-stock-card').classList.contains('is-hidden')`);
+    await check('badge de caja visible para admin', `!document.getElementById('cash-badge').classList.contains('is-hidden')`);
+
+    // Alta de usuarios desde la UI
+    await evaluar(`document.getElementById('btn-users').click()`);
+    await esperar(150);
+    await check('modal de usuarios abierto', `!document.getElementById('modal-users').classList.contains('is-hidden')`);
+    await check('lista de usuarios: 4 semilla', `document.querySelectorAll('#users-list .user-row').length === 4`);
+    await evaluar(`
+        document.getElementById('user-name').value = 'Prueba UI';
+        document.getElementById('user-username').value = 'Prueba';
+        document.getElementById('user-role').value = 'stylist';
+        document.getElementById('user-pin').value = '7777';
+        document.getElementById('form-user').requestSubmit();
+        true`);
+    await esperar(250);
+    await check('usuario creado (lista con 5)', `document.querySelectorAll('#users-list .user-row').length === 5`);
+    await check('username normalizado a minúsculas', `[...document.querySelectorAll('#users-list .user-row__meta')].some(el => el.textContent.includes('@prueba'))`);
+    await evaluar(`document.querySelector('[data-action="close-modal"][data-target="modal-users"]').click()`);
+    await esperar(100);
+
+    // Estilista: nav restringida
+    await evaluar(`document.querySelector('[data-action="logout"]').click()`);
+    await esperar(150);
+    await check('logout → vuelve al login', `document.body.classList.contains('is-logged-out')`);
+    await evaluar(`document.getElementById('login-user').value = 'valeria'; document.getElementById('login-pin').value = '1111'; document.getElementById('form-login').requestSubmit(); true`);
+    await esperar(300);
+    await check('nav estilista: 2 pestañas visibles', `[...document.querySelectorAll('.sidebar__nav .nav-btn')].filter(b => !b.classList.contains('is-hidden')).length === 2`);
+    await check('estilista NO ve Inventario', `document.getElementById('nav-inventory').classList.contains('is-hidden')`);
+    await check('estilista NO ve Caja & Cortes', `document.getElementById('nav-cash').classList.contains('is-hidden')`);
+    await check('estilista NO ve el badge de caja', `document.getElementById('cash-badge').classList.contains('is-hidden')`);
+    await check('estilista NO ve Usuarios', `document.getElementById('btn-users').classList.contains('is-hidden')`);
+    await check('dashboard estilista oculta alertas de stock', `document.getElementById('dash-stock-card').classList.contains('is-hidden') && document.getElementById('dash-alerts-card').classList.contains('is-hidden')`);
+
+    // De vuelta como admin para el resto del flujo
+    await evaluar(`document.querySelector('[data-action="logout"]').click()`);
+    await esperar(120);
+    await evaluar(`document.getElementById('login-user').value = 'admin'; document.getElementById('login-pin').value = '1234'; document.getElementById('form-login').requestSubmit(); true`);
+    await esperar(300);
+
+    // Flujo de venta completo por delegación de eventos
+    await check('KPI ventas renderizado', `document.getElementById('dash-today-sales').textContent`);
+    await check('catálogo con ítems', `document.querySelectorAll('#pos-catalog-grid .catalog-card').length`);
+    await check('inventario con filas', `document.querySelectorAll('#inventory-table-body tr').length`);
+    await check('comisiones con tarjetas', `document.querySelectorAll('#commissions-staff-grid .staff-card').length`);
+
+    // Flujo de venta completo por delegación de eventos
+    await evaluar(`document.querySelector('[data-tab="pos"]').click()`);
+    await esperar(150);
+    await check('POS visible', `!document.getElementById('tab-pos').classList.contains('is-hidden')`);
+    await check('selector de estilista poblado', `document.querySelectorAll('#pos-staff-select option').length`);
+
+    await evaluar(`document.querySelector('[data-action="add-item"][data-type="service"]').click()`);
+    await esperar(100);
+    await check('ticket con 1 ítem', `document.querySelectorAll('#ticket-items-container .ticket-item').length`);
+    await check('total del ticket', `document.getElementById('ticket-total').textContent`);
+    await check('comisión usa tasa del estilista', `document.getElementById('ticket-commission').textContent`);
+
+    // Método de pago y cambio (efectivo es el default)
+    await check('recibido visible con efectivo', `!document.getElementById('ticket-received-row').classList.contains('is-hidden')`);
+    await evaluar(`document.querySelector('[data-action="set-payment-method"][data-method="card"]').click()`);
+    await esperar(150);
+    await check('tarjeta oculta recibido y cambio', `document.getElementById('ticket-received-row').classList.contains('is-hidden') && document.getElementById('ticket-change-row').classList.contains('is-hidden')`);
+    await evaluar(`document.querySelector('[data-action="set-payment-method"][data-method="cash"]').click()`);
+    await esperar(150);
+    await check('vuelta a efectivo muestra el recibido', `!document.getElementById('ticket-received-row').classList.contains('is-hidden')`);
+
+    await evaluar(`(() => { const i = document.getElementById('ticket-received'); i.value = '100'; i.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
+    await esperar(120);
+    await check('cambio calculado ($24.60)', `document.getElementById('ticket-change').textContent.includes('24.60')`);
+
+    // La caja arranca cerrada: el cobro debe rechazarse (gate)
+    await check('badge de caja dice Cerrada', `document.getElementById('cash-badge-text').textContent.includes('cerrada')`);
+    await evaluar(`document.querySelector('[data-action="pay"]').click()`);
+    await esperar(250);
+    await check('caja cerrada → cobro bloqueado', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).transactions.length === 0 && document.querySelectorAll('#ticket-items-container .ticket-item').length === 1`);
+    await check('toast de caja cerrada', `[...document.querySelectorAll('#toast-stack .toast')].pop()?.textContent.includes('cerrada') || false`);
+
+    // Abrir caja desde la pestaña Caja & Cortes
+    await evaluar(`document.querySelector('[data-action="switch-tab"][data-tab="cash"]').click()`);
+    await esperar(200);
+    await check('pestaña Caja visible', `!document.getElementById('tab-cash').classList.contains('is-hidden')`);
+    await check('acciones con caja cerrada: Abrir caja', `document.querySelector('[data-action="cash-open-modal"]') !== null`);
+    await evaluar(`document.querySelector('[data-action="cash-open-modal"]').click()`);
+    await esperar(150);
+    await check('modal de apertura abierto', `!document.getElementById('modal-cash-open').classList.contains('is-hidden')`);
+    await evaluar(`document.getElementById('cash-open-fondo').value = '500'; document.getElementById('form-cash-open').requestSubmit(); true`);
+    await esperar(250);
+    await check('badge de caja dice Abierta', `document.getElementById('cash-badge-text').textContent.includes('abierta')`);
+    await check('sesión de caja persistida', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).cashSession.open === true`);
+    await check('resumen muestra el fondo 500', `document.getElementById('cash-summary').textContent.includes('500')`);
+
+    // Volver al POS: primero el recibido inválido, luego el pago exacto
+    await evaluar(`document.querySelector('[data-action="switch-tab"][data-tab="pos"]').click()`);
+    await esperar(150);
+    await evaluar(`(() => { const i = document.getElementById('ticket-received'); i.value = '10'; i.dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('[data-action="pay"]').click(); return true; })()`);
+    await esperar(250);
+    await check('recibido menor → cobro bloqueado', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).transactions.length === 0 && document.querySelectorAll('#ticket-items-container .ticket-item').length === 1`);
+    await check('toast de error de recibido', `[...document.querySelectorAll('#toast-stack .toast')].pop()?.textContent.includes('recibido') || false`);
+
+    // Pago exacto (recibido vacío) → procesa
+    await evaluar(`document.getElementById('ticket-received').value = ''; document.querySelector('[data-action="pay"]').click(); true`);
+    await esperar(300);
+    await check('toast de pago', `[...document.querySelectorAll('#toast-stack .toast')].pop()?.textContent.includes('Pago de') || false`);
+    await check('ventas del día tras cobrar', `document.getElementById('dash-today-sales').textContent`);
+    await check('persistencia guardada', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).transactions.length`);
+    await check('venta guardó método y recibido', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).transactions[0].method === 'cash' && JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).transactions[0].receivedUSD > 0`);
+
+    // Retiro y corte de caja
+    await evaluar(`document.querySelector('[data-action="switch-tab"][data-tab="cash"]').click()`);
+    await esperar(200);
+    await evaluar(`document.querySelector('[data-action="cash-withdraw-modal"]').click()`);
+    await esperar(150);
+    await evaluar(`document.getElementById('cash-withdraw-amount').value = '10'; document.getElementById('cash-withdraw-note').value = 'Retiro de prueba'; document.getElementById('form-cash-withdraw').requestSubmit(); true`);
+    await esperar(250);
+    await check('retiro registrado en la tabla', `document.getElementById('cash-withdrawals-list').textContent.includes('10.00') && document.getElementById('cash-withdrawals-list').textContent.includes('Retiro de prueba')`);
+
+    await evaluar(`document.querySelector('[data-action="cash-close-modal"]').click()`);
+    await esperar(150);
+    await check('preview del corte con el esperado', `document.getElementById('cash-close-preview').textContent.includes('565.40')`);
+    await evaluar(`document.getElementById('cash-close-contado').value = '565.40'; document.getElementById('form-cash-close').requestSubmit(); true`);
+    await esperar(300);
+    await check('corte cuadra exacto (toast)', `[...document.querySelectorAll('#toast-stack .toast')].pop()?.textContent.includes('cuadra') || false`);
+    await check('corte en el historial', `document.getElementById('cash-closures-list').textContent.includes('565.40')`);
+    await check('caja volvió a cerrarse', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).cashSession.open === false && document.getElementById('cash-badge-text').textContent.includes('cerrada')`);
+
+    // Moneda en tiempo real: siembra la caché de tasas antes del F5 para que
+    // la conversión funcione con la tasa guardada (con o sin red).
+    await evaluar(`localStorage.setItem('samantha-spa-pos:rates', JSON.stringify({ usdBs: 872.3927, eurBs: 977.21940683, fecha: '2026-10-06T00:00:00-04:00', fetchedAt: Date.now() })); true`);
+
+    // Recarga: los datos y la sesión deben sobrevivir
+    await send('Page.navigate', { url: srv.url }, sessionId);
+    await esperar(800);
+    await check('tras F5 sigue logueado', `!document.body.classList.contains('is-logged-out')`);
+    await check('tras F5 la venta sigue ahí', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).transactions.length`);
+    await check('tras F5 la comisión acumuló', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).staff[0].totalCommissions`);
+    await check('la venta guardó el snapshot de tasa', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).transactions[0].rates.usdBs > 0`);
+
+    // Moneda de visualización: badge de tasa + toggle USD/Bs/€
+    await esperar(900); // deja tiempo al fetch de la tasa (si falla, manda la caché)
+    await check('badge de tasa BCV', `document.getElementById('rate-badge').textContent.includes('1 USD =')`);
+    await check('USD activo por defecto', `document.querySelector('[data-action="set-currency"].is-active').dataset.currency === 'USD'`);
+    await check('KPI en USD', `document.getElementById('dash-today-sales').textContent.includes('$')`);
+
+    await evaluar(`document.querySelector('[data-action="set-currency"][data-currency="VES"]').click()`);
+    await esperar(200);
+    await check('KPI convertido a Bs', `document.getElementById('dash-today-sales').textContent.includes('Bs')`);
+    await check('moneda persistida en el estado', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).settings.currency === 'VES'`);
+
+    await evaluar(`document.querySelector('[data-action="set-currency"][data-currency="EUR"]').click()`);
+    await esperar(200);
+    await check('KPI convertido a €', `document.getElementById('dash-today-sales').textContent.includes('€')`);
+
+    await evaluar(`document.querySelector('[data-action="set-currency"][data-currency="USD"]').click()`);
+    await esperar(200);
+    await check('vuelta a USD', `document.getElementById('dash-today-sales').textContent.includes('$')`);
+
+    // La moneda elegida sobrevive a F5
+    await evaluar(`document.querySelector('[data-action="set-currency"][data-currency="VES"]').click()`);
+    await esperar(150);
+    await send('Page.navigate', { url: srv.url }, sessionId);
+    await esperar(800);
+    await check('tras F5 la moneda sigue en Bs', `document.querySelector('[data-action="set-currency"].is-active').dataset.currency === 'VES' && document.getElementById('dash-today-sales').textContent.includes('Bs')`);
+    await evaluar(`document.querySelector('[data-action="set-currency"][data-currency="USD"]').click()`);
+    await esperar(150);
+
+    // --- Tema (oscuro/claro/auto) ------------------------------------------
+    await check('tema aplicado al arrancar', `['dark', 'light'].includes(document.documentElement.dataset.theme)`);
+    await check('botón de tema presente con icono', `!!document.getElementById('theme-toggle')?.querySelector('i')`);
+
+    await evaluar(`document.getElementById('theme-toggle').click()`); // auto → dark
+    await esperar(150);
+    await check('primer clic → oscuro', `document.documentElement.dataset.theme === 'dark' && document.querySelector('#theme-toggle i').classList.contains('fa-moon')`);
+
+    await evaluar(`document.getElementById('theme-toggle').click()`); // dark → light
+    await esperar(150);
+    await check('segundo clic → claro', `document.documentElement.dataset.theme === 'light' && document.querySelector('#theme-toggle i').classList.contains('fa-sun')`);
+
+    await evaluar(`document.getElementById('theme-toggle').click()`); // light → auto
+    await esperar(150);
+    await check('tercer clic → auto con icono de escritorio',
+        `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).settings.theme === 'auto' && document.querySelector('#theme-toggle i').classList.contains('fa-desktop')`);
+
+    // 'auto' sigue al sistema en vivo (listener de matchMedia en boot)
+    await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'dark' }] }, sessionId);
+    await esperar(250);
+    await check("'auto' reacciona al sistema (emulado dark → dark)", `document.documentElement.dataset.theme === 'dark'`);
+    await send('Emulation.setEmulatedMedia', { features: [] }, sessionId);
+    await esperar(250);
+    await check("'auto' vuelve al sistema (light)", `document.documentElement.dataset.theme === 'light'`);
+
+    // F5: el script pre-paint del <head> debe restaurar el tema guardado
+    await evaluar(`document.getElementById('theme-toggle').click()`); // auto → dark
+    await esperar(150);
+    await send('Page.navigate', { url: srv.url }, sessionId);
+    await esperar(800);
+    await check('tema persistido tras F5 (pre-paint)', `document.documentElement.dataset.theme === 'dark'`);
+    // vuelve a auto para no arrastrar estado a los bloques siguientes
+    await evaluar(`document.getElementById('theme-toggle').click(); document.getElementById('theme-toggle').click()`);
+    await esperar(150);
+    await check('vuelta a auto tras F5', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).settings.theme === 'auto'`);
+
+    // XSS: un nombre malicioso debe renderizarse como texto
+    await evaluar(`
+        document.getElementById('prod-name').value = '<img src=x onerror=alert(1)>';
+        document.getElementById('prod-type').value = 'retail';
+        document.getElementById('prod-unit').value = 'Unidades';
+        document.getElementById('prod-stock').value = '5';
+        document.getElementById('prod-min').value = '1';
+        document.getElementById('prod-cost').value = '2';
+        document.getElementById('prod-price').value = '9';
+        document.getElementById('form-add-product').requestSubmit();
+        true`);
+    await esperar(300);
+    await check('XSS escapado en inventario', `
+        (() => {
+            const celdas = [...document.querySelectorAll('#inventory-table-body td.cell-strong')];
+            const conTextoMalicioso = celdas.some(td => td.textContent.includes('<img src=x'));
+            const conImgReal = document.querySelectorAll('#inventory-table-body img').length > 0;
+            return conTextoMalicioso && !conImgReal;
+        })()`);
+
+    // Móvil 375px: la bottom-nav debe estar visible
+    await send('Emulation.setDeviceMetricsOverride', { width: 375, height: 700, deviceScaleFactor: 2, mobile: true }, sessionId);
+    await esperar(300);
+    await check('bottom-nav visible en móvil', `
+        (() => {
+            const nav = document.querySelector('.sidebar__nav');
+            const r = nav.getBoundingClientRect();
+            return r.bottom > 0 && r.bottom <= 700 && r.top > 500;
+        })()`);
+
+    // --- Responsive: grids auto-fit + topbar + ultrawide --------------------
+    await evaluar(`document.getElementById('nav-pos').click()`);
+    await esperar(300);
+    await check('catalog-grid 1 columna a 375px', `
+        (() => {
+            const c = [...document.querySelectorAll('.catalog-card')];
+            if (c.length < 2) return false;
+            return c[1].getBoundingClientRect().top > c[0].getBoundingClientRect().top;
+        })()`);
+
+    await evaluar(`document.getElementById('nav-dashboard').click()`);
+    await esperar(300);
+    await check('metrics-grid 1 columna a 375px', `
+        (() => {
+            const c = [...document.querySelectorAll('.metrics-grid .metric-card')];
+            return c.length >= 4 && c[1].getBoundingClientRect().top > c[0].getBoundingClientRect().top;
+        })()`);
+    await check('topbar sin desborde a 375px', `
+        (() => {
+            const t = document.querySelector('.topbar');
+            return t.scrollWidth <= t.clientWidth + 1;
+        })()`);
+
+    // Tablet portrait: aquí los badges de tasa/caja y la fecha ya son visibles
+    await send('Emulation.setDeviceMetricsOverride', { width: 700, height: 900, deviceScaleFactor: 1, mobile: false }, sessionId);
+    await esperar(300);
+    await check('topbar sin desborde a 700px', `
+        (() => {
+            const t = document.querySelector('.topbar');
+            return t.scrollWidth <= t.clientWidth + 1;
+        })()`);
+
+    // Bandas intermedias: 768–1023 (etiquetas ocultas) y 1024–1279 (compacto)
+    for (const ancho of [900, 1100]) {
+        await send('Emulation.setDeviceMetricsOverride', { width: ancho, height: 900, deviceScaleFactor: 1, mobile: false }, sessionId);
+        await esperar(300);
+        await check(`topbar sin desborde a ${ancho}px`, `
+            (() => {
+                const t = document.querySelector('.topbar');
+                return t.scrollWidth <= t.clientWidth + 1;
+            })()`);
+    }
+
+    // El umbral del bottom-nav es 1024: barra inferior en 900px, sidebar en 1100px
+    await send('Emulation.setDeviceMetricsOverride', { width: 900, height: 900, deviceScaleFactor: 1, mobile: false }, sessionId);
+    await esperar(300);
+    await check('bottom-nav visible a 900px (lateral oculto)', `
+        (() => {
+            const s = document.querySelector('.sidebar').getBoundingClientRect();
+            return s.top > 700 && s.bottom <= 900;
+        })()`);
+    await send('Emulation.setDeviceMetricsOverride', { width: 1100, height: 900, deviceScaleFactor: 1, mobile: false }, sessionId);
+    await esperar(300);
+    await check('sidebar lateral visible a 1100px', `
+        (() => {
+            const s = document.querySelector('.sidebar').getBoundingClientRect();
+            return s.left === 0 && s.top === 0 && s.height >= 800;
+        })()`);
+
+    // Ultrawide: el contenido se limita a ~1440px y los KPIs vuelven a 4 col
+    await send('Emulation.setDeviceMetricsOverride', { width: 1600, height: 900, deviceScaleFactor: 1, mobile: false }, sessionId);
+    await esperar(400);
+    await check('view con tope ≤1440px a 1600px de ancho', `
+        document.querySelector('.view:not(.is-hidden)').getBoundingClientRect().width <= 1441`);
+    await check('metrics-grid en fila a 1600px (auto-fit)', `
+        (() => {
+            const c = [...document.querySelectorAll('.metrics-grid .metric-card')];
+            return c.length >= 4 && Math.abs(c[3].getBoundingClientRect().top - c[0].getBoundingClientRect().top) < 2;
+        })()`);
+
+    console.log('\n--- CHECKS ---');
+    for (const [estado, nombre, valor] of checks) console.log(`${estado}  ${nombre} → ${valor}`);
+
+    console.log('\n--- ERRORES DE CONSOLA/RED ---');
+    if (errores.length === 0) console.log('(ninguno)');
+    else errores.forEach(e => console.log(e));
+
+    const fallos = checks.filter(c => c[0] === 'FALLO');
+    console.log(`\nresultado: ${checks.length - fallos.length}/${checks.length} checks, ${errores.length} errores`);
+    console.log(fallos.length === 0 && errores.length === 0 ? 'SMOKE OK' : 'SMOKE CON FALLOS');
+
+    ws.close();
+    chr.proc.kill();
+    srv.proc.kill();
+    process.exit(fallos.length === 0 && errores.length === 0 ? 0 : 1);
+}
+
+main().catch(e => { console.error('ERROR:', e); process.exit(1); });

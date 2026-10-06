@@ -1,0 +1,62 @@
+/* ==========================================================================
+   VIEWS — Gestión de usuarios
+   Separada de css/views.css (parte del plan de escalabilidad CSS).
+   ========================================================================== */
+
+/* --- Gestión de usuarios ------------------------------------------------------------------------ */
+
+.modal__panel--wide {
+    max-width: 36rem;
+}
+
+.users-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    max-height: 13rem;
+    overflow-y: auto;
+    padding-right: var(--space-2);
+}
+
+.user-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-6);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--space-5) var(--space-6);
+}
+
+.user-row--off {
+    opacity: 0.55;
+}
+
+.user-row__name {
+    font-size: var(--fs-base);
+    font-weight: 600;
+    color: var(--text-strong);
+}
+
+.user-row__meta {
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+}
+
+.check {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    font-size: var(--fs-md);
+    color: var(--text-muted);
+    cursor: pointer;
+    align-self: end;
+    padding-bottom: var(--space-5);
+}
+
+.check input {
+    accent-color: var(--brand-400);
+    width: 1rem;
+    height: 1rem;
+}

@@ -1,0 +1,62 @@
+/* ==========================================================================
+   VIEWS — Login
+   Separada de css/views.css (parte del plan de escalabilidad CSS).
+   ========================================================================== */
+
+/* --- Login --------------------------------------------------------------------------------------- */
+
+.login-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-12);
+    background:
+        radial-gradient(1100px 550px at 85% -10%, var(--brand-20), transparent 60%),
+        var(--bg);
+}
+
+.login-card {
+    width: 100%;
+    max-width: 24rem;
+    background: var(--card);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-brand);
+    padding: var(--space-16);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+}
+
+.login-card__brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-6);
+    margin-bottom: var(--space-4);
+}
+
+.login-card__error {
+    min-height: 1.125rem;
+    font-size: var(--fs-md);
+    font-weight: 600;
+    color: var(--danger);
+}
+
+.login-card__error:empty {
+    min-height: 0;
+}
+
+.login-card__hint {
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.btn--block {
+    width: 100%;
+}
+

@@ -1,0 +1,462 @@
+/* ==========================================================================
+   LAYOUT — esqueleto de la app: sidebar, header pegajoso, main scrolleable
+   y la adaptación a móvil (el bug #13 del original: con h-screen y un
+   sidebar a ancho completo, el nav empujaba el contenido fuera de pantalla).
+   En <768px la sidebar desaparece como columna y su nav pasa a barra
+   inferior fija — CSS puro, sin estado en JS.
+   ========================================================================== */
+
+body {
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: row;
+}
+
+/* Sin sesión válida solo se ve la pantalla de login. La clase viene puesta
+ * en el HTML: la app no se pinta ni un instante mientras carga el módulo. */
+body.is-logged-out .sidebar,
+body.is-logged-out .main,
+body.is-logged-out .modal,
+body.is-logged-out .toast-stack {
+    display: none !important;
+}
+
+/* --- Sidebar ------------------------------------------------------------- */
+
+.sidebar {
+    width: var(--sidebar-w);
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    z-index: 20;
+    transition: all 0.3s;
+}
+
+.sidebar__brand {
+    padding: var(--space-10);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
+}
+
+.brand__icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: var(--radius);
+    background: linear-gradient(to top right, var(--brand-600), var(--brand-400));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 700;
+    font-size: var(--fs-3xl);
+    box-shadow: var(--shadow-brand);
+}
+
+.brand__name {
+    font-size: var(--fs-2xl);
+    font-weight: 700;
+    color: var(--text-strong);
+    line-height: 1.2;
+}
+
+.brand__name span {
+    color: var(--brand-400);
+}
+
+.brand__tagline {
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+}
+
+.sidebar__nav {
+    padding: var(--space-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.sidebar__branch {
+    margin-top: auto;
+    padding: var(--space-8);
+    border-top: 1px solid var(--border);
+}
+
+.branch-card {
+    background: var(--card);
+    padding: var(--space-6);
+    border-radius: var(--radius);
+    border: 1px solid var(--border-strong);
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
+}
+
+.branch-card__icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    background: var(--success-10);
+    color: var(--success);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--fs-sm);
+    flex-shrink: 0;
+}
+
+.branch-card__label {
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+}
+
+.branch-card__name {
+    font-size: var(--fs-base);
+    font-weight: 600;
+    color: var(--text-strong);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* --- Main + header -------------------------------------------------------- */
+
+.main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    background: var(--bg);
+    position: relative;
+    min-width: 0;
+}
+
+.topbar {
+    height: var(--header-h);
+    border-bottom: 1px solid var(--border);
+    background: var(--topbar-bg);
+    backdrop-filter: blur(8px);
+    padding: 0 var(--space-12);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    flex-shrink: 0;
+}
+
+.topbar__title {
+    font-size: var(--fs-2xl);
+    font-weight: 700;
+    color: var(--text-strong);
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    /* el título cede espacio en vez de desbordar la barra */
+    min-width: 0;
+}
+
+.topbar__title i {
+    color: var(--brand-400);
+}
+
+.topbar__right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+    /* los controles nunca se encogen: el título absorbe la pérdida */
+    flex-shrink: 0;
+}
+
+/* Etiquetas de los botones del topbar: solo icono hasta xl (1280) y
+   con etiqueta desde xl. Evita el desborde en 768–1279. */
+.topbar__right .btn span {
+    display: none;
+}
+
+@media (min-width: 1280px) {
+    .topbar__right .btn span {
+        display: inline;
+    }
+}
+
+.topbar__date {
+    text-align: right;
+    display: none;
+}
+
+/* Fecha y nombre solo en pantallas grandes: en tablets (768–1279) la barra
+   no da abasto con badges + controles y desbordaba. */
+@media (min-width: 1280px) {
+    .topbar__date {
+        display: block;
+    }
+}
+
+.topbar__date p {
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+}
+
+.topbar__status {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--text-dim);
+}
+
+.topbar__avatar {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: var(--radius);
+    background: var(--brand-20);
+    border: 1px solid var(--brand-30);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--brand-400);
+    font-weight: 700;
+    font-size: var(--fs-base);
+}
+
+/* Chip de sesión: avatar con iniciales + nombre (el nombre se oculta en
+ * pantallas angostas; el title del chip lleva el rol). */
+.topbar__user {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+}
+
+.topbar__user-name {
+    display: none;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--text-muted);
+    max-width: 10rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (min-width: 1280px) {
+    .topbar__user-name {
+        display: block;
+    }
+}
+
+/* --- Moneda de visualización + tasa BCV ------------------------------------ */
+
+.currency-toggle {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+/* Botón que cicla el tema: píldora suelta, mismo lenguaje visual que el
+   toggle de moneda pero como control individual. */
+.theme-toggle {
+    padding: var(--space-3) var(--space-5);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.theme-toggle:hover {
+    color: var(--text-strong);
+}
+
+.currency-btn {
+    padding: var(--space-3) var(--space-5);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--text-muted);
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.currency-btn:hover {
+    color: var(--text-strong);
+}
+
+.currency-btn.is-active {
+    background: var(--brand-600);
+    color: #fff;
+}
+
+.rate-badge {
+    display: none;
+    padding: var(--space-3) var(--space-5);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--text-dim);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    white-space: nowrap;
+    /* la tasa es larga: se trunca con "…" y el texto completo va en el tooltip */
+    max-width: 14rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Compacto hasta xl: sobra el texto "· fecha · sin conexión" y se corta. */
+@media (max-width: 1279px) {
+    .rate-badge {
+        max-width: 9.5rem;
+    }
+}
+
+.rate-badge:hover {
+    color: var(--text-strong);
+    border-color: var(--brand-400);
+}
+
+@media (min-width: 640px) {
+    .rate-badge {
+        display: block;
+    }
+}
+
+/* --- Estado de la caja (topbar) ----------------------------------------------------- */
+
+.cash-badge {
+    display: none;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-5);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--text-dim);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    white-space: nowrap;
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.cash-badge:hover {
+    color: var(--text-strong);
+    border-color: var(--brand-400);
+}
+
+.cash-badge__dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--text-dim);
+    flex-shrink: 0;
+}
+
+.cash-badge.is-open {
+    color: var(--success);
+    border-color: var(--success);
+}
+
+.cash-badge.is-open .cash-badge__dot {
+    background: var(--success);
+}
+
+@media (min-width: 640px) {
+    .cash-badge {
+        display: inline-flex;
+    }
+}
+
+/* --- Vistas ---------------------------------------------------------------- */
+
+.view {
+    padding: var(--space-12);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+    /* Ultrawide: el contenido se centrado con tope ~1440px (90rem);
+       la topbar y la nav siguen a sangre completa. */
+    width: 100%;
+    max-width: 90rem;
+    margin-inline: auto;
+}
+
+/* --- Nav inferior fija: tablets portrait y móviles (<1024) -----------------
+   En 768–1023 el sidebar de 16rem dejaría 512px para el contenido y la
+   topbar desbordaría; la nav en barra inferior da ancho completo. El
+   sidebar lateral vuelve en lg (≥1024). */
+
+@media (max-width: 1023px) {
+    .sidebar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        top: auto;
+        width: auto;
+        flex-direction: row;
+        border-right: none;
+        border-top: 1px solid var(--border);
+        z-index: 30;
+        /* notch / home indicator de iPhone */
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    .sidebar__brand,
+    .sidebar__branch {
+        display: none;
+    }
+
+    .sidebar__nav {
+        flex-direction: row;
+        width: 100%;
+        padding: var(--space-3);
+        gap: var(--space-2);
+        overflow-x: auto;
+    }
+
+    .nav-btn {
+        flex: 1;
+        flex-direction: column;
+        gap: var(--space-1);
+        padding: var(--space-4) var(--space-2);
+        font-size: var(--fs-2xs);
+        min-width: 3.75rem;
+    }
+
+    .nav-btn i {
+        font-size: var(--fs-xl);
+    }
+
+    .topbar {
+        padding: 0 var(--space-8);
+    }
+
+/* En móvil el título se trunca con "…" en lugar de desbordar la barra. */
+    .topbar__title {
+        display: block;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    .topbar__right {
+        gap: var(--space-4);
+    }
+
+    .view {
+        padding: var(--space-8);
+        /* deja pasar la barra inferior fija + notch (safe-area) */
+        padding-bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom, 0px) + var(--space-8));
+    }
+}

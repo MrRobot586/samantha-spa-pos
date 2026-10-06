@@ -1,0 +1,382 @@
+/* ==========================================================================
+   VIEWS — POS, ticket y método de pago
+   Separada de css/views.css (parte del plan de escalabilidad CSS).
+   ========================================================================== */
+
+/* --- Caja / POS --------------------------------------------------------------------- */
+
+.view--pos {
+    height: calc(100vh - var(--header-h));
+    padding: var(--space-12);
+    display: block;
+    overflow: hidden;
+}
+
+.pos-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: var(--space-12);
+    height: 100%;
+}
+
+.pos-catalog {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    min-height: 0;
+    overflow: hidden;
+}
+
+.pos-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+    flex-shrink: 0;
+}
+
+@media (min-width: 640px) {
+    .pos-toolbar {
+        flex-direction: row;
+        align-items: center;
+    }
+
+    .pos-toolbar .input-group {
+        flex: 1;
+    }
+}
+
+.pos-toolbar__filters {
+    display: flex;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+}
+
+.catalog-grid {
+    display: grid;
+    /* auto-fit: 1 col en móvil, 2 en tablet, 3+ en desktop sin media queries */
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+    gap: var(--space-6);
+    overflow-y: auto;
+    padding-right: var(--space-2);
+    padding-bottom: var(--space-4);
+    align-content: start;
+}
+
+.catalog-card {
+    height: 8rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    text-align: left;
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    padding: var(--space-8);
+    transition: border-color 0.2s;
+}
+
+.catalog-card:hover {
+    border-color: var(--brand-500);
+}
+
+.catalog-card:hover .catalog-card__name {
+    color: var(--brand-300);
+}
+
+.catalog-card--retail:hover {
+    border-color: var(--success-strong);
+}
+
+.catalog-card--retail:hover .catalog-card__name {
+    color: var(--success-text);
+}
+
+.catalog-card__name {
+    font-size: var(--fs-base);
+    font-weight: 700;
+    color: var(--text-strong);
+    margin-top: var(--space-2);
+    transition: color 0.2s;
+}
+
+.catalog-card__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.catalog-card__stock {
+    font-size: var(--fs-2xs);
+    color: var(--text-muted);
+}
+
+.catalog-card__stock--low {
+    color: var(--danger);
+    font-weight: 700;
+}
+
+.catalog-card__bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: var(--space-4);
+}
+
+.catalog-card__meta {
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+}
+
+.catalog-card__price {
+    font-weight: 700;
+    color: var(--success);
+}
+
+/* --- Ticket --------------------------------------------------------------------------- */
+
+.ticket {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-xl);
+    min-height: 0;
+}
+
+.ticket__head {
+    padding: var(--space-8);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+    flex-shrink: 0;
+}
+
+.ticket__head-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ticket__title {
+    font-size: var(--fs-lg);
+    font-weight: 700;
+    color: var(--text-strong);
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+}
+
+.ticket__title i {
+    color: var(--brand-400);
+}
+
+.ticket__items {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-8);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+    min-height: 0;
+}
+
+.ticket-item {
+    background: var(--surface);
+    padding: var(--space-6);
+    border-radius: var(--radius);
+    border: 1px solid var(--border-strong);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-4);
+}
+
+.ticket-item__info {
+    overflow: hidden;
+}
+
+.ticket-item__name {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--text-strong);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ticket-item__unit {
+    font-size: var(--fs-2xs);
+    color: var(--brand-400);
+}
+
+.ticket-item__qty {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    flex-shrink: 0;
+}
+
+.qty-btn {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: var(--radius-sm);
+    background: var(--border);
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s, color 0.15s;
+}
+
+.qty-btn:hover {
+    background: var(--brand-600);
+    color: #fff;
+}
+
+.qty-btn--minus:hover {
+    background: var(--danger-strong);
+}
+
+.qty-btn--plus:hover {
+    background: var(--success-strong);
+}
+
+.ticket-item__qty span {
+    font-size: var(--fs-sm);
+    font-weight: 700;
+    color: var(--text-strong);
+    width: 1rem;
+    text-align: center;
+}
+
+.ticket__footer {
+    padding: var(--space-8);
+    border-top: 1px solid var(--border);
+    background: var(--surface-2);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    flex-shrink: 0;
+}
+
+.ticket__row {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+}
+
+.ticket__row--commission {
+    color: var(--warning-text);
+    font-weight: 500;
+}
+
+.ticket__row--total {
+    border-top: 1px solid var(--border);
+    padding-top: var(--space-4);
+    font-size: var(--fs-2xl);
+    font-weight: 700;
+    color: var(--text-strong);
+}
+
+.ticket__row--total span:last-child {
+    color: var(--success);
+}
+
+.ticket__footer .btn--success {
+    margin-top: var(--space-6);
+}
+
+/* --- Método de pago y cambio -------------------------------------------------------- */
+
+.ticket__payment {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    border-top: 1px solid var(--border);
+    padding-top: var(--space-6);
+}
+
+.payment-methods {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-3);
+}
+
+.payment-btn {
+    padding: var(--space-4) var(--space-2);
+    border-radius: var(--radius);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--text-muted);
+    border: 1px solid var(--border-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.payment-btn:hover {
+    color: var(--text-strong);
+}
+
+.payment-btn.is-active {
+    background: var(--brand-600);
+    color: #fff;
+    border-color: var(--brand-600);
+}
+
+.ticket__received {
+    width: 7rem;
+    text-align: right;
+    padding: var(--space-2) var(--space-4);
+    font-size: var(--fs-md);
+}
+
+.ticket__row--change {
+    font-weight: 600;
+}
+
+.ticket__row--change span:last-child {
+    color: var(--success);
+}
+
+
+/* --- POS en móvil ------------------------------------------------------------------------------- */
+
+@media (max-width: 1023px) {
+    .view--pos {
+        height: auto;
+        overflow: visible;
+        display: flex;
+        padding-bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom, 0px) + var(--space-8));
+    }
+
+    .pos-layout {
+        grid-template-columns: 1fr;
+        height: auto;
+    }
+
+    .pos-catalog {
+        overflow: visible;
+    }
+
+    .catalog-grid {
+        overflow-y: visible;
+        max-height: none;
+    }
+
+    .ticket {
+        max-height: 32rem;
+    }
+}
+

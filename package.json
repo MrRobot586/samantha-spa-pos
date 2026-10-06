@@ -1,0 +1,12 @@
+{
+    "name": "samantha-spa-pos",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Punto de venta e inventario para spa y salón. HTML, CSS y JavaScript, sin dependencias.",
+    "type": "module",
+    "scripts": {
+        "test": "node --test tests/",
+        "smoke": "node smoke.mjs",
+        "serve": "./servir.sh"
+    }
+}

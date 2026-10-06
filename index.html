@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Samantha Spa — POS & Inventario</title>
+
+    <!-- Sin favicon real: este enlace evita la petición /favicon.ico → 404. -->
+    <link rel="icon" href="data:,">
+
+    <!-- Google Fonts: Plus Jakarta Sans.
+         Sin SRI a propósito: fonts.googleapis.com sirve un CSS distinto según
+         el User-Agent (woff2, woff, ttf...), así que el hash cambia por navegador. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- FontAwesome con versión exacta e `integrity`: un CDN comprometido no
+         podrá ejecutar JS con acceso al localStorage de la caja. -->
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+          integrity="sha384-iw3OoTErCYJJB9mCa8LNS2hbsQ7M3C0EpIsO/H5+EGAkPGc6rk+V8i04oW/K5xq0"
+          crossorigin="anonymous">
+
+    <!-- TEMA PRE-PAINT: se ejecuta antes de pintar para evitar el flash de
+         tema incorrecto. Lee settings.theme del estado persistido; 'auto'
+         (o ausente) consulta el sistema. Si algo falla, el tema oscuro del
+         :root es el respaldo. Debe ir ANTES de los <link> de CSS. -->
+    <script>
+        (function () {
+            try {
+                var s = JSON.parse(localStorage.getItem('samantha-spa-pos:v2') || 'null');
+                var t = s && s.settings && s.settings.theme;
+                var efectivo = (t === 'dark' || t === 'light') ? t
+                    : (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+                document.documentElement.setAttribute('data-theme', efectivo);
+            } catch (e) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+    </script>
+
+    <link rel="stylesheet" href="css/tokens.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <!-- Vistas: un <link> por archivo (paralelos; sin @import ni build) -->
+    <link rel="stylesheet" href="css/views/dashboard.css">
+    <link rel="stylesheet" href="css/views/pos.css">
+    <link rel="stylesheet" href="css/views/cash.css">
+    <link rel="stylesheet" href="css/views/services.css">
+    <link rel="stylesheet" href="css/views/inventory.css">
+    <link rel="stylesheet" href="css/views/commissions.css">
+    <link rel="stylesheet" href="css/views/login.css">
+    <link rel="stylesheet" href="css/views/users.css">
+</head>
+<body class="is-logged-out">
+
+    <!-- LOGIN: hasta que no hay sesión, el body.is-logged-out oculta la app
+         desde CSS (no se pinta nada de la caja tras esta pantalla). -->
+    <div id="login-screen" class="login-screen" role="dialog" aria-modal="true" aria-labelledby="login-title">
+        <form id="form-login" class="login-card">
+            <div class="login-card__brand">
+                <div class="brand__icon"><i class="fa-solid fa-scissors"></i></div>
+                <div>
+                    <h1 id="login-title" class="brand__name">SAMANTHA<span>POS</span></h1>
+                    <p class="brand__tagline">Punto de Venta & Inventario</p>
+                </div>
+            </div>
+            <div class="field">
+                <label for="login-user" class="field__label field__label--sm">Usuario</label>
+                <select id="login-user" required class="select">
+                    <!-- Lo llena el JS -->
+                </select>
+            </div>
+            <div class="field">
+                <label for="login-pin" class="field__label field__label--sm">PIN</label>
+                <input type="password" id="login-pin" inputmode="numeric" autocomplete="current-password"
+                       maxlength="6" placeholder="••••" required class="input">
+            </div>
+            <p id="login-error" class="login-card__error" role="alert"></p>
+            <button type="submit" class="btn btn--brand btn--block">
+                <i class="fa-solid fa-right-to-bracket"></i> Entrar
+            </button>
+            <p class="login-card__hint">¿Olvidaste tu PIN? Un administrador puede restablecerlo desde Usuarios.</p>
+        </form>
+    </div>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="sidebar__brand">
+            <div class="brand">
+                <div class="brand__icon"><i class="fa-solid fa-scissors"></i></div>
+                <div>
+                    <h1 class="brand__name">SAMANTHA<span>POS</span></h1>
+                    <p class="brand__tagline">Punto de Venta & Inventario</p>
+                </div>
+            </div>
+        </div>
+
+        <nav class="sidebar__nav" aria-label="Navegación principal">
+            <button type="button" data-action="switch-tab" data-tab="dashboard" id="nav-dashboard" class="nav-btn is-active">
+                <i class="fa-solid fa-chart-pie"></i>
+                <span>Dashboard</span>
+            </button>
+            <button type="button" data-action="switch-tab" data-tab="pos" id="nav-pos" class="nav-btn">
+                <i class="fa-solid fa-cash-register"></i>
+                <span>Caja / POS</span>
+            </button>
+            <button type="button" data-action="switch-tab" data-tab="cash" id="nav-cash" class="nav-btn">
+                <i class="fa-solid fa-vault"></i>
+                <span>Caja & Cortes</span>
+            </button>
+            <button type="button" data-action="switch-tab" data-tab="services" id="nav-services" class="nav-btn">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                <span>Servicios & Recetas</span>
+            </button>
+            <button type="button" data-action="switch-tab" data-tab="inventory" id="nav-inventory" class="nav-btn">
+                <i class="fa-solid fa-boxes-stacked"></i>
+                <span>Inventario Híbrido</span>
+            </button>
+            <button type="button" data-action="switch-tab" data-tab="commissions" id="nav-commissions" class="nav-btn">
+                <i class="fa-solid fa-user-tag"></i>
+                <span>Comisiones</span>
+            </button>
+        </nav>
+
+        <div class="sidebar__branch">
+            <div class="branch-card">
+                <div class="branch-card__icon"><i class="fa-solid fa-store"></i></div>
+                <div>
+                    <p class="branch-card__label">Sucursal Principal</p>
+                    <p class="branch-card__name">Samantha Spa Centro</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <main class="main">
+        <header class="topbar">
+            <h2 id="page-title" class="topbar__title">
+                <i class="fa-solid fa-chart-pie"></i> Dashboard General
+            </h2>
+            <div class="topbar__right">
+                <div class="currency-toggle" role="group" aria-label="Moneda de visualización">
+                    <button type="button" data-action="set-currency" data-currency="USD" class="currency-btn is-active">USD</button>
+                    <button type="button" data-action="set-currency" data-currency="VES" class="currency-btn">Bs</button>
+                    <button type="button" data-action="set-currency" data-currency="EUR" class="currency-btn">€</button>
+                </div>
+                <button type="button" id="theme-toggle" data-action="set-theme"
+                        class="theme-toggle" data-theme="auto" title="Tema">
+                    <i class="fa-solid fa-desktop"></i>
+                </button>
+                <button type="button" id="rate-badge" data-action="refresh-rates" class="rate-badge">
+                    Cargando tasa…
+                </button>
+                <button type="button" id="cash-badge" data-action="switch-tab" data-tab="cash"
+                        class="cash-badge is-hidden" title="Estado de la caja">
+                    <span class="cash-badge__dot"></span>
+                    <span id="cash-badge-text">Caja cerrada</span>
+                </button>
+                <button type="button" id="btn-users" data-action="open-modal" data-target="modal-users"
+                        class="btn btn--ghost-brand is-hidden">
+                    <i class="fa-solid fa-users-gear"></i> <span>Usuarios</span>
+                </button>
+                <div class="topbar__date">
+                    <p id="current-date">Cargando fecha...</p>
+                    <p class="topbar__status">Turno en curso</p>
+                </div>
+                <div class="topbar__user" id="user-chip" title="">
+                    <div class="topbar__avatar" id="user-initials">—</div>
+                    <p class="topbar__user-name" id="user-chip-name">—</p>
+                </div>
+                <button type="button" data-action="logout" class="btn btn--neutral">
+                    <i class="fa-solid fa-right-from-bracket"></i> <span>Salir</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- TAB 1: DASHBOARD -->
+        <section id="tab-dashboard" class="view">
+            <div class="metrics-grid">
+                <div class="card metric-card">
+                    <div class="metric-card__row">
+                        <div>
+                            <p class="metric-card__label">Ventas del Día</p>
+                            <h3 id="dash-today-sales" class="metric-card__value">$0.00</h3>
+                        </div>
+                        <div class="metric-card__icon metric-card__icon--success">
+                            <i class="fa-solid fa-dollar-sign"></i>
+                        </div>
+                    </div>
+                    <span class="metric-card__note">Total con IVA de hoy</span>
+                </div>
+
+                <div class="card metric-card">
+                    <div class="metric-card__row">
+                        <div>
+                            <p class="metric-card__label">Servicios Cobrados</p>
+                            <h3 id="dash-services-count" class="metric-card__value">0</h3>
+                        </div>
+                        <div class="metric-card__icon metric-card__icon--brand">
+                            <i class="fa-solid fa-cut"></i>
+                        </div>
+                    </div>
+                    <span class="metric-card__note">Servicios realizados hoy</span>
+                </div>
+
+                <div class="card metric-card">
+                    <div class="metric-card__row">
+                        <div>
+                            <p class="metric-card__label">Comisiones Acumuladas</p>
+                            <h3 id="dash-commissions" class="metric-card__value metric-card__value--warning">$0.00</h3>
+                        </div>
+                        <div class="metric-card__icon metric-card__icon--warning">
+                            <i class="fa-solid fa-coins"></i>
+                        </div>
+                    </div>
+                    <span class="metric-card__note">Por pagar a estilistas</span>
+                </div>
+
+                <div id="dash-stock-card" class="card metric-card">
+                    <div class="metric-card__row">
+                        <div>
+                            <p class="metric-card__label">Alertas de Stock</p>
+                            <h3 id="dash-low-stock" class="metric-card__value metric-card__value--danger">0</h3>
+                        </div>
+                        <div class="metric-card__icon metric-card__icon--danger">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                    </div>
+                    <span class="metric-card__note metric-card__note--danger">Insumos bajo mínimo</span>
+                </div>
+            </div>
+
+            <div class="dash-grid">
+                <div class="card">
+                    <div class="card-head">
+                        <h3><i class="fa-solid fa-clock-rotate-left icon--brand"></i> Últimas Transacciones del Día</h3>
+                        <button type="button" data-action="switch-tab" data-tab="pos" class="btn btn--ghost-brand">
+                            + Nueva Venta
+                        </button>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="table table--compact">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Cliente / Estilista</th>
+                                    <th>Items</th>
+                                    <th>Total</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dash-transactions-list">
+                                <tr>
+                                    <td colspan="5" class="empty-cell">No hay ventas registradas hoy.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="dash-alerts-card" class="card">
+                    <div class="card-head">
+                        <h3><i class="fa-solid fa-box-open icon--danger"></i> Alertas de Reabastecimiento</h3>
+                    </div>
+                    <div id="dash-low-stock-list" class="low-stock-list">
+                        <!-- Lo llena el JS -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: CAJA / POS -->
+        <section id="tab-pos" class="view view--pos is-hidden">
+            <div class="pos-layout">
+                <!-- Panel izquierdo: catálogo -->
+                <div class="pos-catalog">
+                    <div class="pos-toolbar">
+                        <div class="input-group">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="pos-search" data-action="pos-search"
+                                   placeholder="Buscar servicio o producto..." class="input" aria-label="Buscar servicio o producto">
+                        </div>
+                        <div class="pos-toolbar__filters" role="group" aria-label="Filtrar catálogo">
+                            <button type="button" data-action="filter-cat" data-cat="all" class="filter-btn is-active">Todos</button>
+                            <button type="button" data-action="filter-cat" data-cat="service" class="filter-btn">Servicios</button>
+                            <button type="button" data-action="filter-cat" data-cat="retail" class="filter-btn">Retail / Productos</button>
+                        </div>
+                    </div>
+
+                    <div id="pos-catalog-grid" class="catalog-grid">
+                        <!-- Lo llena el JS -->
+                    </div>
+                </div>
+
+                <!-- Panel derecho: ticket -->
+                <aside class="ticket" aria-label="Orden actual">
+                    <div class="ticket__head">
+                        <div class="ticket__head-row">
+                            <h3 class="ticket__title"><i class="fa-solid fa-receipt"></i> Orden Actual</h3>
+                            <button type="button" data-action="clear-ticket" class="btn btn--link-danger">Vaciar</button>
+                        </div>
+                        <div class="field">
+                            <label for="pos-staff-select" class="field__label">Estilista Principal</label>
+                            <select id="pos-staff-select" data-action="staff-change" class="select select--xs">
+                                <!-- Lo llena el JS -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="ticket-items-container" class="ticket__items">
+                        <div class="empty-state">
+                            <i class="fa-solid fa-basket-shopping"></i>
+                            <p>El ticket está vacío.</p>
+                            <p class="empty-state__hint">Haz clic en los ítems del catálogo para agregarlos.</p>
+                        </div>
+                    </div>
+
+                    <div class="ticket__footer">
+                        <div class="ticket__row">
+                            <span>Subtotal</span>
+                            <span id="ticket-subtotal">$0.00</span>
+                        </div>
+                        <div class="ticket__row">
+                            <span>IVA (16%)</span>
+                            <span id="ticket-tax">$0.00</span>
+                        </div>
+                        <div class="ticket__row ticket__row--commission">
+                            <span>Comisión Estilista Est.</span>
+                            <span id="ticket-commission">$0.00</span>
+                        </div>
+                        <div class="ticket__row ticket__row--total">
+                            <span>Total a Cobrar</span>
+                            <span id="ticket-total">$0.00</span>
+                        </div>
+
+                        <div class="ticket__payment">
+                            <span class="field__label">Método de Pago</span>
+                            <div class="payment-methods" role="group" aria-label="Método de pago">
+                                <button type="button" data-action="set-payment-method" data-method="cash"
+                                        class="payment-btn is-active">
+                                    <i class="fa-solid fa-money-bill-wave"></i> Efectivo
+                                </button>
+                                <button type="button" data-action="set-payment-method" data-method="card"
+                                        class="payment-btn">
+                                    <i class="fa-solid fa-credit-card"></i> Tarjeta
+                                </button>
+                                <button type="button" data-action="set-payment-method" data-method="other"
+                                        class="payment-btn">
+                                    <i class="fa-solid fa-mobile-screen"></i> Otro
+                                </button>
+                            </div>
+                            <div class="ticket__row" id="ticket-received-row">
+                                <label for="ticket-received">Recibido</label>
+                                <input type="number" id="ticket-received" min="0" step="0.01"
+                                       inputmode="decimal" placeholder="0.00" data-action="ticket-received"
+                                       class="input ticket__received" aria-label="Monto recibido">
+                            </div>
+                            <div class="ticket__row ticket__row--change" id="ticket-change-row">
+                                <span>Cambio</span>
+                                <span id="ticket-change">$0.00</span>
+                            </div>
+                        </div>
+
+                        <button type="button" data-action="pay" class="btn btn--success">
+                            <i class="fa-solid fa-credit-card"></i> Procesar Cobro
+                        </button>
+                    </div>
+                </aside>
+            </div>
+        </section>
+
+        <!-- TAB 3: SERVICIOS Y RECETAS -->
+        <section id="tab-services" class="view is-hidden">
+            <div class="section-head">
+                <div>
+                    <h3 class="section-head__title">Catálogo de Servicios & Recetas Técnicas</h3>
+                    <p class="section-head__sub">Define los insumos profesionales (BOM) consumidos en cada aplicación.</p>
+                </div>
+                <button type="button" data-action="open-modal" data-target="modal-service" class="btn btn--brand">
+                    <i class="fa-solid fa-plus"></i> Nuevo Servicio
+                </button>
+            </div>
+
+            <div id="services-cards-grid" class="cards-grid">
+                <!-- Lo llena el JS -->
+            </div>
+        </section>
+
+        <!-- TAB 4: INVENTARIO HÍBRIDO -->
+        <section id="tab-inventory" class="view is-hidden">
+            <div class="section-head">
+                <div>
+                    <h3 class="section-head__title">Gestión de Inventario Híbrido</h3>
+                    <p class="section-head__sub">Diferenciación entre Insumos de Uso Profesional y Productos de Venta Retail.</p>
+                </div>
+                <button type="button" data-action="open-modal" data-target="modal-product" class="btn btn--brand">
+                    <i class="fa-solid fa-plus"></i> Agregar Producto / Insumo
+                </button>
+            </div>
+
+            <div class="card card--flush">
+                <div class="table-wrap">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Producto / Insumo</th>
+                                <th>Tipo</th>
+                                <th>Stock Actual</th>
+                                <th>Unidad</th>
+                                <th>Costo / Precio</th>
+                                <th>Estado</th>
+                                <th class="cell-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventory-table-body">
+                            <!-- Lo llena el JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 5: COMISIONES -->
+        <section id="tab-commissions" class="view is-hidden">
+            <div class="section-head">
+                <div>
+                    <h3 class="section-head__title">Comisiones del Personal</h3>
+                    <p class="section-head__sub">Resumen de ingresos y comisiones devengadas por estilista.</p>
+                </div>
+            </div>
+
+            <div id="commissions-staff-grid" class="cards-grid">
+                <!-- Lo llena el JS -->
+            </div>
+        </section>
+
+        <!-- TAB: CAJA & CORTES (solo admin) -->
+        <section id="tab-cash" class="view is-hidden">
+            <div class="section-head">
+                <div>
+                    <h3 class="section-head__title">Caja & Cortes</h3>
+                    <p class="section-head__sub">Fondo inicial, retiros, ventas por método y corte del día.</p>
+                </div>
+                <div id="cash-actions" class="cash-actions">
+                    <!-- Lo llena el JS -->
+                </div>
+            </div>
+
+            <div id="cash-summary" class="metrics-grid">
+                <!-- Lo llena el JS -->
+            </div>
+
+            <div class="dash-grid">
+                <div class="card">
+                    <div class="card-head">
+                        <h3><i class="fa-solid fa-arrow-right-arrow-left icon--brand"></i> Retiros de la Sesión</h3>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="table table--compact">
+                            <thead>
+                                <tr>
+                                    <th>Monto</th>
+                                    <th>Motivo</th>
+                                    <th>Hora</th>
+                                    <th>Por</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cash-withdrawals-list">
+                                <tr>
+                                    <td colspan="4" class="empty-cell">No hay retiros en esta sesión.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-head">
+                        <h3><i class="fa-solid fa-clock-rotate-left icon--brand"></i> Historial de Cortes</h3>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="table table--compact">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Ventas</th>
+                                    <th>Esperado</th>
+                                    <th>Contado</th>
+                                    <th>Diferencia</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cash-closures-list">
+                                <tr>
+                                    <td colspan="5" class="empty-cell">Todavía no hay cortes registrados.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- MODAL: PRODUCTO / INSUMO -->
+    <div id="modal-product" class="modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="modal-product-title">
+        <div class="modal__panel">
+            <div class="modal__head">
+                <h3 id="modal-product-title" class="modal__title">Nuevo Producto / Insumo</h3>
+                <button type="button" data-action="close-modal" data-target="modal-product" class="modal__close" aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form id="form-add-product" class="modal__form">
+                <div class="field">
+                    <label for="prod-name" class="field__label field__label--sm">Nombre del Producto</label>
+                    <input type="text" id="prod-name" required class="input">
+                </div>
+                <div class="form-grid-2">
+                    <div class="field">
+                        <label for="prod-type" class="field__label field__label--sm">Tipo de Inventario</label>
+                        <select id="prod-type" required class="select">
+                            <option value="retail">Venta Retail</option>
+                            <option value="internal">Uso Interno (BOM)</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="prod-unit" class="field__label field__label--sm">Unidad Medida</label>
+                        <select id="prod-unit" required class="select">
+                            <option value="Unidades">Unidades</option>
+                            <option value="Gramos">Gramos (g)</option>
+                            <option value="Mililitros">Mililitros (ml)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-grid-2">
+                    <div class="field">
+                        <label for="prod-stock" class="field__label field__label--sm">Stock Inicial</label>
+                        <input type="number" id="prod-stock" step="0.1" min="0" required class="input">
+                    </div>
+                    <div class="field">
+                        <label for="prod-min" class="field__label field__label--sm">Stock Mínimo Alerta</label>
+                        <input type="number" id="prod-min" step="0.1" min="0" required class="input">
+                    </div>
+                </div>
+                <div class="form-grid-2">
+                    <div class="field">
+                        <label for="prod-cost" class="field__label field__label--sm">Costo ($)</label>
+                        <input type="number" id="prod-cost" step="0.01" min="0" required class="input">
+                    </div>
+                    <div class="field">
+                        <label for="prod-price" class="field__label field__label--sm">Precio Venta ($)</label>
+                        <input type="number" id="prod-price" step="0.01" min="0" value="0" class="input">
+                    </div>
+                </div>
+                <div class="modal__actions">
+                    <button type="button" data-action="close-modal" data-target="modal-product" class="btn btn--neutral">Cancelar</button>
+                    <button type="submit" class="btn btn--brand">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: SERVICIO -->
+    <div id="modal-service" class="modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="modal-service-title">
+        <div class="modal__panel">
+            <div class="modal__head">
+                <h3 id="modal-service-title" class="modal__title">Nuevo Servicio</h3>
+                <button type="button" data-action="close-modal" data-target="modal-service" class="modal__close" aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form id="form-add-service" class="modal__form">
+                <div class="field">
+                    <label for="serv-name" class="field__label field__label--sm">Nombre del Servicio</label>
+                    <input type="text" id="serv-name" required class="input">
+                </div>
+                <div class="field">
+                    <label for="serv-price" class="field__label field__label--sm">Precio ($)</label>
+                    <input type="number" id="serv-price" step="0.01" min="0" required class="input">
+                </div>
+                <p class="section-head__sub">
+                    La comisión la define la tasa del estilista que atienda la venta.
+                </p>
+                <div class="modal__actions">
+                    <button type="button" data-action="close-modal" data-target="modal-service" class="btn btn--neutral">Cancelar</button>
+                    <button type="submit" class="btn btn--brand">Guardar Servicio</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: REPOSICIÓN DE STOCK (reemplaza al prompt() nativo) -->
+    <div id="modal-restock" class="modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="modal-restock-title">
+        <div class="modal__panel">
+            <div class="modal__head">
+                <h3 id="modal-restock-title" class="modal__title">Reponer Stock</h3>
+                <button type="button" data-action="close-modal" data-target="modal-restock" class="modal__close" aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form id="form-restock" class="modal__form">
+                <div class="field">
+                    <label for="restock-name" class="field__label field__label--sm">Producto</label>
+                    <input type="text" id="restock-name" readonly class="input">
+                </div>
+                <div class="field">
+                    <label for="restock-amount" class="field__label field__label--sm">Cantidad a añadir</label>
+                    <input type="number" id="restock-amount" step="0.1" min="0.1" value="10" required class="input">
+                </div>
+                <div class="modal__actions">
+                    <button type="button" data-action="close-modal" data-target="modal-restock" class="btn btn--neutral">Cancelar</button>
+                    <button type="submit" class="btn btn--brand">Reponer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: USUARIOS & ACCESO (solo admin) -->
+    <div id="modal-users" class="modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="modal-users-title">
+        <div class="modal__panel modal__panel--wide">
+            <div class="modal__head">
+                <h3 id="modal-users-title" class="modal__title"><i class="fa-solid fa-users-gear icon--brand"></i> Usuarios & Acceso</h3>
+                <button type="button" data-action="close-modal" data-target="modal-users" class="modal__close" aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div id="users-list" class="users-list">
+                <!-- Lo llena el JS -->
+            </div>
+
+            <form id="form-user" class="modal__form">
+                <input type="hidden" id="user-id">
+                <div class="form-grid-2">
+                    <div class="field">
+                        <label for="user-name" class="field__label field__label--sm">Nombre</label>
+                        <input type="text" id="user-name" required class="input">
+                    </div>
+                    <div class="field">
+                        <label for="user-username" class="field__label field__label--sm">Username</label>
+                        <input type="text" id="user-username" required autocapitalize="none" autocomplete="off" class="input">
+                    </div>
+                </div>
+                <div class="form-grid-2">
+                    <div class="field">
+                        <label for="user-role" class="field__label field__label--sm">Rol</label>
+                        <select id="user-role" required class="select">
+                            <option value="stylist">Estilista</option>
+                            <option value="admin">Administrador</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="user-pin" class="field__label field__label--sm">PIN</label>
+                        <input type="password" id="user-pin" inputmode="numeric" maxlength="6"
+                               placeholder="4 a 6 dígitos" required class="input">
+                    </div>
+                </div>
+                <div class="form-grid-2">
+                    <div class="field">
+                        <label for="user-staff" class="field__label field__label--sm">Estilista vinculado (atribuye ventas)</label>
+                        <select id="user-staff" class="select">
+                            <!-- Lo llena el JS -->
+                        </select>
+                    </div>
+                    <label class="check" for="user-active">
+                        <input type="checkbox" id="user-active" checked>
+                        Usuario activo
+                    </label>
+                </div>
+                <div class="modal__actions">
+                    <button type="button" data-action="new-user" class="btn btn--neutral">Nuevo / Limpiar</button>
+                    <button type="submit" class="btn btn--brand">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ABRIR CAJA -->
+    <div id="modal-cash-open" class="modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="modal-cash-open-title">
+        <div class="modal__panel">
+            <div class="modal__head">
+                <h3 id="modal-cash-open-title" class="modal__title"><i class="fa-solid fa-vault icon--brand"></i> Abrir Caja</h3>
+                <button type="button" data-action="close-modal" data-target="modal-cash-open" class="modal__close" aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form id="form-cash-open" class="modal__form">
+                <div class="field">
+                    <label for="cash-open-fondo" class="field__label">Fondo inicial</label>
+                    <input type="number" id="cash-open-fondo" min="0" step="0.01" inputmode="decimal"
+                           class="input" placeholder="0.00" required>
+                    <p class="field__hint">Efectivo en caja al empezar, en la moneda activa de visualización.</p>
+                </div>
+                <div class="modal__actions">
+                    <button type="button" data-action="close-modal" data-target="modal-cash-open" class="btn btn--neutral">Cancelar</button>
+                    <button type="submit" class="btn btn--brand">Abrir caja</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: RETIRO DE CAJA -->
+    <div id="modal-cash-withdraw" class="modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="modal-cash-withdraw-title">
+        <div class="modal__panel">
+            <div class="modal__head">
+                <h3 id="modal-cash-withdraw-title" class="modal__title"><i class="fa-solid fa-money-bill-transfer icon--brand"></i> Retiro de Caja</h3>
+                <button type="button" data-action="close-modal" data-target="modal-cash-withdraw" class="modal__close" aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form id="form-cash-withdraw" class="modal__form">
+                <div class="field">
+                    <label for="cash-withdraw-amount" class="field__label">Monto a retirar</label>
+                    <input type="number" id="cash-withdraw-amount" min="0.01" step="0.01" inputmode="decimal"
+                           class="input" placeholder="0.00" required>
+                </div>
+                <div class="field">
+                    <label for="cash-withdraw-note" class="field__label">Motivo</label>
+                    <input type="text" id="cash-withdraw-note" class="input" maxlength="80"
+                           placeholder="Ej. Depósito al banco" required>
+                </div>
+                <div class="modal__actions">
+                    <button type="button" data-action="close-modal" data-target="modal-cash-withdraw" class="btn btn--neutral">Cancelar</button>
+                    <button type="submit" class="btn btn--brand">Registrar retiro</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: CERRAR CAJA / CORTE -->
+    <div id="modal-cash-close" class="modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="modal-cash-close-title">
+        <div class="modal__panel">
+            <div class="modal__head">
+                <h3 id="modal-cash-close-title" class="modal__title"><i class="fa-solid fa-scale-balanced icon--brand"></i> Corte de Caja</h3>
+                <button type="button" data-action="close-modal" data-target="modal-cash-close" class="modal__close" aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form id="form-cash-close" class="modal__form">
+                <div id="cash-close-preview" class="cash-close-preview">
+                    <!-- Lo llena el JS -->
+                </div>
+                <div class="field">
+                    <label for="cash-close-contado" class="field__label">Contado (efectivo físico en caja)</label>
+                    <input type="number" id="cash-close-contado" min="0" step="0.01" inputmode="decimal"
+                           class="input" placeholder="0.00" required>
+                    <p class="field__hint">La diferencia = contado − esperado. Un negativo es faltante.</p>
+                </div>
+                <div class="modal__actions">
+                    <button type="button" data-action="close-modal" data-target="modal-cash-close" class="btn btn--neutral">Cancelar</button>
+                    <button type="submit" class="btn btn--success">Cerrar caja</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Pila de toasts -->
+    <div id="toast-stack" class="toast-stack" aria-live="polite"></div>
+
+    <noscript>
+        <p class="noscript-notice">
+            Esta caja necesita JavaScript para funcionar.
+        </p>
+    </noscript>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

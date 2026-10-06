@@ -1,0 +1,61 @@
+/* ==========================================================================
+   VIEWS — Caja & Cortes
+   Separada de css/views.css (parte del plan de escalabilidad CSS).
+   ========================================================================== */
+
+/* --- Caja & Cortes ------------------------------------------------------------------ */
+
+.cash-actions {
+    display: flex;
+    gap: var(--space-4);
+}
+
+.cash-close-preview {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-6);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: var(--fs-md);
+    color: var(--text-muted);
+}
+
+.cash-close-preview__row {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-8);
+}
+
+.cash-close-preview__row strong {
+    color: var(--text-strong);
+}
+
+.cash-close-preview__row--total {
+    border-top: 1px solid var(--border);
+    padding-top: var(--space-4);
+    margin-top: var(--space-2);
+    font-weight: 700;
+}
+
+.cash-diff--neg {
+    color: var(--danger, #ef4444);
+    font-weight: 700;
+}
+
+.cash-diff--pos {
+    color: var(--success);
+    font-weight: 700;
+}
+
+.cell-meta {
+    font-size: var(--fs-xs);
+    color: var(--text-dim);
+}
+
+.field__hint {
+    font-size: var(--fs-sm);
+    color: var(--text-dim);
+}
+

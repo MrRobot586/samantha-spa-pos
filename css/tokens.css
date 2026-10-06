@@ -1,0 +1,186 @@
+/* ==========================================================================
+   TOKENS — Samantha Spa POS
+   Paleta migrada del tailwind.config del archivo original (brand 50–950,
+   darkbg/darkcard/darkborder) y de los acentos usados en el HTML
+   (emerald, amber, rose, purple, teal). Todo el resto del CSS referencia
+   estas variables: cambiar el look es tocar solo este archivo.
+   ========================================================================== */
+
+/* El bloque :root es el tema OSCURO (también es lo que se pinta si el JS
+   tarda o falla: el script pre-paint de <head> solo añade data-theme).
+   El tema claro vive más abajo en :root[data-theme="light"] y SOLO redefine
+   superficies, texto, acentos y transparencias — la escala de spacing,
+   tipografía y radios es común a ambos temas. */
+
+:root {
+    color-scheme: dark;
+
+    /* --- Marca (rosa) --------------------------------------------------- */
+    --brand-50: #fdf4f7;
+    --brand-100: #fbe8f0;
+    --brand-200: #f7d2e2;
+    --brand-300: #f0adcb;
+    --brand-400: #e57ca8;
+    --brand-500: #d95389;
+    --brand-600: #c5356e;
+    --brand-700: #a62656;
+    --brand-800: #8a2349;
+    --brand-900: #732141;
+    --brand-950: #460e23;
+
+    /* --- Superficies ---------------------------------------------------- */
+    --bg: #0f1015;
+    --surface: #14161e;
+    --surface-2: #1c1f2b;
+    --card: #1a1c24;
+    --border: #222533;
+    --border-strong: #2a2d3d;
+
+    /* --- Texto ---------------------------------------------------------- */
+    --text: #e2e8f0;
+    --text-strong: #ffffff;
+    --text-muted: #9ca3af;
+    --text-dim: #6b7280;
+    --text-faint: #4b5563;
+
+    /* --- Acentos semánticos --------------------------------------------- */
+    --success: #34d399;
+    --success-strong: #10b981;
+    --success-action: #059669;
+    --teal: #14b8a6;
+    --warning: #fbbf24;
+    --warning-strong: #f59e0b;
+    --danger: #fb7185;
+    --danger-strong: #f43f5e;
+    --purple: #c084fc;
+    --purple-strong: #a855f7;
+
+    /* --- Transparencias útiles ------------------------------------------ */
+    --glass-bg: rgba(26, 28, 36, 0.85);
+    --glass-border: rgba(255, 255, 255, 0.07);
+    --topbar-bg: rgba(20, 22, 30, 0.5);
+    --brand-08: rgba(197, 53, 110, 0.08);
+    --brand-10: rgba(197, 53, 110, 0.1);
+    --brand-20: rgba(197, 53, 110, 0.2);
+    --brand-30: rgba(197, 53, 110, 0.3);
+    --success-10: rgba(16, 185, 129, 0.1);
+    --warning-10: rgba(245, 158, 11, 0.1);
+    --danger-10: rgba(244, 63, 94, 0.1);
+    --purple-10: rgba(168, 85, 247, 0.1);
+    --black-70: rgba(0, 0, 0, 0.7);
+
+    /* --- Variantes de acento para TEXTO/bordes sobre superficies -------- */
+    --success-text: #6ee7b7;
+    --warning-text: rgba(251, 191, 36, 0.85);
+    --purple-border: rgba(168, 85, 247, 0.2);
+    --success-border: rgba(16, 185, 129, 0.2);
+    --danger-border: rgba(244, 63, 94, 0.2);
+
+    /* --- Tipografía ------------------------------------------------------ */
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+
+    /* --- Radios ---------------------------------------------------------- */
+    --radius-sm: 0.5rem;
+    --radius: 0.75rem;
+    --radius-lg: 1rem;
+    --radius-xl: 1.25rem;
+
+    /* --- Sombras --------------------------------------------------------- */
+    --shadow-brand: 0 10px 15px -3px var(--brand-20), 0 4px 6px -4px var(--brand-20);
+    --shadow-success: 0 10px 15px -3px rgba(5, 150, 105, 0.2);
+
+    /* --- Métricas del layout --------------------------------------------- */
+    --sidebar-w: 16rem;
+    --header-h: 4rem;
+    --bottomnav-h: 4.25rem;
+    --scrollbar-w: 6px;
+
+    /* --- Escala tipográfica (compartida por tema) -------------------------
+       Reglas nuevas usan SOLO estos tokens; nada de font-size literales. */
+    --fs-2xs: 0.625rem; /* 10px — etiquetas micro, badges          */
+    --fs-xs: 0.6875rem;  /* 11px                                    */
+    --fs-sm: 0.75rem;    /* 12px — texto auxiliar, tablas compactas */
+    --fs-md: 0.8125rem;  /* 13px                                    */
+    --fs-base: 0.875rem; /* 14px — texto de la app                  */
+    --fs-lg: 0.9375rem;  /* 15px                                    */
+    --fs-xl: 1rem;       /* 16px — body, títulos pequeños           */
+    --fs-2xl: 1.125rem;  /* 18px — títulos de sección               */
+    --fs-3xl: 1.25rem;   /* 20px                                    */
+    --fs-4xl: 1.5rem;    /* 24px — números destacados               */
+    --fs-5xl: 1.875rem;  /* 30px — KPIs grandes                     */
+
+    /* --- Escala de espaciado (base 4px; reglas nuevas SOLO tokens) ------ */
+    --space-1: 0.125rem;  /* 2px   */
+    --space-2: 0.25rem;   /* 4px   */
+    --space-3: 0.375rem;  /* 6px   */
+    --space-4: 0.5rem;    /* 8px   */
+    --space-5: 0.625rem;  /* 10px  */
+    --space-6: 0.75rem;   /* 12px  */
+    --space-8: 1rem;      /* 16px  */
+    --space-10: 1.25rem;  /* 20px  */
+    --space-12: 1.5rem;   /* 24px  */
+    --space-16: 2rem;     /* 32px  */
+    --space-20: 2.5rem;   /* 40px  */
+
+    /* --- Breakpoints canónicos (literal: var() no vale en @media) --------
+       sm 640 · md 768 · lg 1024 · xl 1280
+       Se escriben como min-width: 640px / max-width: 639px, min-width: 768px
+       / max-width: 767px … (pares complementarios exactos, sin huecos). */
+}
+
+/* ==========================================================================
+   TEMA CLARO — se activa con <html data-theme="light"> (o resuelto a light
+   cuando settings.theme === 'auto' y el sistema prefiere light).
+   ========================================================================== */
+
+:root[data-theme="light"] {
+    color-scheme: light;
+
+    /* --- Superficies ---------------------------------------------------- */
+    --bg: #f5f6f8;
+    --surface: #ffffff;
+    --surface-2: #f0f2f5;
+    --card: #ffffff;
+    --border: #e3e6eb;
+    --border-strong: #cdd3dc;
+
+    /* --- Texto ---------------------------------------------------------- */
+    --text: #1f2937;
+    --text-strong: #111827;
+    --text-muted: #6b7280;
+    --text-dim: #8a94a3;
+    --text-faint: #a8b1bf;
+
+    /* --- Acentos semánticos (versión con contraste sobre claro) --------- */
+    --success: #059669;
+    --success-strong: #047857;
+    --success-action: #047857;
+    --teal: #0d9488;
+    --warning: #d97706;
+    --warning-strong: #b45309;
+    --danger: #e11d48;
+    --danger-strong: #be123c;
+    --purple: #9333ea;
+    --purple-strong: #7e22ce;
+
+    /* --- Variantes de acento para TEXTO/bordes sobre superficies -------- */
+    --success-text: #047857;
+    --warning-text: #b45309;
+    --purple-border: rgba(147, 51, 234, 0.3);
+    --success-border: rgba(5, 150, 105, 0.3);
+    --danger-border: rgba(225, 29, 72, 0.3);
+
+    /* --- Transparencias útiles ------------------------------------------ */
+    --glass-bg: rgba(255, 255, 255, 0.85);
+    --glass-border: rgba(0, 0, 0, 0.06);
+    --topbar-bg: rgba(255, 255, 255, 0.8);
+    --black-70: rgba(17, 24, 39, 0.55);
+    --success-10: rgba(5, 150, 105, 0.1);
+    --warning-10: rgba(217, 119, 6, 0.1);
+    --danger-10: rgba(225, 29, 72, 0.1);
+    --purple-10: rgba(147, 51, 234, 0.1);
+
+    /* --- Sombras (más visibles sobre fondo claro) ----------------------- */
+    --shadow-brand: 0 10px 15px -3px rgba(197, 53, 110, 0.25), 0 4px 6px -4px rgba(197, 53, 110, 0.2);
+    --shadow-success: 0 10px 15px -3px rgba(5, 150, 105, 0.25);
+}
