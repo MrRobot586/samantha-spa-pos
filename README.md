@@ -22,13 +22,13 @@ en el análisis, se dividió en HTML/CSS/JS y se añadió persistencia.
 Publicada desde la rama `main` (raíz, servida con `.nojekyll`):
 
 ```
-https://<usuario>.github.io/samantha-spa-pos/
+https://mrrobot586.github.io/samantha-spa-pos/
 ```
 
 Puedes probarla con las credenciales de la sección "Usuarios y acceso".
 Notas:
 
-- El `localStorage` pertenece al **origen** `https://<usuario>.github.io`
+- El `localStorage` pertenece al **origen** `https://mrrobot586.github.io`
   (se comparte entre los repos de un mismo usuario, la clave
   `samantha-spa-pos:v2` lo mantiene aislado de otras apps). Cada visita
   arranca de los datos de semilla.
