@@ -257,6 +257,23 @@ async function main() {
     await esperar(200);
     await check('pestaña Ventas visible', `!document.getElementById('tab-ventas').classList.contains('is-hidden')`);
     await check('Ventas lista la venta', `document.querySelectorAll('#sales-list tr').length === 1`);
+    await check('filtros de Ventas con espacio real (bug de --gap-sm)',
+        `(() => {
+            const to = document.getElementById('venta-to');
+            const btn = document.querySelector('[data-action="report-sales"]');
+            if (!to || !btn) return false;
+            const dx = btn.getBoundingClientRect().left - to.getBoundingClientRect().right;
+            const dy = btn.getBoundingClientRect().top - to.getBoundingClientRect().bottom;
+            // lado a lado → separación horizontal; si se apila, la vertical
+            return Math.round(dx >= 0 ? dx : dy) >= 5;
+        })()`);
+    await check('inputs de fecha compactos (regla .input--date viva)',
+        `(() => {
+            const f = document.querySelector('.sales-filters');
+            const a = document.getElementById('venta-from');
+            if (!f || !a) return false;
+            return a.getBoundingClientRect().width < f.getBoundingClientRect().width - 10;
+        })()`);
     await check('botón imprimir habilitado', `!document.querySelector('#sales-list [data-action="print-ticket"]').disabled`);
     await evaluar(`window.__printed = false; document.querySelector('#sales-list [data-action="print-ticket"]').click()`);
     await esperar(150);

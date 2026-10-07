@@ -152,17 +152,19 @@ La app arranca en la pantalla de login. Credenciales semilla:
 ## Pruebas
 
 ```bash
-npm test             # node --test tests/*.test.mjs — 118 pruebas, cero dependencias
+npm test             # node --test tests/*.test.mjs — 120 pruebas, cero dependencias
 ```
 
 Cubren la lógica de dominio (ticket, IVA, comisiones, cobro, stock,
 métodos de pago, caja/cortes, tasas y conversión, persistencia —incluido
 el tema, el ticket de canje y el respaldo de "restaurar demo"—, reportes por
-fecha, autenticación y usuarios). La UI se verifica con el smoke de CDP
+fecha, autenticación y usuarios) y una guarda estática del CSS (toda
+variable `var(--x)` debe existir en el proyecto). La UI se verifica con el smoke de CDP
 (`npm run smoke` — requiere `python3` y Chrome: login, roles, venta,
 ticket imprimible (con `window.print` interceptado), reimpresión, ajustes de
 impresión, gate de caja, apertura, corte, moneda y tema, CRUD, restaurar
-demo, XSS, móvil y responsive en varios anchos) y con el checklist del final.
+demo, XSS, el gap de los filtros de Ventas, móvil y responsive en
+varios anchos) y con el checklist del final.
 El CI de GitHub Actions (`.github/workflows/ci.yml`) corre ambas cosas en
 cada push.
 
@@ -214,7 +216,7 @@ js/
     users-view.js     lista y formulario de usuarios
     csv-export.js     descarga de CSV (Blob + marca de orden de bytes), sin dependencias
     (+ services/inventory/commissions, modales, toasts)
-tests/                node --test (payments, ticket, checkout, cash, inventory, services, reports, receipt, rates, storage, auth, users)
+tests/                node --test (payments, ticket, checkout, cash, inventory, services, reports, receipt, rates, storage, auth, users, css)
 smoke.mjs             smoke E2E por CDP (npm run smoke) — requiere python3 y Chrome
 servir.sh             servidor estático local (Python o Node, sin instalar)
 .github/workflows/ci.yml  CI: npm test + smoke en cada push/PR
@@ -262,6 +264,18 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
   `repeat(auto-fit, minmax(min(100%, N), 1fr))` en vez de columnas fijas.
   Safe-area (`env`) para el notch, objetivos táctiles ≥44px en móvil,
   `prefers-reduced-motion` y contenido limitado a 1440px en monitores anchos.
+- **Guardas estáticas sobre el CSS:** `tests/css.test.mjs` exige que toda
+  variable usada con `var(--x)` exista en el proyecto. Así se cazó el
+  `--gap-sm` inexistente de la barra de filtros de Ventas, que colapsaba el
+  `gap` a 0 y dejaba el botón "Aplicar" pegado a los inputs (ahora usa
+  `--space-3`, igual que `.report-bar`); de paso se borró la regla muerta
+  `.sales-actions`.
+- **Barra de filtros alineada (Ventas, Comisiones, Cortes):** `.input--date`
+  estaba declarada ANTES de `.input { width: 100% }` en `components.css`, así
+  que `width/padding/font-size` eran reglas muertas: los date pickers salían
+  a ancho completo y el botón quedaba en su propia fila. Se movió la regla
+  después de `.input` (ahora miden ~131px y caben en una fila con "Aplicar");
+  el smoke verifica el gap real y que sigan compactos.
 - **Indicadores reales:** el badge de caja y la tasa BCV muestran datos
   vivos del estado/API — el "+12% vs ayer" del original siguió eliminado
   por ser un dato inventado.

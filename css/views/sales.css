@@ -1,11 +1,9 @@
+/* Barra de filtros de Ventas: dos rangos de fecha + "Aplicar".
+   Antes referenciaba la variable inexistente `--gap-sm`: el gap colapsaba a
+   0 y el botón quedaba pegado a los inputs. Mismo gap que .report-bar. */
 .sales-filters {
     display: flex;
-    gap: var(--gap-sm);
+    gap: var(--space-3);
     flex-wrap: wrap;
     align-items: center;
-}
-
-.sales-actions {
-    display: flex;
-    gap: var(--gap-sm);
 }

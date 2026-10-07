@@ -170,12 +170,6 @@
     gap: var(--space-3);
 }
 
-.input--date {
-    padding: var(--space-2) var(--space-4);
-    font-size: var(--fs-sm);
-    width: auto;
-}
-
 .btn--link-danger {
     color: var(--danger);
     font-size: var(--fs-sm);
@@ -415,6 +409,15 @@
     font-size: var(--fs-base);
     color: var(--text-strong);
     transition: border-color 0.2s;
+}
+
+/* Date pickers de las barras de filtro: compactos y con ancho propio para
+   que quepan en una fila con el botón. Va DESPUÉS de .input a propósito:
+   mientras estuviera antes, width/padding/font-size eran reglas muertas. */
+.input--date {
+    padding: var(--space-2) var(--space-4);
+    font-size: var(--fs-sm);
+    width: auto;
 }
 
 .input:focus,
