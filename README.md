@@ -278,9 +278,10 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
 ## Checklist de verificación manual
 
 1. `./servir.sh` → aparece el login; sin sesión no se ve nada de la app.
-2. PIN incorrecto → error inline; `admin`/`1234` → entra con 6 pestañas.
-3. `valeria`/`1111` → solo Dashboard y POS; sin Inventario, Comisiones,
-   Caja ni Usuarios; su dashboard no muestra alertas de stock.
+2. PIN incorrecto → error inline; `admin`/`1234` → entra con 7 pestañas.
+3. `valeria`/`1111` → solo Dashboard, POS y Ventas; sin Inventario,
+   Comisiones, Caja ni Usuarios; su dashboard no muestra alertas de stock
+   y en Ventas solo ve sus propias ventas.
 4. El badge de tasa muestra `1 USD = … Bs` y se actualiza al hacer clic.
 5. Cambiar a `Bs` y `€`: los KPIs, ticket y catálogo cambian de formato;
    al recargar, la moneda elegida persiste.
@@ -312,10 +313,17 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
     elegir un rango y exportar el CSV por estilista (se abren en Excel).
 21. "Restaurar demo" (en Usuarios) pide confirmación y repone inventario,
     ventas y caja de fábrica, dejando un respaldo previo.
-22. Dejar la app 20 min sin tocarla cierra la sesión sola y vuelve al login.
+22. Vender un servicio y confirmar → aparece el modal de venta con
+    "Imprimir ticket"; al pulsarlo se abre el diálogo del sistema (el ticket
+    solo muestra los servicios, el código de canje y los servicios
+    agrupados por estilista; los productos no se imprimen).
+23. Ajustes de impresión (botón de impresora en el topbar, solo admin):
+    cambiar a 80 mm y editar encabezado/pie; reimprimir desde la pestaña
+    Ventas (con filtro por fecha) conserva y refleja esos ajustes.
+24. Dejar la app 20 min sin tocarla cierra la sesión sola y vuelve al login.
 
 ## Fuera de alcance (posibles siguientes pasos)
 
 Editar las recetas desde la UI (hoy se edita el producto, no su
-composición), exportar/print del ticket y de los KPIs, y separar el storage
+composición), exportar/print de los KPIs, y separar el storage
 por dispositivo (hoy es un único `localStorage` compartido por pestaña).
