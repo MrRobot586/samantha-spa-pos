@@ -6,7 +6,8 @@
  *
  * Requisitos: python3, google-chrome-stable. Uso: `npm run smoke`. */
 import { spawn } from 'node:child_process';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const RAIZ = dirname(fileURLToPath(import.meta.url));
@@ -27,9 +28,10 @@ function servidor() {
 }
 
 function chrome() {
-    const p = spawn('google-chrome-stable', [
+    const bin = process.env.CHROME_BIN || 'google-chrome-stable';
+    const p = spawn(bin, [
         '--headless=new', '--no-sandbox', '--disable-gpu', '--remote-debugging-port=0',
-        '--user-data-dir=/tmp/opencode/chrome-smoke-' + Date.now(),
+        '--user-data-dir=' + join(tmpdir(), 'chrome-smoke-' + Date.now()),
         '--disable-extensions', 'about:blank'
     ], { stdio: ['ignore', 'ignore', 'pipe'] });
     return new Promise((ok, ko) => {
@@ -420,6 +422,70 @@ async function main() {
         (() => {
             const c = [...document.querySelectorAll('.metrics-grid .metric-card')];
             return c.length >= 4 && Math.abs(c[3].getBoundingClientRect().top - c[0].getBoundingClientRect().top) < 2;
+        })()`);
+
+    // --- Reportes por fecha ------------------------------------------------
+    await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false }, sessionId);
+    await evaluar(`document.getElementById('nav-commissions').click(); true`);
+    await esperar(250);
+    await evaluar(`document.querySelector('[data-action="report-commissions"]').click(); true`);
+    await esperar(200);
+    await check('reporte de comisiones lista al menos una venta del día', `
+        document.querySelectorAll('#commissions-report-list tr td.cell-amount').length > 0`);
+
+    await evaluar(`document.getElementById('nav-cash').click(); true`);
+    await esperar(250);
+    await check('historial de cortes visible sin filtro', `
+        document.getElementById('cash-closures-list').textContent.includes('565.40')`);
+
+    // --- CRUD: editar, borrar (permitido y bloqueado) -----------------------
+    await evaluar(`document.getElementById('nav-inventory').click(); true`);
+    await esperar(250);
+
+    await evaluar(`
+        document.querySelector('[data-action="edit-product"][data-id="p3"]').click();
+        document.getElementById('prod-name').value = 'Shampoo Editado 300ml';
+        document.getElementById('form-add-product').requestSubmit();
+        true`);
+    await esperar(250);
+    await check('editar producto actualiza la tabla', `
+        document.getElementById('inventory-table-body').textContent.includes('Shampoo Editado 300ml')`);
+
+    // Borrar un retail que ninguna receta usa (p4)
+    await evaluar(`document.querySelector('[data-action="delete-product"][data-id="p4"]').click(); true`);
+    await esperar(150);
+    await check('el borrado abre el modal de confirmación', `
+        !document.getElementById('modal-confirm').classList.contains('is-hidden')`);
+    await evaluar(`document.querySelector('#modal-confirm [data-action="confirm-action"]').click(); true`);
+    await esperar(250);
+    await check('producto sin receta se elimina', `
+        !document.getElementById('inventory-table-body').textContent.includes('Mascarilla Reparadora')`);
+
+    // Borrar un insumo usado por una receta debe bloquearse (p1)
+    await evaluar(`document.querySelector('[data-action="delete-product"][data-id="p1"]').click(); true`);
+    await esperar(150);
+    await evaluar(`document.querySelector('#modal-confirm [data-action="confirm-action"]').click(); true`);
+    await esperar(250);
+    await check('insumo con receta no se elimina', `
+        document.getElementById('inventory-table-body').textContent.includes('Tinte Rubio Ceniza')`);
+
+    // --- Restaurar demo ----------------------------------------------------
+    await evaluar(`document.getElementById('nav-dashboard').click(); true`);
+    await esperar(150);
+    await evaluar(`document.getElementById('btn-users').click(); true`);
+    await esperar(200);
+    await evaluar(`document.querySelector('#modal-users [data-op="reset-demo"]').click(); true`);
+    await esperar(150);
+    await check('restaurar demo pide confirmación', `
+        !document.getElementById('modal-confirm').classList.contains('is-hidden')`);
+    await evaluar(`document.querySelector('#modal-confirm [data-action="confirm-action"]').click(); true`);
+    await esperar(300);
+    await evaluar(`document.getElementById('nav-inventory').click(); true`);
+    await esperar(250);
+    await check('restaurar demo repone el inventario de fábrica', `
+        (() => {
+            const txt = document.getElementById('inventory-table-body').textContent;
+            return txt.includes('Mascarilla Reparadora') && txt.includes('Tinte Rubio Ceniza') && !txt.includes('Shampoo Editado 300ml');
         })()`);
 
     console.log('\n--- CHECKS ---');

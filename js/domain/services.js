@@ -23,7 +23,7 @@ export function resolveRecipe(service, state = getState()) {
         .filter(Boolean);
 }
 
-export function addService(data, state = getState()) {
+function validate(data) {
     const name = typeof data.name === 'string' ? data.name.trim() : '';
     if (!name) throw new Error('El nombre del servicio no puede estar vacío.');
 
@@ -31,8 +31,39 @@ export function addService(data, state = getState()) {
     if (!Number.isFinite(price) || price < 0) {
         throw new Error('El precio debe ser un número mayor o igual a 0.');
     }
+    return { name, price };
+}
 
+export function addService(data, state = getState()) {
+    const { name, price } = validate(data);
     const service = { id: uid(), name, price, recipe: [] };
     state.services.push(service);
+    return service;
+}
+
+/** Edición del nombre/precio de un servicio. */
+export function updateService(id, data, state = getState()) {
+    const service = findService(id, state);
+    if (!service) throw new Error('Servicio no encontrado.');
+
+    const { name, price } = validate(data);
+    service.name = name;
+    service.price = price;
+    return service;
+}
+
+/**
+ * Elimina un servicio del catálogo. Las transacciones ya cobradas guardan
+ * su propio snapshot (tipo + cantidad), así que el historial no se rompe.
+ */
+export function deleteService(id, state = getState()) {
+    const service = findService(id, state);
+    if (!service) throw new Error('Servicio no encontrado.');
+
+    state.services = state.services.filter(s => s.id !== id);
+
+    // Un servicio fuera del ticket mientras se cobra se quita del ticket.
+    state.currentTicket.items = state.currentTicket.items
+        .filter(i => !(i.type === 'service' && i.id === id));
     return service;
 }

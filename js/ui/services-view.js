@@ -30,6 +30,29 @@ export function renderServicesCards() {
                         <ul class="bom__list">${items}</ul>
                     </div>
                 </div>
+                <div class="row-actions">
+                    <button type="button" data-action="edit-service" data-id="${escapeHtml(s.id)}" class="btn btn--mini">
+                        Editar
+                    </button>
+                    <button type="button" data-action="delete-service" data-id="${escapeHtml(s.id)}"
+                            data-title="¿Eliminar servicio?"
+                            data-message="Se eliminará &quot;${escapeHtml(s.name)}&quot; del catálogo. El historial de ventas ya cobradas no se altera."
+                            class="btn btn--mini btn--mini-danger">
+                        Eliminar
+                    </button>
+                </div>
             </article>`;
     }).join('');
+}
+
+/** Rellena el modal de servicio para editar (o lo limpia para crear). */
+export function fillServiceForm(id) {
+    const serv = id ? getState().services.find(s => s.id === id) : null;
+    const form = document.getElementById('form-add-service');
+    form.reset();
+    document.getElementById('service-id').value = serv ? serv.id : '';
+    document.getElementById('serv-name').value = serv ? serv.name : '';
+    document.getElementById('serv-price').value = serv ? serv.price : '';
+    document.getElementById('modal-service-title').textContent =
+        serv ? 'Editar Servicio' : 'Nuevo Servicio';
 }

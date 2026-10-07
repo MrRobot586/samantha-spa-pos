@@ -5,6 +5,7 @@
 import { getState } from '../core/state.js';
 import { escapeHtml, money } from '../core/utils.js';
 import { cashSummary } from '../domain/cash.js';
+import { closuresBetween } from '../domain/reports.js';
 
 function fmt(iso, conHora = true) {
     if (!iso) return '—';
@@ -94,11 +95,13 @@ export function renderCash() {
             </tr>`).join('');
     }
 
-    // Historial de cortes
-    const closures = getState().closures;
+    // Historial de cortes (filtrable por rango de fechas)
+    const desde = document.getElementById('closure-from')?.value || '';
+    const hasta = document.getElementById('closure-to')?.value || '';
+    const closures = closuresBetween(desde, hasta, state);
     const tbodyC = document.getElementById('cash-closures-list');
     if (closures.length === 0) {
-        tbodyC.innerHTML = '<tr><td colspan="5" class="empty-cell">Todavía no hay cortes registrados.</td></tr>';
+        tbodyC.innerHTML = '<tr><td colspan="5" class="empty-cell">No hay cortes en el período elegido.</td></tr>';
     } else {
         tbodyC.innerHTML = closures.map(c => {
             const neg = c.diferenciaUSD < 0;

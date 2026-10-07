@@ -3,6 +3,7 @@
  * leerse: si está vacío al editar, se conserva el que ya tenía. */
 
 import { getState } from '../core/state.js';
+import { getCurrentUser } from '../core/auth.js';
 import { hashPin } from '../core/pin.js';
 import { uid } from '../core/utils.js';
 
@@ -95,5 +96,30 @@ export function updateUser(id, data, state = getState()) {
         user.salt = uid();
         user.pinHash = hashPin(pin, user.salt);
     }
+    return user;
+}
+
+/**
+ * Baja definitiva de un usuario. Nunca se borra el último administrador
+ * activo ni la cuenta con la que se opera ahora mismo (habría que
+ * desloguearse a uno mismo para poder borrarse).
+ * @returns el usuario eliminado (null si ya no existía)
+ */
+export function deleteUser(id, state = getState()) {
+    const user = state.users.find(u => u.id === id);
+    if (!user) return null;
+
+    if (id === getCurrentUser(state)?.id) {
+        throw new Error('No puedes eliminar tu propia cuenta de usuario.');
+    }
+
+    if (user.role === 'admin' && user.active) {
+        const otrosAdmines = state.users.filter(u => u.id !== id && u.role === 'admin' && u.active);
+        if (otrosAdmines.length === 0) {
+            throw new Error('No se puede eliminar el último administrador activo.');
+        }
+    }
+
+    state.users = state.users.filter(u => u.id !== id);
     return user;
 }

@@ -15,14 +15,23 @@ export function renderUsersList() {
     if (!list) return;
 
     const sesion = getCurrentUser(getState());
-    list.innerHTML = getState().users.map(u => `
+    list.innerHTML = getState().users.map(u => {
+        const esYo = sesion && sesion.id === u.id;
+        return `
         <div class="user-row${u.active ? '' : ' user-row--off'}">
             <div class="user-row__info">
-                <p class="user-row__name">${escapeHtml(u.name)}${sesion && sesion.id === u.id ? ' <span class="badge badge--purple">Tú</span>' : ''}</p>
+                <p class="user-row__name">${escapeHtml(u.name)}${esYo ? ' <span class="badge badge--purple">Tú</span>' : ''}</p>
                 <p class="user-row__meta">@${escapeHtml(u.username)} · ${roleLabel(u.role)}${u.active ? '' : ' · Desactivado'}</p>
             </div>
-            <button type="button" class="btn btn--mini" data-action="edit-user" data-id="${escapeHtml(u.id)}">Editar</button>
-        </div>`).join('');
+            <div class="row-actions">
+                <button type="button" class="btn btn--mini" data-action="edit-user" data-id="${escapeHtml(u.id)}">Editar</button>
+                ${esYo ? '' : `<button type="button" class="btn btn--mini btn--mini-danger" data-action="delete-user"
+                        data-id="${escapeHtml(u.id)}"
+                        data-title="¿Eliminar usuario?"
+                        data-message="Se eliminará ${escapeHtml(u.name)} (@${escapeHtml(u.username)}). Esta acción no se puede deshacer.">Eliminar</button>`}
+            </div>
+        </div>`;
+    }).join('');
 
     renderStaffOptions();
 }

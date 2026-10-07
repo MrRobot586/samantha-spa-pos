@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { STORAGE_KEY, LEGACY_STORAGE_KEY, STORAGE_BACKUP_KEY } from '../js/core/config.js';
+import { STORAGE_KEY, LEGACY_STORAGE_KEY, STORAGE_BACKUP_KEY, STORAGE_DEMO_BACKUP_KEY } from '../js/core/config.js';
 import { createSeedState } from '../js/core/seed.js';
 import {
-    loadState, saveState, normalizeState, createMemoryBackend
+    loadState, saveState, normalizeState, restoreDemo, createMemoryBackend
 } from '../js/core/storage.js';
 
 test('round trip: guardar y cargar devuelve el mismo estado', () => {
@@ -252,4 +252,37 @@ test('round trip de las colecciones nuevas', () => {
     assert.deepEqual(cargado.cashSession, state.cashSession);
     assert.deepEqual(cargado.closures, state.closures);
     assert.equal(cargado.users.length, 4);
+});
+
+test('restoreDemo respalda el estado actual y devuelve la semilla', () => {
+    const backend = createMemoryBackend();
+    const state = createSeedState();
+    state.products[0].name = 'Producto con historial';
+    state.closures.push({
+        id: 'c1', closedAt: '2026-10-05T18:00:00.000Z', closedById: 'u1', closedByName: 'Administrador',
+        openedAt: '2026-10-05T09:00:00.000Z', fondoInicial: 20, ventas: { cash: 50, card: 30, other: 0 },
+        totalUSD: 80, retirosUSD: 5, esperadoUSD: 65, contadoUSD: 65, diferenciaUSD: 0, txCount: 3,
+        rates: { usdBs: 872.4, eurBs: 977.2, fecha: '2026-10-06T00:00:00-04:00' }
+    });
+    saveState(state, backend);
+    const prev = backend.getItem(STORAGE_KEY);
+
+    const seed = restoreDemo(backend);
+
+    assert.deepEqual(seed, createSeedState());
+    assert.equal(backend.getItem(STORAGE_DEMO_BACKUP_KEY), prev, 'el estado previo queda respaldado');
+    assert.equal(backend.getItem(STORAGE_KEY), JSON.stringify(seed), 'la clave principal queda en semilla');
+    const { state: cargado, recovered } = loadState(backend);
+    assert.equal(recovered, null);
+    assert.equal(cargado.closures.length, 0);
+    assert.equal(cargado.products[0].name, 'Tinte Rubio Ceniza 8.1');
+});
+
+test('restoreDemo sin storage previo no guarda respaldo fantasma', () => {
+    const backend = createMemoryBackend();
+    const seed = restoreDemo(backend);
+
+    assert.deepEqual(seed, createSeedState());
+    assert.equal(backend.getItem(STORAGE_DEMO_BACKUP_KEY), null);
+    assert.equal(backend.getItem(STORAGE_KEY), JSON.stringify(seed));
 });

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createSeedState } from '../js/core/seed.js';
-import { addProduct, restock, lowStockProducts, findProduct } from '../js/domain/inventory.js';
+import { addProduct, updateProduct, deleteProduct, usagesOfProduct, restock, lowStockProducts, findProduct } from '../js/domain/inventory.js';
 
 const nuevoProducto = (extra = {}) => ({
     name: 'Gel Fijador 500ml',
@@ -72,4 +72,53 @@ test('lowStockProducts detecta los insumos bajo mínimo', () => {
 
     // Semilla: p4 (3 ≤ 5) y p5 (80 ≤ 150)
     assert.deepEqual(bajas, ['p4', 'p5']);
+});
+
+test('updateProduct conserva el id y aplica los campos nuevos', () => {
+    const state = createSeedState();
+    const actualizado = updateProduct('p3', {
+        name: 'Shampoo Reparador 300ml', type: 'retail', unit: 'Unidades',
+        stock: 20, minStock: 5, cost: 9, price: 21
+    }, state);
+
+    assert.equal(actualizado.id, 'p3');
+    assert.equal(actualizado.name, 'Shampoo Reparador 300ml');
+    assert.equal(actualizado.stock, 20);
+    assert.equal(actualizado.price, 21);
+    assert.equal(state.products.filter(p => p.id === 'p3').length, 1, 'no duplica');
+});
+
+test('updateProduct: un insumo interno pierde el precio de venta', () => {
+    const state = createSeedState();
+    const p = updateProduct('p3', {
+        name: 'Ahora interno', type: 'internal', unit: 'Gramos',
+        stock: 5, minStock: 1, cost: 2, price: 30
+    }, state);
+    assert.equal(p.price, 0);
+});
+
+test('updateProduct valida y exige que el producto exista', () => {
+    const state = createSeedState();
+    assert.throws(() => updateProduct('no-existe', nuevoProducto(), state), /no encontrado/);
+    assert.throws(() => updateProduct('p3', nuevoProducto({ name: '' }), state), /nombre/);
+});
+
+test('deleteProduct elimina productos que ninguna receta consume', () => {
+    const state = createSeedState();
+    const borrado = deleteProduct('p4', state);
+    assert.equal(borrado.id, 'p4');
+    assert.equal(findProduct('p4', state), null);
+    assert.equal(state.products.length, 4);
+});
+
+test('deleteProduct bloquea insumos usados por una receta', () => {
+    const state = createSeedState();
+    assert.deepEqual(usagesOfProduct('p1', state), ['Tinte Completo & Broshing']);
+    assert.throws(() => deleteProduct('p1', state), /Tinte Completo & Broshing/);
+    assert.ok(findProduct('p1', state), 'el insumo sigue en el inventario');
+});
+
+test('deleteProduct exige que el producto exista', () => {
+    const state = createSeedState();
+    assert.throws(() => deleteProduct('no-existe', state), /no encontrado/);
 });

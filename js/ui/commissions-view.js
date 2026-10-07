@@ -2,6 +2,7 @@
 
 import { getState } from '../core/state.js';
 import { escapeHtml, money } from '../core/utils.js';
+import { commissionsBetween } from '../domain/reports.js';
 
 export function renderCommissions() {
     const state = getState();
@@ -33,4 +34,23 @@ export function renderCommissions() {
                 <strong>${money(s.totalCommissions)}</strong>
             </div>
         </article>`).join('');
+}
+
+/** Tabla de comisiones por rango de fechas (dos 'YYYY-MM-DD' o vacíos). */
+export function renderCommissionsReport(desde = '', hasta = '') {
+    const tbody = document.getElementById('commissions-report-list');
+    if (!tbody) return;
+
+    const rows = commissionsBetween(desde, hasta, getState());
+    if (rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-cell">Sin ventas en el período elegido.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = rows.map(r => `
+        <tr>
+            <td class="cell-strong">${escapeHtml(r.staffName)}</td>
+            <td>${r.sales}</td>
+            <td class="cell-amount">${money(r.totalUSD)}</td>
+            <td class="cell-amount accent">${money(r.commissionUSD)}</td>
+        </tr>`).join('');
 }

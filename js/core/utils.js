@@ -57,3 +57,12 @@ export function isToday(isoString) {
     if (Number.isNaN(date.getTime())) return false;
     return dayKey(date) === dayKey();
 }
+
+/** Serializa filas (array de arrays; la primera es el encabezado) a CSV,
+ *  citando los campos que contienen coma, comilla o salto de línea. */
+export function buildCsv(rows) {
+    return rows.map(row => row.map(cell => {
+        const s = cell === null || cell === undefined ? '' : String(cell);
+        return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    }).join(',')).join('\r\n');
+}

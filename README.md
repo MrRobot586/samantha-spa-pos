@@ -3,7 +3,8 @@
 Punto de venta e inventario para spa/salón: catálogo de servicios con
 recetas (BOM), inventario híbrido (retail + insumos internos), comisiones
 por estilista, **moneda en vivo con tasa BCV** (USD ⇄ Bs ⇄ €),
-**métodos de pago con cambio** y **caja con retiros, corte e historial**.
+**métodos de pago con cambio**, **caja con retiros, corte e historial**,
+**reportes por fecha con export CSV** y **CRUD de catálogo y usuarios**.
 HTML, CSS y JavaScript puro, **sin dependencias ni build**.
 
 Refactor completo de `Projects/Origins/POS system Samantha Spa.html`
@@ -110,15 +111,17 @@ La app arranca en la pantalla de login. Credenciales semilla:
 ## Pruebas
 
 ```bash
-npm test             # node --test tests/ — 65 pruebas, cero dependencias
+npm test             # node --test tests/ — 89 pruebas, cero dependencias
 ```
 
 Cubren la lógica de dominio (ticket, IVA, comisiones, cobro, stock,
 métodos de pago, caja/cortes, tasas y conversión, persistencia —incluido
-el tema—, autenticación y usuarios). La UI se verifica con el smoke de CDP
+el tema y el respaldo de "restaurar demo"—, reportes por fecha,
+autenticación y usuarios). La UI se verifica con el smoke de CDP
 (`npm run smoke` — requiere `python3` y Chrome: login, roles, venta,
-gate de caja, apertura, corte, moneda y tema, XSS, móvil y responsive en
-6 anchos) y con el checklist del final.
+gate de caja, apertura, corte, moneda y tema, CRUD, restaurar demo, XSS,
+móvil y responsive en 6 anchos) y con el checklist del final. El CI de
+GitHub Actions (`.github/workflows/ci.yml`) corre ambas cosas en cada push.
 
 ## Estructura
 
@@ -148,10 +151,11 @@ js/
     ticket.js         ítems, cantidades, subtotal/IVA/comisión, método de pago
     checkout.js       gate de caja → validación de stock → recibido → transacción
     cash.js           apertura, retiros, ventas por método, corte e historial
-    inventory.js      altas, reposición validada, low-stock
-    services.js       altas de servicio + resolución de recetas
+    inventory.js      altas, edición, bajas (bloqueadas si están en una receta), low-stock
+    services.js       servicios y recetas, edición y baja
+    reports.js        agregados por rango de fechas (ventas, comisiones, cortes)
     staff.js          lookup y tasa de comisión
-    users.js          alta/edición de usuarios, PIN, último admin
+    users.js          alta/edición/baja de usuarios, PIN, último admin
   ui/                 renders (innerHTML + escapeHtml) y modales
     header.js         toggle de moneda, tema, badge de tasa y badge de caja
     login-view.js     pantalla de acceso
@@ -160,10 +164,12 @@ js/
     cash-view.js      pestaña Caja & Cortes + preview del corte
     dashboard.js      KPIs del día (acotados al rol)
     users-view.js     lista y formulario de usuarios
+    csv-export.js     descarga de CSV (Blob + BOM), sin dependencias
     (+ services/inventory/commissions, modales, toasts)
-tests/                node --test (ticket, checkout, cash, inventory, rates, storage, auth, users)
+tests/                node --test (ticket, checkout, cash, inventory, services, reports, rates, storage, auth, users)
 smoke.mjs             smoke E2E por CDP (npm run smoke) — requiere python3 y Chrome
 servir.sh             servidor estático local (Python o Node, sin instalar)
+.github/workflows/ci.yml  CI: npm test + smoke en cada push/PR
 ```
 
 ## Decisiones del refactor
@@ -214,6 +220,22 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
 - **CDN endurecidos:** FontAwesome con versión exacta + `integrity`; los
   servicios de Google Fonts quedan sin SRI a propósito (sirven CSS según el
   User-Agent).
+- **Editar/eliminar con guardas:** el estado nunca queda inconsistente. Un
+  insumo usado por alguna receta no se puede borrar (se listan los servicios
+  que lo usan); no se borra el último admin activo ni la propia cuenta; al
+  descartar el ticket en curso se quita el servicio eliminado. Las bajas y
+  "restaurar demo" pasan por un modal de confirmación genérico, nunca por
+  `confirm()` nativo.
+- **"Restaurar demo" respalda antes:** guarda el estado actual en
+  `STORAGE_DEMO_BACKUP_KEY` y recién entonces repone la semilla, para que un
+  clic accidental no borre datos reales.
+- **Reportes por rango de fechas:** ventas y comisiones se agregan con rango
+  inclusivo en hora local (mismo día cuenta completo); el historial de cortes
+  se filtra por fecha de cierre y todo se puede exportar a CSV con BOM UTF-8
+  (abre bien en Excel en español).
+- **Sesión caduca por inactividad:** 20 minutos sin gestos del usuario cierran
+  la sesión (`SESSION_IDLE_MS`, revisado cada 30 s). El `mousemove` se
+  debouncea para no resetear el contador en cada pixel.
 
 ## Checklist de verificación manual
 
@@ -243,8 +265,18 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
     1100 el sidebar lateral vuelve a la izquierda.
 17. A 1600px el contenido queda centrado (máx. ~1440) y los grids de KPIs,
     catálogo y servicios se adaptan (sin scroll horizontal en ningún ancho).
+18. Editar un producto/servicio desde la tabla actualiza la fila; "Nuevo"
+    vuelve a abrir el formulario en blanco.
+19. Eliminar un insumo usado por una receta se bloquea con aviso; un retail
+    sin receta sí se elimina (con confirmación).
+20. Caja & Cortes: filtrar el historial por fechas y exportar CSV; Comisiones:
+    elegir un rango y exportar el CSV por estilista (se abren en Excel).
+21. "Restaurar demo" (en Usuarios) pide confirmación y repone inventario,
+    ventas y caja de fábrica, dejando un respaldo previo.
+22. Dejar la app 20 min sin tocarla cierra la sesión sola y vuelve al login.
 
 ## Fuera de alcance (posibles siguientes pasos)
 
-CRUD de editar/eliminar, recetas editables desde la UI, reportes por fecha
-y timeout de sesión automático.
+Editar las recetas (BOM) desde la UI (hoy se edita el producto, no su
+composición), exportar/print del ticket y de los KPIs, y separar el storage
+por dispositivo (hoy es un único `localStorage` compartido por pestaña).

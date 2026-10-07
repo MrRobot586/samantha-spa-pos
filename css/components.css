@@ -138,6 +138,44 @@
     color: #fff;
 }
 
+.btn--mini-danger {
+    background: transparent;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+}
+
+.btn--mini-danger:hover {
+    background: var(--danger);
+    color: #fff;
+}
+
+/* Grupo de acciones dentro de una fila/tarjeta */
+.row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    justify-content: flex-end;
+}
+
+.btn--sm {
+    padding: var(--space-3) var(--space-5);
+    font-size: var(--fs-sm);
+}
+
+/* Barra de filtros de reportes (fechas + acciones) */
+.report-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.input--date {
+    padding: var(--space-2) var(--space-4);
+    font-size: var(--fs-sm);
+    width: auto;
+}
+
 .btn--link-danger {
     color: var(--danger);
     font-size: var(--fs-sm);
@@ -146,6 +184,28 @@
 
 .btn--link-danger:hover {
     color: var(--danger-strong);
+}
+
+/* Acciones destructivas: lleno y fantasma */
+.btn--danger {
+    background: var(--danger);
+    color: #fff;
+    font-weight: 600;
+}
+
+.btn--danger:hover {
+    filter: brightness(1.15);
+}
+
+.btn--ghost {
+    background: transparent;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+}
+
+.btn--ghost:hover {
+    background: var(--danger);
+    color: #fff;
 }
 
 /* --- Encabezado de sección -------------------------------------------------- */
@@ -490,6 +550,23 @@
 
 .modal__actions .btn {
     width: 50%;
+}
+
+/* Pie del modal (fuera del form): botones globales como «Restaurar demo» */
+.modal__foot {
+    border-top: 1px solid var(--border);
+    padding-top: var(--space-6);
+    display: flex;
+    justify-content: flex-end;
+}
+
+.modal__panel--sm {
+    max-width: 22rem;
+}
+
+.modal__text {
+    color: var(--text-dim);
+    line-height: 1.5;
 }
 
 /* --- Toasts (reemplazan los alert() nativos) ------------------------------------------ */

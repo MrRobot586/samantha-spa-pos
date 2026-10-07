@@ -15,6 +15,12 @@ export const LEGACY_STORAGE_KEY = 'samantha-spa-pos:v1';
 /** Dónde se guarda una copia del JSON corrupto antes de descartarlo. */
 export const STORAGE_BACKUP_KEY = 'samantha-spa-pos:backup-corrupto';
 
+/** Respaldo del estado que «restaurar demo» reemplaza con la semilla. */
+export const STORAGE_DEMO_BACKUP_KEY = 'samantha-spa-pos:backup-demo';
+
+/** Minutos de inactividad antes de cerrar la sesión automáticamente. */
+export const SESSION_IDLE_MIN = 20;
+
 /** Clave de la sesión activa (usuario logueado). Va aparte del estado:
  *  es control de acceso de la UI, no datos del negocio. */
 export const SESSION_KEY = 'samantha-spa-pos:session';
@@ -28,5 +34,12 @@ export const CURRENCIES = ['USD', 'VES', 'EUR'];
 /** Modos de tema en orden de ciclo del botón del topbar.
  *  'auto' sigue el sistema (prefers-color-scheme); dark/light son fijos. */
 export const THEMES = ['auto', 'dark', 'light'];
+
+/** Cierre de sesión por inactividad (la sesión local sobrevive a F5, así
+ *  que en un equipo compartido conviene que caduque sola). */
+export const SESSION_IDLE_MS = 20 * 60 * 1000;
+
+/** Cada cuánto se revisa la inactividad. */
+export const IDLE_CHECK_MS = 30 * 1000;
 
 export const TABS = ['dashboard', 'pos', 'cash', 'services', 'inventory', 'commissions'];

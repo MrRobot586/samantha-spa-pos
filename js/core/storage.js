@@ -12,7 +12,7 @@
  *     intacta: sirve de respaldo y cualquier día se puede volver atrás.
  */
 
-import { STORAGE_KEY, LEGACY_STORAGE_KEY, STORAGE_BACKUP_KEY, CURRENCIES, THEMES } from './config.js';
+import { STORAGE_KEY, LEGACY_STORAGE_KEY, STORAGE_BACKUP_KEY, STORAGE_DEMO_BACKUP_KEY, CURRENCIES, THEMES } from './config.js';
 import { createSeedState } from './seed.js';
 
 const isObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -340,4 +340,23 @@ export function saveState(state, backend = defaultBackend()) {
     } catch {
         return false;
     }
+}
+
+/**
+ * «Restaurar demo»: respalda el estado actual (para nunca borrar a ciegas el
+ * historial de una caja) y vuelve a los datos de semilla. Devuelve el estado
+ * nuevo; el llamador lo activa con replaceState().
+ */
+export function restoreDemo(backend = defaultBackend()) {
+    const state = createSeedState();
+    if (backend) {
+        try {
+            const actual = backend.getItem(STORAGE_KEY);
+            if (actual) backend.setItem(STORAGE_DEMO_BACKUP_KEY, actual);
+        } catch {
+            // Sin espacio para el respaldo: el reset no se bloquea por eso.
+        }
+        saveState(state, backend);
+    }
+    return state;
 }

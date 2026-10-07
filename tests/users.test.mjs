@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createUser, updateUser } from '../js/domain/users.js';
+import { createUser, updateUser, deleteUser } from '../js/domain/users.js';
 import { createSeedState } from '../js/core/seed.js';
 import { verifyPin } from '../js/core/pin.js';
 
@@ -99,4 +99,31 @@ test('nunca se puede perder el último administrador activo', () => {
     const fuera = updateUser(admin.id, { ...campos, active: false }, state);
     assert.equal(fuera.active, false);
     assert.ok(state.users.find(u => u.username === 'segunda').active);
+});
+
+test('deleteUser elimina un usuario común', () => {
+    const state = createSeedState();
+    const borrado = deleteUser('u2', state);
+    assert.equal(borrado.id, 'u2');
+    assert.equal(state.users.some(u => u.id === 'u2'), false);
+    assert.equal(state.users.length, 3);
+});
+
+test('deleteUser nunca borra el último administrador activo', () => {
+    const state = createSeedState();
+    assert.throws(() => deleteUser('u1', state), /último administrador/);
+    assert.ok(state.users.some(u => u.id === 'u1'));
+});
+
+test('deleteUser permite borrar un admin si queda otro activo', () => {
+    const state = createSeedState();
+    createUser({ name: 'Segunda Jefa', username: 'jefa2', role: 'admin', pin: '9999' }, state);
+    const borrado = deleteUser('u1', state);
+    assert.equal(borrado.id, 'u1');
+    assert.ok(state.users.some(u => u.role === 'admin' && u.active));
+});
+
+test('deleteUser devuelve null si el usuario no existe', () => {
+    const state = createSeedState();
+    assert.equal(deleteUser('no-existe', state), null);
 });

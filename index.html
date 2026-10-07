@@ -380,7 +380,7 @@
                     <h3 class="section-head__title">Catálogo de Servicios & Recetas Técnicas</h3>
                     <p class="section-head__sub">Define los insumos profesionales (BOM) consumidos en cada aplicación.</p>
                 </div>
-                <button type="button" data-action="open-modal" data-target="modal-service" class="btn btn--brand">
+                <button type="button" data-action="new-service" class="btn btn--brand">
                     <i class="fa-solid fa-plus"></i> Nuevo Servicio
                 </button>
             </div>
@@ -397,7 +397,7 @@
                     <h3 class="section-head__title">Gestión de Inventario Híbrido</h3>
                     <p class="section-head__sub">Diferenciación entre Insumos de Uso Profesional y Productos de Venta Retail.</p>
                 </div>
-                <button type="button" data-action="open-modal" data-target="modal-product" class="btn btn--brand">
+                <button type="button" data-action="new-product" class="btn btn--brand">
                     <i class="fa-solid fa-plus"></i> Agregar Producto / Insumo
                 </button>
             </div>
@@ -433,8 +433,35 @@
                 </div>
             </div>
 
-            <div id="commissions-staff-grid" class="cards-grid">
+<div id="commissions-staff-grid" class="cards-grid">
                 <!-- Lo llena el JS -->
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <h3><i class="fa-solid fa-calendar-days icon--brand"></i> Comisiones por Período</h3>
+                    <div class="report-bar">
+                        <input type="date" id="comm-from" class="input input--date" aria-label="Comisiones desde">
+                        <input type="date" id="comm-to" class="input input--date" aria-label="Comisiones hasta">
+                        <button type="button" data-action="report-commissions" class="btn btn--brand btn--sm">Aplicar</button>
+                        <button type="button" data-action="export-commissions" class="btn btn--neutral btn--sm">Exportar CSV</button>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table class="table table--compact">
+                        <thead>
+                            <tr>
+                                <th>Estilista</th>
+                                <th>Ventas</th>
+                                <th>Vendido</th>
+                                <th>Comisión</th>
+                            </tr>
+                        </thead>
+                        <tbody id="commissions-report-list">
+                            <tr><td colspan="4" class="empty-cell">Sin ventas en el período.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </section>
 
@@ -479,9 +506,15 @@
                 </div>
 
                 <div class="card">
-                    <div class="card-head">
-                        <h3><i class="fa-solid fa-clock-rotate-left icon--brand"></i> Historial de Cortes</h3>
-                    </div>
+<div class="card-head">
+                            <h3><i class="fa-solid fa-clock-rotate-left icon--brand"></i> Historial de Cortes</h3>
+                            <div class="report-bar">
+                                <input type="date" id="closure-from" class="input input--date" aria-label="Cortes desde">
+                                <input type="date" id="closure-to" class="input input--date" aria-label="Cortes hasta">
+                                <button type="button" data-action="filter-closures" class="btn btn--brand btn--sm">Filtrar</button>
+                                <button type="button" data-action="export-closures" class="btn btn--neutral btn--sm">Exportar CSV</button>
+                            </div>
+                        </div>
                     <div class="table-wrap">
                         <table class="table table--compact">
                             <thead>
@@ -515,6 +548,7 @@
                 </button>
             </div>
             <form id="form-add-product" class="modal__form">
+                <input type="hidden" id="product-id">
                 <div class="field">
                     <label for="prod-name" class="field__label field__label--sm">Nombre del Producto</label>
                     <input type="text" id="prod-name" required class="input">
@@ -574,6 +608,7 @@
                 </button>
             </div>
             <form id="form-add-service" class="modal__form">
+                <input type="hidden" id="service-id">
                 <div class="field">
                     <label for="serv-name" class="field__label field__label--sm">Nombre del Servicio</label>
                     <input type="text" id="serv-name" required class="input">
@@ -676,6 +711,13 @@
                     <button type="submit" class="btn btn--brand">Guardar</button>
                 </div>
             </form>
+
+            <div class="modal__foot">
+                <button type="button" data-action="open-confirm" data-op="reset-demo"
+                        data-title="¿Restaurar la demo?"
+                        data-message="Se reemplazarán todos los datos (usuarios, inventario, historial de caja y ventas) por los de fábrica. El estado actual queda respaldado en el navegador antes de restaurar."
+                        class="btn btn--danger btn--ghost">Restaurar demo</button>
+            </div>
         </div>
     </div>
 
@@ -755,6 +797,25 @@
                     <button type="submit" class="btn btn--success">Cerrar caja</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Pila de toasts -->
+
+    <!-- MODAL: CONFIRMACIÓN GENÉRICA (reemplaza al confirm() nativo) -->
+    <div id="modal-confirm" class="modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="modal-confirm-title">
+        <div class="modal__panel modal__panel--sm">
+            <div class="modal__head">
+                <h3 id="modal-confirm-title" class="modal__title">¿Confirmar?</h3>
+                <button type="button" data-action="close-modal" data-target="modal-confirm" class="modal__close" aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <p id="modal-confirm-message" class="modal__text"></p>
+            <div class="modal__actions">
+                <button type="button" data-action="close-modal" data-target="modal-confirm" class="btn btn--neutral">Cancelar</button>
+                <button type="button" data-action="confirm-action" class="btn btn--danger">Confirmar</button>
+            </div>
         </div>
     </div>
 

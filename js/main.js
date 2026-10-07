@@ -7,10 +7,10 @@
  */
 
 import { getState, replaceState } from './core/state.js';
-import { loadState, saveState } from './core/storage.js';
+import { loadState, saveState, restoreDemo } from './core/storage.js';
 import { login, logout, getCurrentUser } from './core/auth.js';
 import { loadRatesCache, refreshRates, isStale, toUSD } from './core/rates.js';
-import { CURRENCIES, THEMES } from './core/config.js';
+import { CURRENCIES, THEMES, SESSION_IDLE_MS, IDLE_CHECK_MS } from './core/config.js';
 import { money } from './core/utils.js';
 
 import { switchTab, renderNav, ensureAllowedTab } from './ui/navigation.js';
@@ -21,22 +21,29 @@ import { toast, toastSuccess, toastError } from './ui/dialogs.js';
 import { openModal, closeModal, initModals } from './ui/modals.js';
 import { renderStaffSelect, renderCatalog, renderTicket, renderFilters, updateTotals, renderPayment, updateChange } from './ui/pos.js';
 import { renderDashboard } from './ui/dashboard.js';
-import { renderServicesCards } from './ui/services-view.js';
-import { renderInventoryTable } from './ui/inventory-view.js';
-import { renderCommissions } from './ui/commissions-view.js';
+import { renderServicesCards, fillServiceForm } from './ui/services-view.js';
+import { renderInventoryTable, fillProductForm } from './ui/inventory-view.js';
+import { renderCommissions, renderCommissionsReport } from './ui/commissions-view.js';
 import { renderCash, fillCashClosePreview } from './ui/cash-view.js';
 
 import { addItem, changeQty, clearTicket, setTicketStaff, setPaymentMethod } from './domain/ticket.js';
 import { processPayment } from './domain/checkout.js';
-import { addProduct, restock, findProduct } from './domain/inventory.js';
-import { addService } from './domain/services.js';
-import { createUser, updateUser } from './domain/users.js';
+import { addProduct, updateProduct, deleteProduct, restock, findProduct } from './domain/inventory.js';
+import { addService, updateService, deleteService } from './domain/services.js';
+import { createUser, updateUser, deleteUser } from './domain/users.js';
 import { openCashSession, addWithdrawal, closeCashSession } from './domain/cash.js';
+import { commissionsBetween, closuresBetween } from './domain/reports.js';
+import { downloadCsv } from './ui/csv-export.js';
 
 const persist = () => saveState(getState());
 
 /** Revisión de staleness para sesiones largas (la tasa vive en memoria). */
 const STALE_CHECK_MS = 10 * 60 * 1000;
+
+/* Marca de la última actividad del usuario; el temporizador de inactividad
+ * la compara contra SESSION_IDLE_MS para cerrar la sesión sola. */
+let lastActivity = Date.now();
+const touchActivity = () => { lastActivity = Date.now(); };
 
 function renderAll() {
     renderHeader();
@@ -47,6 +54,7 @@ function renderAll() {
     renderServicesCards();
     renderInventoryTable();
     renderCommissions();
+    renderCommissionsReport();
     renderCash();
     renderUsersList();
 }
@@ -64,9 +72,84 @@ function renderSessionChrome() {
     renderNav(user.role);
 }
 
-/* ------------------------------------------------------------ acciones -- */
+/* -------------------------------------------------------- confirmaciones -- */
+
+/** Abre el modal genérico con la acción pendiente y su copy. */
+function openConfirm(el, op) {
+    pendingConfirm = { op, id: el.dataset.id || null };
+    document.getElementById('modal-confirm-title').textContent = el.dataset.title || '¿Confirmar?';
+    document.getElementById('modal-confirm-message').textContent = el.dataset.message || '';
+    openModal('modal-confirm');
+}
+
+function handleConfirm({ op, id }) {
+    closeModal('modal-confirm');
+
+    if (op === 'reset-demo') {
+        replaceState(restoreDemo());
+        applyTheme();
+        renderAll();
+        if (getCurrentUser(getState())) {
+            renderSessionChrome();
+            ensureAllowedTab();
+            toastSuccess('Datos restaurados a la demo de fábrica. El respaldo quedó guardado.');
+        } else {
+            logout();
+            showLogin();
+            toastSuccess('Datos restaurados a la demo de fábrica.');
+        }
+        return;
+    }
+
+    if (op === 'delete-product') {
+        try {
+            const p = deleteProduct(id);
+            toastSuccess(`Producto "${p.name}" eliminado.`);
+            renderAll();
+            persist();
+        } catch (err) {
+            toastError(err.message);
+        }
+        return;
+    }
+
+    if (op === 'delete-service') {
+        try {
+            const s = deleteService(id);
+            toastSuccess(`Servicio "${s.name}" eliminado.`);
+            renderAll();
+            persist();
+        } catch (err) {
+            toastError(err.message);
+        }
+        return;
+    }
+
+    if (op === 'delete-user') {
+        try {
+            const u = deleteUser(id);
+            toastSuccess(`Usuario "${u.name}" eliminado.`);
+            renderAll();
+            persist();
+            if (getCurrentUser(getState())) {
+                renderSessionChrome();
+                ensureAllowedTab();
+            } else {
+                logout();
+                showLogin();
+            }
+        } catch (err) {
+            toastError(err.message);
+        }
+    }
+}
+
+/* -------------------------------------------------------------- acciones -- */
 
 let restockTargetId = null;
+
+/** Operación pendiente del modal de confirmación genérico. */
+let pendingConfirm = null;
 
 function handleAction(el, action) {
     switch (action) {
@@ -151,6 +234,53 @@ function handleAction(el, action) {
             closeModal(el.dataset.target);
             break;
 
+        case 'open-confirm':
+            openConfirm(el, el.dataset.op);
+            break;
+
+        case 'confirm-action':
+            if (!pendingConfirm) { closeModal('modal-confirm'); break; }
+            handleConfirm(pendingConfirm);
+            pendingConfirm = null;
+            break;
+
+        case 'filter-closures':
+            renderCash();
+            break;
+
+        case 'export-closures': {
+            const from = document.getElementById('closure-from').value;
+            const to = document.getElementById('closure-to').value;
+            const rows = closuresBetween(from, to).map(c => [
+                c.closedAt, c.closedByName, c.txCount,
+                c.ventas.cash, c.ventas.card, c.ventas.other,
+                c.totalUSD, c.esperadoUSD, c.contadoUSD, c.diferenciaUSD
+            ]);
+            rows.unshift(['Fecha', 'Cerrado por', 'Ventas (nº)', 'Efectivo USD', 'Tarjeta USD',
+                'Otro USD', 'Total USD', 'Esperado USD', 'Contado USD', 'Diferencia USD']);
+            downloadCsv('cortes.csv', rows);
+            toastSuccess(`CSV exportado (${rows.length - 1} cortes).`);
+            break;
+        }
+
+        case 'report-commissions':
+            renderCommissionsReport(
+                document.getElementById('comm-from').value,
+                document.getElementById('comm-to').value
+            );
+            break;
+
+        case 'export-commissions': {
+            const from = document.getElementById('comm-from').value;
+            const to = document.getElementById('comm-to').value;
+            const rows = commissionsBetween(from, to).map(r =>
+                [r.staffName, r.sales, r.totalUSD, r.commissionUSD]);
+            rows.unshift(['Estilista', 'Ventas', 'Vendido USD', 'Comisión USD']);
+            downloadCsv('comisiones.csv', rows);
+            toastSuccess(`CSV exportado (${rows.length - 1} estilistas).`);
+            break;
+        }
+
         case 'logout':
             logout();
             showLogin();
@@ -193,6 +323,34 @@ function handleAction(el, action) {
         case 'new-user':
             resetUserForm();
             document.getElementById('user-name')?.focus();
+            break;
+
+        case 'new-product':
+            fillProductForm();
+            openModal('modal-product');
+            document.getElementById('prod-name')?.focus();
+            break;
+
+        case 'edit-product':
+            fillProductForm(el.dataset.id);
+            openModal('modal-product');
+            break;
+
+        case 'new-service':
+            fillServiceForm('');
+            openModal('modal-service');
+            document.getElementById('serv-name')?.focus();
+            break;
+
+        case 'edit-service':
+            fillServiceForm(el.dataset.id);
+            openModal('modal-service');
+            break;
+
+        case 'delete-product':
+        case 'delete-service':
+        case 'delete-user':
+            openConfirm(el, el.dataset.action);
             break;
 
         case 'restock': {
@@ -285,6 +443,7 @@ function onSubmit(e) {
             renderStaffSelect();
             renderAll();
             toastSuccess(`Hola, ${user.name}.`);
+            touchActivity();
         } catch (err) {
             showLoginError(err.message);
             document.getElementById('login-pin')?.select();
@@ -327,7 +486,8 @@ function onSubmit(e) {
 
     if (form.id === 'form-add-product') {
         try {
-            const product = addProduct({
+            const id = fieldValue('product-id');
+            const data = {
                 name: fieldValue('prod-name'),
                 type: document.getElementById('prod-type').value,
                 unit: document.getElementById('prod-unit').value,
@@ -335,10 +495,12 @@ function onSubmit(e) {
                 minStock: parseFloat(fieldValue('prod-min')),
                 cost: parseFloat(fieldValue('prod-cost')),
                 price: parseFloat(fieldValue('prod-price'))
-            });
-            form.reset();
+            };
+            const product = id ? updateProduct(id, data) : addProduct(data);
             closeModal('modal-product');
-            toastSuccess(`"${product.name}" agregado al inventario.`);
+            toastSuccess(id
+                ? `"${product.name}" actualizado en el inventario.`
+                : `"${product.name}" agregado al inventario.`);
             renderAll();
             persist();
         } catch (err) {
@@ -349,13 +511,16 @@ function onSubmit(e) {
 
     if (form.id === 'form-add-service') {
         try {
-            const service = addService({
+            const id = fieldValue('service-id');
+            const data = {
                 name: fieldValue('serv-name'),
                 price: parseFloat(fieldValue('serv-price'))
-            });
-            form.reset();
+            };
+            const service = id ? updateService(id, data) : addService(data);
             closeModal('modal-service');
-            toastSuccess(`Servicio "${service.name}" agregado al catálogo.`);
+            toastSuccess(id
+                ? `Servicio "${service.name}" actualizado.`
+                : `Servicio "${service.name}" agregado al catálogo.`);
             renderServicesCards();
             renderCatalog();
             persist();
@@ -480,6 +645,22 @@ function boot() {
     document.addEventListener('change', onChange);
     document.addEventListener('input', onInput);
     document.addEventListener('submit', onSubmit);
+
+    // Cierre de sesión por inactividad: cualquier gesto del usuario la renueva.
+    for (const ev of ['click', 'keydown', 'touchstart']) {
+        document.addEventListener(ev, touchActivity, { passive: true });
+    }
+    document.addEventListener('mousemove', () => {
+        // No renovar en cada pixel: basta saber que sigue habiendo actividad.
+        if (Date.now() - lastActivity > 5000) touchActivity();
+    });
+    setInterval(() => {
+        if (!getCurrentUser(getState())) return;
+        if (Date.now() - lastActivity < SESSION_IDLE_MS) return;
+        logout();
+        showLogin();
+        toast('Sesión cerrada por inactividad.', 'info', 5000);
+    }, IDLE_CHECK_MS);
 }
 
 boot();

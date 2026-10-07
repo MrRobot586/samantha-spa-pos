@@ -31,10 +31,45 @@ export function renderInventoryTable() {
                     </span>
                 </td>
                 <td class="col-actions">
-                    <button type="button" data-action="restock" data-id="${escapeHtml(p.id)}" class="btn btn--mini">
-                        + Reponer
-                    </button>
+                    <div class="row-actions">
+                        <button type="button" data-action="edit-product" data-id="${escapeHtml(p.id)}" class="btn btn--mini">
+                            Editar
+                        </button>
+                        <button type="button" data-action="restock" data-id="${escapeHtml(p.id)}" class="btn btn--mini">
+                            + Reponer
+                        </button>
+                        <button type="button" data-action="delete-product" data-id="${escapeHtml(p.id)}"
+                                data-title="¿Eliminar producto?"
+                                data-message="Se eliminará &quot;${escapeHtml(p.name)}&quot; del inventario. Si algún servicio lo usa como insumo, no se podrá borrar."
+                                class="btn btn--mini btn--mini-danger">Eliminar</button>
+                    </div>
                 </td>
             </tr>`;
     }).join('');
+}
+
+/** Rellena el modal de producto para editar; vacío para crear. */
+export function fillProductForm(id = '') {
+    const state = getState();
+    const form = document.getElementById('form-add-product');
+    form.reset();
+    document.getElementById('product-id').value = '';
+
+    const title = document.getElementById('modal-product-title');
+    if (!id) {
+        title.textContent = 'Nuevo Producto / Insumo';
+        return;
+    }
+
+    const p = state.products.find(x => x.id === id);
+    if (!p) return;
+    document.getElementById('product-id').value = p.id;
+    document.getElementById('prod-name').value = p.name;
+    document.getElementById('prod-type').value = p.type;
+    document.getElementById('prod-unit').value = p.unit;
+    document.getElementById('prod-stock').value = p.stock;
+    document.getElementById('prod-min').value = p.minStock;
+    document.getElementById('prod-cost').value = p.cost;
+    document.getElementById('prod-price').value = p.price;
+    title.textContent = 'Editar Producto / Insumo';
 }
