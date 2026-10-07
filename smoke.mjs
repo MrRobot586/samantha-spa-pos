@@ -563,6 +563,17 @@ async function main() {
             const r = nav.getBoundingClientRect();
             return r.bottom > 0 && r.bottom <= 700 && r.top > 500;
         })()`);
+    await check('bottom-nav solo iconos a 375px (etiqueta oculta, nombre accesible intacto)', `
+        (() => {
+            const s = document.querySelector('.sidebar__nav .nav-btn span');
+            const cs = getComputedStyle(s);
+            return cs.position === 'absolute' && parseFloat(cs.width) <= 1 && s.textContent.trim().length > 0;
+        })()`);
+    await check('bottom-nav sin scroll horizontal a 375px', `
+        (() => {
+            const nav = document.querySelector('.sidebar__nav');
+            return nav.scrollWidth <= nav.clientWidth + 1;
+        })()`);
 
     // --- Responsive: grids auto-fit + topbar + ultrawide --------------------
     await evaluar(`document.getElementById('nav-pos').click()`);
@@ -590,6 +601,8 @@ async function main() {
     // Tablet portrait: aquí el badge de caja (≥640) y la nav con texto vuelven
     await send('Emulation.setDeviceMetricsOverride', { width: 700, height: 900, deviceScaleFactor: 1, mobile: false }, sessionId);
     await esperar(300);
+    await check('bottom-nav con texto en tablet (700px)',
+        `getComputedStyle(document.querySelector('.sidebar__nav .nav-btn span')).position === 'static'`);
     await check('topbar sin desborde a 700px', `
         (() => {
             const t = document.querySelector('.topbar');

@@ -165,10 +165,11 @@ La app arranca en la pantalla de login. Credenciales semilla:
   y breakpoints canónicos **640 / 768 / 1024 / 1280** (todo documentado en
   `css/tokens.css`).
 - **Dispositivos:** la sidebar lateral vive en ≥1024; por debajo pasa a barra
-  inferior fija (con safe-area para el notch). Los controles secundarios
-  salieron de la topbar al menú, así que la barra ya no se compacta por
-  niveles y el contenido se limita a 1440px en monitores anchos. Objetivos
-  táctiles ≥44px y `prefers-reduced-motion`.
+  inferior fija (con safe-area para el notch) y, **por debajo de 640px, solo
+  con iconos** (el texto se conserva como nombre accesible). Los controles
+  secundarios salieron de la topbar al menú, así que la barra ya no se
+  compacta por niveles y el contenido se limita a 1440px en monitores
+  anchos. Objetivos táctiles ≥44px y `prefers-reduced-motion`.
 
 ## Pruebas
 
@@ -185,8 +186,8 @@ variable `var(--x)` debe existir en el proyecto). La UI se verifica con el smoke
 ticket imprimible (con `window.print` interceptado), reimpresión, ajustes de
 impresión, gate de caja, apertura, corte, moneda y tema, CRUD, restaurar
 demo, XSS, el gap de los filtros de Ventas, el wizard de 3 pasos del POS,
-el menú del topbar y responsive en varios anchos) y con el checklist del
-final.
+el menú del topbar, la barra inferior solo con iconos y responsive en
+varios anchos) y con el checklist del final.
 El CI de GitHub Actions (`.github/workflows/ci.yml`) corre ambas cosas en
 cada push.
 
@@ -273,8 +274,10 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
   del layout roto del original; en 768–1023 el sidebar de 16rem dejaba el
   contenido a 512px y la topbar desbordaba (defecto del original), así que
   la nav inferior gana ancho y el lateral vuelve en ≥1024. Por debajo de
-  640px la topbar se reduce a título + tasa + menú; el resto vive en el
-  menú (⋯), donde la tasa se trunca con "…" (completa en el tooltip).
+  640px la nav inferior queda **solo con iconos** (los 7 ítems con texto no
+  cabían: desbordaban y se cortaban) y la topbar se reduce a título + tasa
+  + menú; el resto vive en el menú (⋯), donde la tasa se trunca con "…"
+  (completa en el tooltip).
 - **Tema claro/oscuro vinculado al sistema:** `settings.theme` es
   `auto | dark | light`. Con `auto` sigue a `prefers-color-scheme` en vivo
   (listener de `matchMedia`). Un script pre-paint en `<head>` lee el tema
@@ -354,7 +357,8 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
 14. Menú (⋯): dentro están moneda, fuente de tasa, tema, fecha y sesión; se
     cierra con clic fuera, con ESC, al cambiar de pestaña y al abrir un
     modal. Como `valeria`, la sección "Herramientas" no aparece.
-15. A 375px de ancho: aparece la barra inferior, sin scroll horizontal.
+15. A 375px de ancho: aparece la barra inferior con solo iconos (sin scroll
+    horizontal); a 700 y 900px los ítems vuelven a mostrar el texto.
 16. Tema: el botón del menú cicla Auto → Oscuro → Claro (el icono cambia);
     con `auto` y el SO en claro/oscuro la app lo sigue en vivo; al recargar
     el tema elegido se mantiene sin parpadeo.
