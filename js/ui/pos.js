@@ -1,11 +1,11 @@
-/* Vista de Caja/POS: selector de estilista, catálogo y ticket.
- * Todo render con escapeHtml en los nombres de usuario (bug #10).
- */
+/* Catálogo del POS, ticket y resumen de pago (pago mixto). Sin lógica de
+ * negocio: delega en domain/payments.js y domain/ticket.js. */
 
 import { getState } from '../core/state.js';
-import { escapeHtml, money } from '../core/utils.js';
-import { toUSD } from '../core/rates.js';
-import { ticketTotals } from '../domain/ticket.js';
+import { money, escapeHtml } from '../core/utils.js';
+import { toUSD, convert } from '../core/rates.js';
+import { ticketTotals, setPaymentAmount } from '../domain/ticket.js';
+import { PAYMENT_METHODS, methodLabel, settlePayments } from '../domain/payments.js';
 
 export function renderStaffSelect() {
     const state = getState();
@@ -42,15 +42,15 @@ export function renderCatalog() {
         }
     }
 
-    if (cat === 'all' || cat === 'retail') {
-        for (const p of state.products.filter(p => p.type === 'retail')) {
+    if (cat === 'all' || cat === 'sale') {
+        for (const p of state.products.filter(p => p.type === 'sale')) {
             if (!matches(p.name)) continue;
             const isLow = p.stock <= p.minStock;
             html += `
-                <button type="button" data-action="add-item" data-type="product" data-id="${escapeHtml(p.id)}" class="catalog-card catalog-card--retail">
+                <button type="button" data-action="add-item" data-type="product" data-id="${escapeHtml(p.id)}" class="catalog-card catalog-card--sale">
                     <div>
                         <div class="catalog-card__top">
-                            <span class="badge badge--tag badge--retail-tag">Retail</span>
+                            <span class="badge badge--tag badge--sale-tag">Producto</span>
                             <span class="catalog-card__stock ${isLow ? 'catalog-card__stock--low' : ''}">Stock: ${p.stock}</span>
                         </div>
                         <h4 class="catalog-card__name">${escapeHtml(p.name)}</h4>
@@ -105,43 +105,112 @@ export function updateTotals() {
     document.getElementById('ticket-tax').textContent = money(tax);
     document.getElementById('ticket-commission').textContent = money(commission);
     document.getElementById('ticket-total').textContent = money(total);
-    updateChange();
+    updatePaymentSummary();
+}
+
+/** Vuelca los pagos guardados a los inputs (montos en la moneda activa). */
+export function renderPayment() {
+    const state = getState();
+    for (const method of PAYMENT_METHODS) {
+        const input = paymentInput(method.id);
+        if (!input) continue;
+        const pago = state.currentTicket.payments.find(p => p.method === method.id);
+        input.value = pago ? String(Number(convert(pago.amountUSD, state.settings.currency).toFixed(2))) : '';
+    }
+    updatePaymentSummary();
+}
+
+function paymentInput(method) {
+    return document.querySelector(`[data-action="payment-amount"][data-method="${method}"]`);
 }
 
 /**
- * Pinta el método de pago activo, muestra/oculta el recibido (solo efectivo)
- * y recalcula el cambio en la moneda activa de visualización.
+ * Lee los inputs, actualiza el ticket (en USD) y devuelve una copia de los
+ * pagos. Un campo vacío o ilegible cuenta como 0 (método sin usar).
  */
-export function renderPayment() {
+export function collectPayments() {
     const state = getState();
-    const method = state.currentTicket.paymentMethod || 'cash';
-
-    document.querySelectorAll('[data-action="set-payment-method"]').forEach(btn => {
-        btn.classList.toggle('is-active', btn.dataset.method === method);
-    });
-
-    const esEfectivo = method === 'cash';
-    document.getElementById('ticket-received-row').classList.toggle('is-hidden', !esEfectivo);
-    document.getElementById('ticket-change-row').classList.toggle('is-hidden', !esEfectivo);
-
-    updateChange();
+    for (const method of PAYMENT_METHODS) {
+        const input = paymentInput(method.id);
+        const crudo = input ? input.value.trim() : '';
+        const n = Number(crudo);
+        const usd = crudo === '' || !Number.isFinite(n) || n <= 0
+            ? 0
+            : toUSD(n, state.settings.currency);
+        setPaymentAmount(method.id, usd);
+    }
+    return state.currentTicket.payments.map(p => ({ ...p }));
 }
 
-/** Cambio = recibido (traducido a USD con la tasa vigente) − total. */
-export function updateChange() {
+/** Resumen Pagado / Falta / Vuelto en la moneda activa. */
+export function updatePaymentSummary() {
     const state = getState();
-    const changeEl = document.getElementById('ticket-change');
-    if (!changeEl) return;
+    const { total } = ticketTotals();
+    const paid = state.currentTicket.payments.reduce((a, p) => a + p.amountUSD, 0);
+    const due = Math.max(total - paid, 0);
 
-    if ((state.currentTicket.paymentMethod || 'cash') !== 'cash') {
-        changeEl.textContent = money(0);
-        return;
+    let change = 0;
+    try {
+        change = settlePayments(state.currentTicket.payments, total).changeUSD;
+    } catch {
+        change = 0;
     }
 
-    const { total } = ticketTotals();
-    const crudo = document.getElementById('ticket-received').value.trim();
-    const receivedUSD = crudo === '' ? 0 : toUSD(Number(crudo), state.settings.currency);
-    changeEl.textContent = money(Math.max(receivedUSD - total, 0));
+    document.getElementById('ticket-paid').textContent = money(paid);
+    document.getElementById('ticket-due').textContent = money(due);
+    document.getElementById('ticket-change').textContent = money(change);
+    document.getElementById('ticket-due-row').classList.toggle('is-hidden', due <= 0.0001);
+}
+
+/** Resumen de la venta para el modal de confirmación. */
+export function renderSaleConfirm() {
+    const state = getState();
+    const { subtotal, tax, total } = ticketTotals();
+    const staff = state.staff.find(s => s.id === state.currentTicket.staffId);
+    const pagos = state.currentTicket.payments;
+
+    let change = 0;
+    try {
+        change = settlePayments(pagos, total).changeUSD;
+    } catch {
+        change = 0;
+    }
+
+    const filasPago = pagos.length > 0
+        ? pagos.map(p => `
+            <div class="sale-confirm__row">
+                <span>${escapeHtml(methodLabel(p.method))}</span>
+                <span>${money(p.amountUSD)}</span>
+            </div>`).join('')
+        : '<div class="sale-confirm__row"><span>Sin pagos registrados</span><span>—</span></div>';
+
+    document.getElementById('sale-confirm-preview').innerHTML = `
+        <div class="sale-confirm__row">
+            <span>Artículos</span>
+            <span>${state.currentTicket.items.reduce((a, i) => a + i.qty, 0)}</span>
+        </div>
+        <div class="sale-confirm__row">
+            <span>Estilista</span>
+            <span>${escapeHtml(staff ? staff.name : 'N/A')}</span>
+        </div>
+        <div class="sale-confirm__row">
+            <span>Subtotal</span>
+            <span>${money(subtotal)}</span>
+        </div>
+        <div class="sale-confirm__row">
+            <span>IVA (16%)</span>
+            <span>${money(tax)}</span>
+        </div>
+        <div class="sale-confirm__row sale-confirm__row--total">
+            <span>Total</span>
+            <span>${money(total)}</span>
+        </div>
+        <div class="sale-confirm__sep"></div>
+        ${filasPago}
+        <div class="sale-confirm__row">
+            <span>Vuelto</span>
+            <span>${money(change)}</span>
+        </div>`;
 }
 
 /** Actualiza los botones de filtro del catálogo según la categoría activa. */

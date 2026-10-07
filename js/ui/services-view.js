@@ -1,4 +1,4 @@
-/* Tarjetas de servicios con su receta (BOM). */
+/* Tarjetas de servicios con su receta. */
 
 import { getState } from '../core/state.js';
 import { escapeHtml, money } from '../core/utils.js';
@@ -12,11 +12,11 @@ export function renderServicesCards() {
         const recipe = resolveRecipe(s, state);
         const items = recipe.length
             ? recipe.map(({ product, amount }) => `
-                <li class="bom__item">
+                <li class="recipe__item">
                     <span>• ${escapeHtml(product.name)}</span>
-                    <span class="bom__amount">${amount} ${escapeHtml(product.unit)}</span>
+                    <span class="recipe__amount">${amount} ${escapeHtml(product.unit)}</span>
                 </li>`).join('')
-            : '<li class="bom__empty">Sin insumos registrados.</li>';
+            : '<li class="recipe__empty">Sin insumos registrados.</li>';
 
         return `
             <article class="card service-card">
@@ -25,9 +25,9 @@ export function renderServicesCards() {
                         <h4 class="service-card__name">${escapeHtml(s.name)}</h4>
                         <span class="service-card__price">${money(s.price)}</span>
                     </div>
-                    <div class="bom">
-                        <p class="bom__label">Fórmula / Insumos Consumidos (BOM)</p>
-                        <ul class="bom__list">${items}</ul>
+                    <div class="recipe">
+                        <p class="recipe__label">Fórmula / Insumos Consumidos</p>
+                        <ul class="recipe__list">${items}</ul>
                     </div>
                 </div>
                 <div class="row-actions">

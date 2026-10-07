@@ -1,8 +1,8 @@
 /* Smoke test de Samantha Spa POS: levanta servidor + Chrome headless por CDP
  * (sin dependencias), carga la app y recorre el flujo completo: login y
- * roles, venta con método de pago, gate/apertura/corte de caja, moneda en
- * vivo con tasa BCV, XSS y viewport móvil. Reporta errores de consola,
- * excepciones y recursos 404.
+ * roles, venta con pago mixto y confirmación, gate/apertura/corte de caja,
+ * moneda en vivo con tasa BCV, XSS y viewport móvil. Reporta errores de
+ * consola, excepciones y recursos 404.
  *
  * Requisitos: python3, google-chrome-stable. Uso: `npm run smoke`. */
 import { spawn } from 'node:child_process';
@@ -180,22 +180,18 @@ async function main() {
     await check('total del ticket', `document.getElementById('ticket-total').textContent`);
     await check('comisión usa tasa del estilista', `document.getElementById('ticket-commission').textContent`);
 
-    // Método de pago y cambio (efectivo es el default)
-    await check('recibido visible con efectivo', `!document.getElementById('ticket-received-row').classList.contains('is-hidden')`);
-    await evaluar(`document.querySelector('[data-action="set-payment-method"][data-method="card"]').click()`);
-    await esperar(150);
-    await check('tarjeta oculta recibido y cambio', `document.getElementById('ticket-received-row').classList.contains('is-hidden') && document.getElementById('ticket-change-row').classList.contains('is-hidden')`);
-    await evaluar(`document.querySelector('[data-action="set-payment-method"][data-method="cash"]').click()`);
-    await esperar(150);
-    await check('vuelta a efectivo muestra el recibido', `!document.getElementById('ticket-received-row').classList.contains('is-hidden')`);
-
-    await evaluar(`(() => { const i = document.getElementById('ticket-received'); i.value = '100'; i.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
+    // Pago mixto: cuatro métodos disponibles y resumen Pagado/Falta/Vuelto
+    await check('cuatro inputs de pago', `document.querySelectorAll('[data-action="payment-amount"]').length === 4`);
+    await evaluar(`(() => { const i = document.querySelector('[data-action="payment-amount"][data-method="cash"]'); i.value = '100'; i.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
     await esperar(120);
-    await check('cambio calculado ($24.60)', `document.getElementById('ticket-change').textContent.includes('24.60')`);
+    await check('vuelto calculado ($24.60)', `document.getElementById('ticket-change').textContent.includes('24.60')`);
 
-    // La caja arranca cerrada: el cobro debe rechazarse (gate)
+    // La caja arranca cerrada: el modal confirma, pero el cobro se rechaza (gate)
     await check('badge de caja dice Cerrada', `document.getElementById('cash-badge-text').textContent.includes('cerrada')`);
     await evaluar(`document.querySelector('[data-action="pay"]').click()`);
+    await esperar(200);
+    await check('modal de confirmación de venta abierto', `!document.getElementById('modal-sale-confirm').classList.contains('is-hidden')`);
+    await evaluar(`document.querySelector('[data-action="confirm-sale"]').click()`);
     await esperar(250);
     await check('caja cerrada → cobro bloqueado', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).transactions.length === 0 && document.querySelectorAll('#ticket-items-container .ticket-item').length === 1`);
     await check('toast de caja cerrada', `[...document.querySelectorAll('#toast-stack .toast')].pop()?.textContent.includes('cerrada') || false`);
@@ -214,21 +210,29 @@ async function main() {
     await check('sesión de caja persistida', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).cashSession.open === true`);
     await check('resumen muestra el fondo 500', `document.getElementById('cash-summary').textContent.includes('500')`);
 
-    // Volver al POS: primero el recibido inválido, luego el pago exacto
+    // Volver al POS: primero el pago insuficiente, luego el pago exacto
     await evaluar(`document.querySelector('[data-action="switch-tab"][data-tab="pos"]').click()`);
     await esperar(150);
-    await evaluar(`(() => { const i = document.getElementById('ticket-received'); i.value = '10'; i.dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('[data-action="pay"]').click(); return true; })()`);
+    await evaluar(`(() => { const i = document.querySelector('[data-action="payment-amount"][data-method="cash"]'); i.value = '10'; i.dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('[data-action="pay"]').click(); return true; })()`);
+    await esperar(200);
+    await evaluar(`document.querySelector('[data-action="confirm-sale"]').click()`);
     await esperar(250);
-    await check('recibido menor → cobro bloqueado', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).transactions.length === 0 && document.querySelectorAll('#ticket-items-container .ticket-item').length === 1`);
-    await check('toast de error de recibido', `[...document.querySelectorAll('#toast-stack .toast')].pop()?.textContent.includes('recibido') || false`);
+    await check('pago insuficiente → cobro bloqueado', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).transactions.length === 0 && document.querySelectorAll('#ticket-items-container .ticket-item').length === 1`);
+    await check('toast de faltante', `[...document.querySelectorAll('#toast-stack .toast')].pop()?.textContent.includes('Faltan') || false`);
 
-    // Pago exacto (recibido vacío) → procesa
-    await evaluar(`document.getElementById('ticket-received').value = ''; document.querySelector('[data-action="pay"]').click(); true`);
+    // Pago exacto en efectivo (se limpia el input) → procesa
+    await evaluar(`(() => { const i = document.querySelector('[data-action="payment-amount"][data-method="cash"]'); i.value = ''; i.dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('[data-action="pay"]').click(); return true; })()`);
+    await esperar(200);
+    await check('pago exacto precargado en el modal', `document.getElementById('sale-confirm-preview').textContent.includes('Efectivo')`);
+    await evaluar(`document.querySelector('[data-action="confirm-sale"]').click()`);
     await esperar(300);
-    await check('toast de pago', `[...document.querySelectorAll('#toast-stack .toast')].pop()?.textContent.includes('Pago de') || false`);
+    await check('toast de venta concretada', `[...document.querySelectorAll('#toast-stack .toast')].pop()?.textContent.includes('concretada') || false`);
     await check('ventas del día tras cobrar', `document.getElementById('dash-today-sales').textContent`);
     await check('persistencia guardada', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).transactions.length`);
-    await check('venta guardó método y recibido', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).transactions[0].method === 'cash' && JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).transactions[0].receivedUSD > 0`);
+    await check('venta guardó método y pagos', `(() => {
+        const tx = JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).transactions[0];
+        return tx.method === 'cash' && tx.receivedUSD > 0 && Array.isArray(tx.payments) && tx.payments[0].method === 'cash';
+    })()`);
 
     // Retiro y corte de caja
     await evaluar(`document.querySelector('[data-action="switch-tab"][data-tab="cash"]').click()`);
@@ -327,7 +331,7 @@ async function main() {
     // XSS: un nombre malicioso debe renderizarse como texto
     await evaluar(`
         document.getElementById('prod-name').value = '<img src=x onerror=alert(1)>';
-        document.getElementById('prod-type').value = 'retail';
+        document.getElementById('prod-type').value = 'sale';
         document.getElementById('prod-unit').value = 'Unidades';
         document.getElementById('prod-stock').value = '5';
         document.getElementById('prod-min').value = '1';
@@ -451,7 +455,7 @@ async function main() {
     await check('editar producto actualiza la tabla', `
         document.getElementById('inventory-table-body').textContent.includes('Shampoo Editado 300ml')`);
 
-    // Borrar un retail que ninguna receta usa (p4)
+    // Borrar un producto de venta que ninguna receta usa (p4)
     await evaluar(`document.querySelector('[data-action="delete-product"][data-id="p4"]').click(); true`);
     await esperar(150);
     await check('el borrado abre el modal de confirmación', `

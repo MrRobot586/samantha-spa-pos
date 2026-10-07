@@ -18,8 +18,8 @@ export function renderInventoryTable() {
             <tr>
                 <td class="cell-strong">${escapeHtml(p.name)}</td>
                 <td>
-                    <span class="badge ${isInternal ? 'badge--purple' : 'badge--retail'}">
-                        ${isInternal ? 'Uso Interno (BOM)' : 'Venta Retail'}
+                    <span class="badge ${isInternal ? 'badge--purple' : 'badge--sale'}">
+                        ${isInternal ? 'Insumo de Uso Interno' : 'Producto de Venta'}
                     </span>
                 </td>
                 <td class="cell-strong ${isLow ? 'stock-low' : ''}">${p.stock}</td>

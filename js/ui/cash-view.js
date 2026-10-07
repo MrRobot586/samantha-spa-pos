@@ -6,6 +6,21 @@ import { getState } from '../core/state.js';
 import { escapeHtml, money } from '../core/utils.js';
 import { cashSummary } from '../domain/cash.js';
 import { closuresBetween } from '../domain/reports.js';
+import { methodLabel } from '../domain/payments.js';
+
+/** Suma todos los métodos de un desglose (ignora `count`). */
+function totalVentas(ventas) {
+    return Object.entries(ventas)
+        .reduce((a, [k, v]) => (k === 'count' ? a : a + v), 0);
+}
+
+/** "Efectivo $X · Débito $Y · …" solo con los métodos que tienen monto. */
+function desgloseVentas(ventas) {
+    return Object.entries(ventas)
+        .filter(([k, v]) => k !== 'count' && v > 0)
+        .map(([k, v]) => `${methodLabel(k)} ${money(v)}`)
+        .join(' · ');
+}
 
 function fmt(iso, conHora = true) {
     if (!iso) return '—';
@@ -54,7 +69,7 @@ export function renderCash() {
     }
 
     // Resumen
-    const ventasTotal = s.ventas.cash + s.ventas.card + s.ventas.other;
+    const ventasTotal = totalVentas(s.ventas);
     const summary = document.getElementById('cash-summary');
 
     if (s.open) {
@@ -64,7 +79,7 @@ export function renderCash() {
             metricCard('Fondo Inicial', money(s.fondoInicial), 'fa-coins', 'brand',
                 'Efectivo con que se abrió'),
             metricCard('Ventas (sesión)', money(ventasTotal), 'fa-receipt', 'warning',
-                `Efectivo ${money(s.ventas.cash)} · Tarjeta ${money(s.ventas.card)} · Otro ${money(s.ventas.other)} · ${s.ventas.count} ventas`),
+                `${desgloseVentas(s.ventas) || 'Sin ventas'} · ${s.ventas.count} ventas`),
             metricCard('Efectivo Esperado', money(s.esperado), 'fa-money-bill-wave', 'danger',
                 `Fondo + efectivo − ${money(s.retiros)} en retiros`)
         ].join('');
@@ -121,12 +136,12 @@ export function renderCash() {
 /** Rellena el resumen del modal de corte (esperado/ventas/retiros). */
 export function fillCashClosePreview() {
     const s = cashSummary();
-    const ventasTotal = s.ventas.cash + s.ventas.card + s.ventas.other;
+    const ventasTotal = totalVentas(s.ventas);
     const el = document.getElementById('cash-close-preview');
     if (!el) return;
     el.innerHTML = `
         <div class="cash-close-preview__row"><span>Ventas de la sesión</span><strong>${money(ventasTotal)}</strong></div>
-        <div class="cash-close-preview__row"><span>Efectivo de esas ventas</span><strong>${money(s.ventas.cash)}</strong></div>
+        <div class="cash-close-preview__row"><span>Dinero físico (Efectivo + Divisa)</span><strong>${money((s.ventas.cash || 0) + (s.ventas.divisa || 0))}</strong></div>
         <div class="cash-close-preview__row"><span>Fondo inicial</span><strong>${money(s.fondoInicial)}</strong></div>
         <div class="cash-close-preview__row"><span>Retiros</span><strong>− ${money(s.retiros)}</strong></div>
         <div class="cash-close-preview__row cash-close-preview__row--total"><span>Efectivo esperado</span><strong>${money(s.esperado)}</strong></div>`;

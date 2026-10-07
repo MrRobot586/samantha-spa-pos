@@ -1,10 +1,11 @@
 # Samantha Spa POS
 
 Punto de venta e inventario para spa/salón: catálogo de servicios con
-recetas (BOM), inventario híbrido (retail + insumos internos), comisiones
+recetas, inventario de productos de venta e insumos internos, comisiones
 por estilista, **moneda en vivo con tasa BCV** (USD ⇄ Bs ⇄ €),
-**métodos de pago con cambio**, **caja con retiros, corte e historial**,
-**reportes por fecha con export CSV** y **CRUD de catálogo y usuarios**.
+**pagos mixtos (Efectivo, Débito, Pago Móvil, Divisa) con vuelto**, **caja
+con retiros, corte e historial**, **reportes por fecha con export CSV** y
+**CRUD de catálogo y usuarios**.
 HTML, CSS y JavaScript puro, **sin dependencias ni build**.
 
 Refactor completo de `Projects/Origins/POS system Samantha Spa.html`
@@ -81,16 +82,25 @@ La app arranca en la pantalla de login. Credenciales semilla:
 
 ## Métodos de pago y caja
 
-- El ticket cobra en **Efectivo, Tarjeta u Otro**. En efectivo se indica el
-  recibido en la moneda activa y se calcula el cambio (vacío = pago exacto;
-  recibido menor que el total → el cobro se bloquea sin tocar nada).
+- El ticket se cobra con **Efectivo, Débito, Pago Móvil o Divisa**, en
+  **pago mixto**: cada método lleva su propio monto (en la moneda activa,
+  guardado en USD). El resumen muestra *Pagado / Falta / Vuelto*.
+- Reglas del pago mixto:
+  - **Efectivo y Divisa** son dinero físico: pueden superar el total y
+    generan **vuelto** (se descuenta primero del efectivo y luego de la
+    divisa).
+  - **Débito y Pago Móvil** deben ir a monto exacto: si superan el total, el
+    cobro se bloquea (el vuelto no se devuelve por el punto de venta).
+  - Si falta por cubrir, `Procesar cobro` abre el **modal de confirmación**
+    de la venta y el cobro se rechaza sin descontar stock ni comisión.
 - **La caja arranca cerrada: no se puede cobrar hasta abrirla.** La
   pestaña **Caja & Cortes** (solo admin) gestiona:
   - **Apertura** con fondo inicial (en la moneda activa, guardado en USD).
   - **Retiros** con motivo, monto y quién lo hizo.
-  - **Corte**: efectivo esperado = fondo + ventas en efectivo − retiros;
-    se ingresa el contado físico y la diferencia (sobrante/faltante) queda
-    registrada en el historial junto con ventas por método y tasa vigente.
+  - **Corte**: efectivo esperado = fondo + **dinero físico (Efectivo +
+    Divisa)** − retiros; se ingresa el contado físico y la diferencia
+    (sobrante/faltante) queda registrada en el historial junto con ventas por
+    método y tasa vigente.
 - El **badge de caja** en el header muestra `Caja abierta`/`Caja cerrada`
   (solo admin) y lleva a la pestaña de caja.
 
@@ -148,8 +158,9 @@ js/
     rates.js          tasa BCV (fetch + caché), convert/toUSD, formatMoney
     utils.js          escapeHtml, money, uid, ids de transacción, fechas
   domain/             100% sin DOM → tests en node
-    ticket.js         ítems, cantidades, subtotal/IVA/comisión, método de pago
-    checkout.js       gate de caja → validación de stock → recibido → transacción
+    payments.js       métodos de pago, liquidación del pago mixto y vuelto
+    ticket.js         ítems, cantidades, subtotal/IVA/comisión y pagos del ticket
+    checkout.js       gate de caja → validación de stock → liquidación → transacción
     cash.js           apertura, retiros, ventas por método, corte e historial
     inventory.js      altas, edición, bajas (bloqueadas si están en una receta), low-stock
     services.js       servicios y recetas, edición y baja
@@ -160,13 +171,13 @@ js/
     header.js         toggle de moneda, tema, badge de tasa y badge de caja
     login-view.js     pantalla de acceso
     navigation.js     nav y pestañas según rol (switchTab rechaza lo no permitido)
-    pos.js            catálogo, ticket, método de pago, recibido y cambio
+    pos.js            catálogo, ticket, pagos mixtos y resumen de la venta
     cash-view.js      pestaña Caja & Cortes + preview del corte
     dashboard.js      KPIs del día (acotados al rol)
     users-view.js     lista y formulario de usuarios
-    csv-export.js     descarga de CSV (Blob + BOM), sin dependencias
+    csv-export.js     descarga de CSV (Blob + marca de orden de bytes), sin dependencias
     (+ services/inventory/commissions, modales, toasts)
-tests/                node --test (ticket, checkout, cash, inventory, services, reports, rates, storage, auth, users)
+tests/                node --test (payments, ticket, checkout, cash, inventory, services, reports, rates, storage, auth, users)
 smoke.mjs             smoke E2E por CDP (npm run smoke) — requiere python3 y Chrome
 servir.sh             servidor estático local (Python o Node, sin instalar)
 .github/workflows/ci.yml  CI: npm test + smoke en cada push/PR
@@ -187,13 +198,13 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
   roles `admin`/`stylist` que ocultan pestañas (y `switchTab` las rechaza,
   no solo las oculta). Es control de acceso, no seguridad de servidor —
   está documentado en "Usuarios y acceso".
-- **Stock nunca negativo.** El cobro valida caja abierta, retail y BOM
-  completo *antes* de mutar; si falta algo, se bloquea con un toast
+- **Stock nunca negativo.** El cobro valida caja abierta, stock de
+  productos y receta completa *antes* de mutar; si falta algo, se bloquea con un toast
   detallando el faltante y el estado queda intacto.
-- **Dinero en USD, visualización en la moneda activa.** El recibido y el
-  contado se ingieren en la moneda visible y se traducen a USD con la tasa
-  vigente antes de persistir; las ventas y cortes guardan su snapshot de
-  tasa para poder reportarlos fielmente después.
+- **Dinero en USD, visualización en la moneda activa.** Los montos de pago
+  y el contado se ingresan en la moneda visible y se traducen a USD con la
+  tasa vigente antes de persistir; las ventas y cortes guardan su snapshot
+  de tasa para poder reportarlos fielmente después.
 - **XSS:** todo texto de usuario pasa por `escapeHtml()` antes de tocar
   `innerHTML`; los toasts usan `textContent`.
 - **Móvil:** la sidebar se convierte en barra inferior fija (<1024px), en vez
@@ -231,8 +242,8 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
   clic accidental no borre datos reales.
 - **Reportes por rango de fechas:** ventas y comisiones se agregan con rango
   inclusivo en hora local (mismo día cuenta completo); el historial de cortes
-  se filtra por fecha de cierre y todo se puede exportar a CSV con BOM UTF-8
-  (abre bien en Excel en español).
+  se filtra por fecha de cierre y todo se puede exportar a CSV con marca de
+  orden de bytes (abre bien en Excel en español).
 - **Sesión caduca por inactividad:** 20 minutos sin gestos del usuario cierran
   la sesión (`SESSION_IDLE_MS`, revisado cada 30 s). El `mousemove` se
   debouncea para no resetear el contador en cada pixel.
@@ -248,8 +259,9 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
    al recargar, la moneda elegida persiste.
 6. Con la caja cerrada, intentar cobrar → toast "La caja está cerrada".
 7. Caja & Cortes → Abrir caja con fondo → el badge pasa a `Caja abierta`.
-8. Vender en efectivo con recibido > total → muestra el cambio; con
-   recibido < total → se bloquea. Vender en tarjeta → sin recibido.
+8. Vender con pago mixto (p. ej. efectivo + divisa) cubriendo el total →
+   el modal confirma y aparece el vuelto; si el total no se cubre o el
+   débito/pago móvil supera el total, el cobro se bloquea.
 9. Registrar un retiro y cerrar la caja con el contado → el corte aparece
    en el historial con su diferencia.
 10. Vender un servicio con receta: el stock del insumo baja y la comisión
@@ -267,8 +279,8 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
     catálogo y servicios se adaptan (sin scroll horizontal en ningún ancho).
 18. Editar un producto/servicio desde la tabla actualiza la fila; "Nuevo"
     vuelve a abrir el formulario en blanco.
-19. Eliminar un insumo usado por una receta se bloquea con aviso; un retail
-    sin receta sí se elimina (con confirmación).
+19. Eliminar un insumo usado por una receta se bloquea con aviso; un
+    producto de venta sin receta sí se elimina (con confirmación).
 20. Caja & Cortes: filtrar el historial por fechas y exportar CSV; Comisiones:
     elegir un rango y exportar el CSV por estilista (se abren en Excel).
 21. "Restaurar demo" (en Usuarios) pide confirmación y repone inventario,
@@ -277,6 +289,6 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
 
 ## Fuera de alcance (posibles siguientes pasos)
 
-Editar las recetas (BOM) desde la UI (hoy se edita el producto, no su
+Editar las recetas desde la UI (hoy se edita el producto, no su
 composición), exportar/print del ticket y de los KPIs, y separar el storage
 por dispositivo (hoy es un único `localStorage` compartido por pestaña).

@@ -84,11 +84,11 @@
     color: var(--brand-300);
 }
 
-.catalog-card--retail:hover {
+.catalog-card--sale:hover {
     border-color: var(--success-strong);
 }
 
-.catalog-card--retail:hover .catalog-card__name {
+.catalog-card--sale:hover .catalog-card__name {
     color: var(--success-text);
 }
 
@@ -304,35 +304,38 @@
     padding-top: var(--space-6);
 }
 
-.payment-methods {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+.payment-list {
+    display: flex;
+    flex-direction: column;
     gap: var(--space-3);
 }
 
-.payment-btn {
-    padding: var(--space-4) var(--space-2);
-    border-radius: var(--radius);
-    font-size: var(--fs-xs);
-    font-weight: 600;
-    background: var(--surface);
-    color: var(--text-muted);
-    border: 1px solid var(--border-strong);
+.payment-row {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+}
+
+.payment-row__label {
+    display: flex;
+    align-items: center;
     gap: var(--space-3);
-    transition: background-color 0.2s, color 0.2s;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--text-muted);
 }
 
-.payment-btn:hover {
-    color: var(--text-strong);
+.payment-row__label i {
+    width: 1rem;
+    text-align: center;
+    color: var(--brand-500);
 }
 
-.payment-btn.is-active {
-    background: var(--brand-600);
-    color: #fff;
-    border-color: var(--brand-600);
+.payment-hint {
+    font-size: var(--fs-xs);
+    color: var(--text-muted);
+    line-height: 1.4;
 }
 
 .ticket__received {
@@ -348,6 +351,39 @@
 
 .ticket__row--change span:last-child {
     color: var(--success);
+}
+
+.ticket__row--paid span:last-child {
+    font-weight: 600;
+    color: var(--text-strong);
+}
+
+/* Resumen del modal de confirmación de venta. */
+.sale-confirm-preview {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-2) 0;
+}
+
+.sale-confirm__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+}
+
+.sale-confirm__row--total {
+    font-size: var(--fs-lg);
+    font-weight: 700;
+    color: var(--text-strong);
+}
+
+.sale-confirm__sep {
+    border-top: 1px solid var(--border);
+    margin: var(--space-2) 0;
 }
 
 

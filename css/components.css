@@ -354,7 +354,7 @@
     padding: var(--space-2) var(--space-5);
 }
 
-.badge--retail {
+.badge--sale {
     background: var(--success-10);
     color: var(--success);
     border: 1px solid var(--success-border);
@@ -377,7 +377,7 @@
     background: var(--brand-10);
 }
 
-.badge--retail-tag {
+.badge--sale-tag {
     color: var(--success);
     background: var(--success-10);
 }

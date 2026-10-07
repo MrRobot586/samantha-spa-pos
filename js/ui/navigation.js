@@ -13,8 +13,8 @@ const TITLES = {
     dashboard: '<i class="fa-solid fa-chart-pie"></i> Dashboard General',
     pos: '<i class="fa-solid fa-cash-register"></i> Punto de Venta / Caja',
     cash: '<i class="fa-solid fa-vault"></i> Caja & Cortes',
-    services: '<i class="fa-solid fa-wand-magic-sparkles"></i> Servicios & Receta Técnica (BOM)',
-    inventory: '<i class="fa-solid fa-boxes-stacked"></i> Control de Inventario Híbrido',
+    services: '<i class="fa-solid fa-wand-magic-sparkles"></i> Servicios & Receta Técnica',
+    inventory: '<i class="fa-solid fa-boxes-stacked"></i> Productos e Insumos',
     commissions: '<i class="fa-solid fa-user-tag"></i> Reporte de Comisiones'
 };
 

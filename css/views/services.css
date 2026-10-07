@@ -39,13 +39,13 @@
     white-space: nowrap;
 }
 
-.bom {
+.recipe {
     border-top: 1px solid var(--border);
     padding-top: var(--space-6);
     margin-top: var(--space-8);
 }
 
-.bom__label {
+.recipe__label {
     font-size: var(--fs-2xs);
     text-transform: uppercase;
     font-weight: 700;
@@ -54,25 +54,25 @@
     letter-spacing: 0.05em;
 }
 
-.bom__list {
+.recipe__list {
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
 }
 
-.bom__item {
+.recipe__item {
     display: flex;
     justify-content: space-between;
     font-size: var(--fs-xs);
     color: var(--text-muted);
 }
 
-.bom__amount {
+.recipe__amount {
     color: var(--brand-300);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-.bom__empty {
+.recipe__empty {
     font-size: var(--fs-xs);
     color: var(--text-faint);
     font-style: italic;

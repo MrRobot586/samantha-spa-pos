@@ -117,7 +117,7 @@
             </button>
             <button type="button" data-action="switch-tab" data-tab="inventory" id="nav-inventory" class="nav-btn">
                 <i class="fa-solid fa-boxes-stacked"></i>
-                <span>Inventario Híbrido</span>
+                <span>Productos e Insumos</span>
             </button>
             <button type="button" data-action="switch-tab" data-tab="commissions" id="nav-commissions" class="nav-btn">
                 <i class="fa-solid fa-user-tag"></i>
@@ -287,7 +287,7 @@
                         <div class="pos-toolbar__filters" role="group" aria-label="Filtrar catálogo">
                             <button type="button" data-action="filter-cat" data-cat="all" class="filter-btn is-active">Todos</button>
                             <button type="button" data-action="filter-cat" data-cat="service" class="filter-btn">Servicios</button>
-                            <button type="button" data-action="filter-cat" data-cat="retail" class="filter-btn">Retail / Productos</button>
+                            <button type="button" data-action="filter-cat" data-cat="sale" class="filter-btn">Productos</button>
                         </div>
                     </div>
 
@@ -338,29 +338,52 @@
                         </div>
 
                         <div class="ticket__payment">
-                            <span class="field__label">Método de Pago</span>
-                            <div class="payment-methods" role="group" aria-label="Método de pago">
-                                <button type="button" data-action="set-payment-method" data-method="cash"
-                                        class="payment-btn is-active">
-                                    <i class="fa-solid fa-money-bill-wave"></i> Efectivo
-                                </button>
-                                <button type="button" data-action="set-payment-method" data-method="card"
-                                        class="payment-btn">
-                                    <i class="fa-solid fa-credit-card"></i> Tarjeta
-                                </button>
-                                <button type="button" data-action="set-payment-method" data-method="other"
-                                        class="payment-btn">
-                                    <i class="fa-solid fa-mobile-screen"></i> Otro
-                                </button>
+                            <span class="field__label">Métodos de Pago</span>
+                            <div class="payment-list">
+                                <div class="payment-row">
+                                    <label class="payment-row__label" for="pay-cash">
+                                        <i class="fa-solid fa-money-bill-wave"></i> Efectivo
+                                    </label>
+                                    <input type="number" id="pay-cash" min="0" step="0.01" inputmode="decimal"
+                                           placeholder="0.00" data-action="payment-amount" data-method="cash"
+                                           class="input ticket__received" aria-label="Monto en efectivo">
+                                </div>
+                                <div class="payment-row">
+                                    <label class="payment-row__label" for="pay-debit">
+                                        <i class="fa-solid fa-credit-card"></i> Débito
+                                    </label>
+                                    <input type="number" id="pay-debit" min="0" step="0.01" inputmode="decimal"
+                                           placeholder="0.00" data-action="payment-amount" data-method="debit"
+                                           class="input ticket__received" aria-label="Monto con débito">
+                                </div>
+                                <div class="payment-row">
+                                    <label class="payment-row__label" for="pay-pago_movil">
+                                        <i class="fa-solid fa-mobile-screen"></i> Pago Móvil
+                                    </label>
+                                    <input type="number" id="pay-pago_movil" min="0" step="0.01" inputmode="decimal"
+                                           placeholder="0.00" data-action="payment-amount" data-method="pago_movil"
+                                           class="input ticket__received" aria-label="Monto por Pago Móvil">
+                                </div>
+                                <div class="payment-row">
+                                    <label class="payment-row__label" for="pay-divisa">
+                                        <i class="fa-solid fa-money-bill"></i> Divisa
+                                    </label>
+                                    <input type="number" id="pay-divisa" min="0" step="0.01" inputmode="decimal"
+                                           placeholder="0.00" data-action="payment-amount" data-method="divisa"
+                                           class="input ticket__received" aria-label="Monto en divisa">
+                                </div>
                             </div>
-                            <div class="ticket__row" id="ticket-received-row">
-                                <label for="ticket-received">Recibido</label>
-                                <input type="number" id="ticket-received" min="0" step="0.01"
-                                       inputmode="decimal" placeholder="0.00" data-action="ticket-received"
-                                       class="input ticket__received" aria-label="Monto recibido">
+                            <p class="payment-hint">Débito y Pago Móvil deben ir a monto exacto; el vuelto se entrega en Efectivo o Divisa.</p>
+                            <div class="ticket__row ticket__row--paid">
+                                <span>Pagado</span>
+                                <span id="ticket-paid">$0.00</span>
+                            </div>
+                            <div class="ticket__row" id="ticket-due-row">
+                                <span>Falta</span>
+                                <span id="ticket-due">$0.00</span>
                             </div>
                             <div class="ticket__row ticket__row--change" id="ticket-change-row">
-                                <span>Cambio</span>
+                                <span>Vuelto</span>
                                 <span id="ticket-change">$0.00</span>
                             </div>
                         </div>
@@ -377,8 +400,8 @@
         <section id="tab-services" class="view is-hidden">
             <div class="section-head">
                 <div>
-                    <h3 class="section-head__title">Catálogo de Servicios & Recetas Técnicas</h3>
-                    <p class="section-head__sub">Define los insumos profesionales (BOM) consumidos en cada aplicación.</p>
+                    <h3 class="section-head__title">Servicios & Recetas</h3>
+                    <p class="section-head__sub">Define los insumos profesionales que consume cada aplicación.</p>
                 </div>
                 <button type="button" data-action="new-service" class="btn btn--brand">
                     <i class="fa-solid fa-plus"></i> Nuevo Servicio
@@ -394,8 +417,8 @@
         <section id="tab-inventory" class="view is-hidden">
             <div class="section-head">
                 <div>
-                    <h3 class="section-head__title">Gestión de Inventario Híbrido</h3>
-                    <p class="section-head__sub">Diferenciación entre Insumos de Uso Profesional y Productos de Venta Retail.</p>
+                    <h3 class="section-head__title">Productos e Insumos</h3>
+                    <p class="section-head__sub">Diferenciación entre insumos de uso profesional y productos de venta.</p>
                 </div>
                 <button type="button" data-action="new-product" class="btn btn--brand">
                     <i class="fa-solid fa-plus"></i> Agregar Producto / Insumo
@@ -557,8 +580,8 @@
                     <div class="field">
                         <label for="prod-type" class="field__label field__label--sm">Tipo de Inventario</label>
                         <select id="prod-type" required class="select">
-                            <option value="retail">Venta Retail</option>
-                            <option value="internal">Uso Interno (BOM)</option>
+                            <option value="sale">Producto de Venta</option>
+                            <option value="internal">Insumo de Uso Interno</option>
                         </select>
                     </div>
                     <div class="field">
@@ -815,6 +838,25 @@
             <div class="modal__actions">
                 <button type="button" data-action="close-modal" data-target="modal-confirm" class="btn btn--neutral">Cancelar</button>
                 <button type="button" data-action="confirm-action" class="btn btn--danger">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CONFIRMACIÓN DE VENTA -->
+    <div id="modal-sale-confirm" class="modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="modal-sale-confirm-title">
+        <div class="modal__panel modal__panel--sm">
+            <div class="modal__head">
+                <h3 id="modal-sale-confirm-title" class="modal__title"><i class="fa-solid fa-circle-check icon--brand"></i> Confirmar venta</h3>
+                <button type="button" data-action="close-modal" data-target="modal-sale-confirm" class="modal__close" aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div id="sale-confirm-preview" class="sale-confirm-preview">
+                <!-- Lo llena el JS -->
+            </div>
+            <div class="modal__actions">
+                <button type="button" data-action="close-modal" data-target="modal-sale-confirm" class="btn btn--neutral">Cancelar</button>
+                <button type="button" data-action="confirm-sale" class="btn btn--success">Concretar venta</button>
             </div>
         </div>
     </div>

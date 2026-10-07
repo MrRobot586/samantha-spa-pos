@@ -19,14 +19,14 @@ import { renderHeader, applyTheme } from './ui/header.js';
 import { renderUsersList, fillUserForm, resetUserForm } from './ui/users-view.js';
 import { toast, toastSuccess, toastError } from './ui/dialogs.js';
 import { openModal, closeModal, initModals } from './ui/modals.js';
-import { renderStaffSelect, renderCatalog, renderTicket, renderFilters, updateTotals, renderPayment, updateChange } from './ui/pos.js';
+import { renderStaffSelect, renderCatalog, renderTicket, renderFilters, updateTotals, renderPayment, renderSaleConfirm, collectPayments, updatePaymentSummary } from './ui/pos.js';
 import { renderDashboard } from './ui/dashboard.js';
 import { renderServicesCards, fillServiceForm } from './ui/services-view.js';
 import { renderInventoryTable, fillProductForm } from './ui/inventory-view.js';
 import { renderCommissions, renderCommissionsReport } from './ui/commissions-view.js';
 import { renderCash, fillCashClosePreview } from './ui/cash-view.js';
 
-import { addItem, changeQty, clearTicket, setTicketStaff, setPaymentMethod } from './domain/ticket.js';
+import { addItem, changeQty, clearTicket, setTicketStaff, setPaymentAmount, ticketTotals } from './domain/ticket.js';
 import { processPayment } from './domain/checkout.js';
 import { addProduct, updateProduct, deleteProduct, restock, findProduct } from './domain/inventory.js';
 import { addService, updateService, deleteService } from './domain/services.js';
@@ -159,7 +159,7 @@ function handleAction(el, action) {
 
         case 'filter-cat': {
             const cat = el.dataset.cat;
-            if (!['all', 'service', 'retail'].includes(cat)) return;
+            if (!['all', 'service', 'sale'].includes(cat)) return;
             getState().posFilterCategory = cat;
             renderFilters();
             renderCatalog();
@@ -185,43 +185,43 @@ function handleAction(el, action) {
 
         case 'clear-ticket':
             clearTicket();
-            document.getElementById('ticket-received').value = '';
             renderTicket();
             renderPayment();
             persist();
             break;
 
-        case 'set-payment-method':
+        case 'pay': {
             try {
-                setPaymentMethod(el.dataset.method);
-                renderPayment();
-                persist();
+                const payments = collectPayments();
+                // Sin montos: se precarga el total en efectivo (lo habitual).
+                if (payments.length === 0) {
+                    const { total } = ticketTotals();
+                    setPaymentAmount('cash', total);
+                    renderPayment();
+                }
+                renderSaleConfirm();
+                openModal('modal-sale-confirm');
             } catch (err) {
                 toastError(err.message);
             }
             break;
+        }
 
-        case 'pay': {
+        case 'confirm-sale': {
             try {
                 const state = getState();
-                const method = state.currentTicket.paymentMethod || 'cash';
-                let receivedUSD;
-                if (method === 'cash') {
-                    const crudo = document.getElementById('ticket-received').value.trim();
-                    // Vacío = pago exacto; si se indicó, se traduce a USD.
-                    if (crudo !== '') {
-                        receivedUSD = toUSD(Number(crudo), state.settings.currency);
-                    }
-                }
-                const tx = processPayment(state, { method, receivedUSD });
-                document.getElementById('ticket-received').value = '';
+                const payments = collectPayments();
+                const tx = processPayment(state, { payments });
+                closeModal('modal-sale-confirm');
+                renderPayment();
                 toastSuccess(tx.changeUSD > 0
-                    ? `Pago de ${money(tx.total)} procesado · cambio ${money(tx.changeUSD)}.`
-                    : `Pago de ${money(tx.total)} procesado: inventario descontado y comisión asignada.`);
+                    ? `Venta de ${money(tx.total)} concretada · vuelto ${money(tx.changeUSD)}.`
+                    : `Venta de ${money(tx.total)} concretada: inventario descontado y comisión asignada.`);
                 renderAll();
                 persist();
             } catch (err) {
                 toastError(err.message);
+                closeModal('modal-sale-confirm');
             }
             break;
         }
@@ -253,11 +253,13 @@ function handleAction(el, action) {
             const to = document.getElementById('closure-to').value;
             const rows = closuresBetween(from, to).map(c => [
                 c.closedAt, c.closedByName, c.txCount,
-                c.ventas.cash, c.ventas.card, c.ventas.other,
+                c.ventas.cash, c.ventas.debit, c.ventas.pago_movil,
+                c.ventas.divisa, c.ventas.other,
                 c.totalUSD, c.esperadoUSD, c.contadoUSD, c.diferenciaUSD
             ]);
-            rows.unshift(['Fecha', 'Cerrado por', 'Ventas (nº)', 'Efectivo USD', 'Tarjeta USD',
-                'Otro USD', 'Total USD', 'Esperado USD', 'Contado USD', 'Diferencia USD']);
+            rows.unshift(['Fecha', 'Cerrado por', 'Ventas (nº)', 'Efectivo USD', 'Débito USD',
+                'Pago Móvil USD', 'Divisa USD', 'Otro USD', 'Total USD', 'Esperado USD',
+                'Contado USD', 'Diferencia USD']);
             downloadCsv('cortes.csv', rows);
             toastSuccess(`CSV exportado (${rows.length - 1} cortes).`);
             break;
@@ -413,8 +415,9 @@ function onInput(e) {
     if (!el) return;
     if (el.dataset.action === 'pos-search') {
         renderCatalog();
-    } else if (el.dataset.action === 'ticket-received') {
-        updateChange();
+    } else if (el.dataset.action === 'payment-amount') {
+        collectPayments();
+        updatePaymentSummary();
     }
 }
 

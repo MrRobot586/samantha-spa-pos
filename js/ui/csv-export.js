@@ -3,7 +3,7 @@
 
 import { buildCsv } from '../core/utils.js';
 
-/** Dispara la descarga de un CSV. El BOM hace que Excel abra UTF-8 bien. */
+/** Dispara la descarga de un CSV. La marca de orden de bytes hace que Excel abra UTF-8 bien. */
 export function downloadCsv(filename, rows) {
     const blob = new Blob(['\uFEFF' + buildCsv(rows)], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
