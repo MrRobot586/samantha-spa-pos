@@ -176,11 +176,40 @@ async function main() {
     await check('POS visible', `!document.getElementById('tab-pos').classList.contains('is-hidden')`);
     await check('selector de estilista poblado', `document.querySelectorAll('#pos-staff-select option').length`);
 
+    // Validación del wizard: con la orden vacía no se puede pasar al cobro
+    await check('paso 2 bloqueado con la orden vacía',
+        `document.querySelector('[data-action="pos-step"][data-step="2"]').disabled === true`);
+    await check('el paso 1 es el activo',
+        `document.querySelector('.pos-step[data-step="1"]').classList.contains('is-active')`);
+    await check('cobro y cierre ocultos al entrar',
+        `document.getElementById('pos-checkout').classList.contains('is-hidden') && document.getElementById('pos-done').classList.contains('is-hidden')`);
+
     await evaluar(`document.querySelector('[data-action="add-item"][data-type="service"]').click()`);
     await esperar(100);
     await check('ticket con 1 ítem', `document.querySelectorAll('#ticket-items-container .ticket-item').length`);
     await check('total del ticket', `document.getElementById('ticket-total').textContent`);
     await check('comisión usa tasa del estilista', `document.getElementById('ticket-commission').textContent`);
+    await check('paso 2 se habilita con ítems',
+        `document.querySelector('[data-action="pos-step"][data-step="2"]').disabled === false`);
+
+    // Paso 1 → 2 (catálogo e ítems fuera, resumen de cobro dentro)
+    await evaluar(`document.querySelector('.pos__next').click()`);
+    await esperar(150);
+    await check('paso 2 activo tras continuar',
+        `!document.getElementById('pos-checkout').classList.contains('is-hidden') && document.getElementById('pos-done').classList.contains('is-hidden')`);
+    await check('paso 1 oculto en el cobro',
+        `document.querySelector('#tab-pos .pos-layout').classList.contains('is-hidden')`);
+    await check('resumen del cobro lista el ítem',
+        `document.querySelectorAll('#checkout-items .checkout-item').length === 1`);
+    await check('total replicado en el paso 2',
+        `document.getElementById('ck-total').textContent === document.getElementById('ticket-total').textContent`);
+
+    // Vuelta al paso 1 y de nuevo al cobro (se puede retroceder)
+    await evaluar(`document.querySelector('.pos-checkout__actions [data-action="pos-step"][data-step="1"]').click()`);
+    await esperar(150);
+    await check('vuelta al paso 1', `!document.querySelector('#tab-pos .pos-layout').classList.contains('is-hidden')`);
+    await evaluar(`document.querySelector('.pos__next').click()`);
+    await esperar(150);
 
     // Pago mixto: cuatro métodos disponibles y resumen Pagado/Falta/Vuelto
     await check('cuatro inputs de pago', `document.querySelectorAll('[data-action="payment-amount"]').length === 4`);
@@ -196,6 +225,8 @@ async function main() {
     await evaluar(`document.querySelector('[data-action="confirm-sale"]').click()`);
     await esperar(250);
     await check('caja cerrada → cobro bloqueado', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).transactions.length === 0 && document.querySelectorAll('#ticket-items-container .ticket-item').length === 1`);
+    await check('el cobro rechazado no avanza al cierre',
+        `!document.getElementById('pos-checkout').classList.contains('is-hidden') && document.getElementById('pos-done').classList.contains('is-hidden')`);
     await check('toast de caja cerrada', `[...document.querySelectorAll('#toast-stack .toast')].pop()?.textContent.includes('cerrada') || false`);
 
     // Abrir caja desde la pestaña Caja & Cortes
@@ -241,7 +272,9 @@ async function main() {
     })()`);
 
     // Ticket de canje tras concretar (se intercepta window.print)
-    await check('modal de venta concretada abierto', `!document.getElementById('modal-sale-done').classList.contains('is-hidden')`);
+    await check('paso 3 (cierre) activo tras concretar',
+        `!document.getElementById('pos-done').classList.contains('is-hidden') && document.querySelector('.pos-step[data-step="3"]').classList.contains('is-active')`);
+    await check('el cierre muestra la venta', `document.getElementById('sale-done-preview').textContent.includes('TX-') || document.getElementById('sale-done-preview').textContent.length > 0`);
     await evaluar(`window.__printed = false; window.print = () => { window.__printed = true; }; true`);
     await evaluar(`document.querySelector('[data-action="print-last-ticket"]').click()`);
     await esperar(200);
@@ -250,7 +283,13 @@ async function main() {
     await check('ticket contiene el estilista', `document.getElementById('print-area').textContent.includes('Valeria Gómez')`);
     await check('ticket contiene código de canje', `document.getElementById('print-area').textContent.includes('C-')`);
     await check('ticket usa ancho 58mm', `document.querySelector('#print-area .receipt').style.getPropertyValue('--receipt-width') === '58mm'`);
-    await evaluar(`document.querySelector('[data-action="close-modal"][data-target="modal-sale-done"]').click()`);
+    await evaluar(`document.querySelector('[data-action="pos-new-sale"]').click()`);
+    await esperar(150);
+    await check('Nueva venta vuelve al paso 1',
+        `!document.querySelector('#tab-pos .pos-layout').classList.contains('is-hidden')
+         && document.getElementById('pos-checkout').classList.contains('is-hidden')
+         && document.getElementById('pos-done').classList.contains('is-hidden')
+         && document.querySelectorAll('#ticket-items-container .ticket-item').length === 0`);
 
     // Pestaña Ventas + reimpresión
     await evaluar(`document.querySelector('[data-tab="ventas"]').click()`);

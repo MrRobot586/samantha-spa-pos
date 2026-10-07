@@ -19,7 +19,7 @@ import { renderHeader, applyTheme } from './ui/header.js';
 import { renderUsersList, fillUserForm, resetUserForm } from './ui/users-view.js';
 import { toast, toastSuccess, toastError } from './ui/dialogs.js';
 import { openModal, closeModal, initModals } from './ui/modals.js';
-import { renderStaffSelect, renderCatalog, renderTicket, renderFilters, updateTotals, renderPayment, renderSaleConfirm, collectPayments, updatePaymentSummary } from './ui/pos.js';
+import { renderStaffSelect, renderCatalog, renderTicket, renderFilters, updateTotals, renderPayment, renderSaleConfirm, collectPayments, updatePaymentSummary, renderPosStep, goToPosStep, completePosStep } from './ui/pos.js';
 import { renderDashboard } from './ui/dashboard.js';
 import { renderServicesCards, fillServiceForm } from './ui/services-view.js';
 import { renderInventoryTable, fillProductForm } from './ui/inventory-view.js';
@@ -61,6 +61,7 @@ function renderAll() {
     renderCash();
     renderUsersList();
     renderSales();
+    renderPosStep();
 }
 
 /** Chip del usuario en el topbar + nav filtrada por rol. */
@@ -226,7 +227,8 @@ function handleAction(el, action) {
                     <div class="sale-confirm__row"><span>Venta</span><span>${tx.id}</span></div>
                     <div class="sale-confirm__row"><span>Total</span><span>${money(tx.total)}</span></div>
                     <div class="sale-confirm__row"><span>Servicios</span><span>${tx.items.filter(i => i.type === 'service').reduce((a,i)=>a+i.qty,0)}</span></div>`;
-                openModal('modal-sale-done');
+                // La venta se concretó: recién ahora existe el paso 3 (Cierre).
+                completePosStep();
                 toastSuccess(tx.changeUSD > 0
                     ? `Venta de ${money(tx.total)} concretada · vuelto ${money(tx.changeUSD)}.`
                     : `Venta de ${money(tx.total)} concretada: inventario descontado y comisión asignada.`);
@@ -238,6 +240,25 @@ function handleAction(el, action) {
             }
             break;
         }
+
+        case 'pos-step': {
+            const paso = Number(el.dataset.step);
+            if (!goToPosStep(paso)) {
+                toastError(paso === 2
+                    ? 'El pedido está vacío: agrega al menos un ítem antes de ir al cobro.'
+                    : 'Ese paso solo se alcanza al concretar la venta.');
+                break;
+            }
+            renderPosStep();
+            break;
+        }
+
+        case 'pos-new-sale':
+            goToPosStep(1);
+            renderTicket();
+            renderPayment();
+            renderPosStep();
+            break;
 
 
         case 'print-ticket': {

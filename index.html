@@ -293,6 +293,23 @@
 
         <!-- TAB 2: CAJA / POS -->
         <section id="tab-pos" class="view view--pos is-hidden">
+            <!-- Wizard de cobro: 1 Orden → 2 Cobro → 3 Cierre -->
+            <nav class="pos-steps" aria-label="Pasos del cobro">
+                <button type="button" data-action="pos-step" data-step="1" class="pos-step is-active"
+                        aria-current="step">
+                    <span class="pos-step__num">1</span>
+                    <span class="pos-step__label">Orden</span>
+                </button>
+                <button type="button" data-action="pos-step" data-step="2" class="pos-step" disabled>
+                    <span class="pos-step__num">2</span>
+                    <span class="pos-step__label">Cobro</span>
+                </button>
+                <button type="button" data-action="pos-step" data-step="3" class="pos-step" disabled>
+                    <span class="pos-step__num">3</span>
+                    <span class="pos-step__label">Cierre</span>
+                </button>
+            </nav>
+
             <div class="pos-layout">
                 <!-- Panel izquierdo: catálogo -->
                 <div class="pos-catalog">
@@ -355,43 +372,95 @@
                             <span id="ticket-total">$0.00</span>
                         </div>
 
-                        <div class="ticket__payment">
-                            <span class="field__label">Métodos de Pago</span>
-                            <div class="payment-list">
-                                <div class="payment-row">
-                                    <label class="payment-row__label" for="pay-cash">
-                                        <i class="fa-solid fa-money-bill-wave"></i> Efectivo
-                                    </label>
-                                    <input type="number" id="pay-cash" min="0" step="0.01" inputmode="decimal"
-                                           placeholder="0.00" data-action="payment-amount" data-method="cash"
-                                           class="input ticket__received" aria-label="Monto en efectivo">
-                                </div>
-                                <div class="payment-row">
-                                    <label class="payment-row__label" for="pay-debit">
-                                        <i class="fa-solid fa-credit-card"></i> Débito
-                                    </label>
-                                    <input type="number" id="pay-debit" min="0" step="0.01" inputmode="decimal"
-                                           placeholder="0.00" data-action="payment-amount" data-method="debit"
-                                           class="input ticket__received" aria-label="Monto con débito">
-                                </div>
-                                <div class="payment-row">
-                                    <label class="payment-row__label" for="pay-pago_movil">
-                                        <i class="fa-solid fa-mobile-screen"></i> Pago Móvil
-                                    </label>
-                                    <input type="number" id="pay-pago_movil" min="0" step="0.01" inputmode="decimal"
-                                           placeholder="0.00" data-action="payment-amount" data-method="pago_movil"
-                                           class="input ticket__received" aria-label="Monto por Pago Móvil">
-                                </div>
-                                <div class="payment-row">
-                                    <label class="payment-row__label" for="pay-divisa">
-                                        <i class="fa-solid fa-money-bill"></i> Divisa
-                                    </label>
-                                    <input type="number" id="pay-divisa" min="0" step="0.01" inputmode="decimal"
-                                           placeholder="0.00" data-action="payment-amount" data-method="divisa"
-                                           class="input ticket__received" aria-label="Monto en divisa">
-                                </div>
+                        <button type="button" data-action="pos-step" data-step="2"
+                                class="btn btn--success pos__next">
+                            Continuar al cobro <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </aside>
+            </div>
+
+            <!-- PASO 2: COBRO -->
+            <div id="pos-checkout" class="pos-checkout is-hidden">
+                <div class="pos-checkout__head">
+                    <button type="button" data-action="pos-step" data-step="1" class="btn btn--neutral btn--sm">
+                        <i class="fa-solid fa-arrow-left"></i> Volver a la orden
+                    </button>
+                    <h3 class="pos-checkout__title"><i class="fa-solid fa-credit-card"></i> Cobro</h3>
+                </div>
+
+                <div class="pos-checkout__grid">
+                    <section class="pos-checkout__panel" aria-label="Resumen de la orden">
+                        <div class="pos-checkout__panel-head">
+                            <h4 class="pos-checkout__subtitle"><i class="fa-solid fa-receipt"></i> Orden</h4>
+                            <span class="pos-checkout__staff">
+                                <i class="fa-solid fa-user"></i> <span id="checkout-staff">—</span>
+                            </span>
+                        </div>
+                        <div id="checkout-items" class="pos-checkout__items">
+                            <!-- Lo llena el JS -->
+                        </div>
+                        <div class="pos-checkout__totals">
+                            <div class="ticket__row">
+                                <span>Subtotal</span>
+                                <span id="ck-subtotal">$0.00</span>
                             </div>
-                            <p class="payment-hint">Débito y Pago Móvil deben ir a monto exacto; el vuelto se entrega en Efectivo o Divisa.</p>
+                            <div class="ticket__row">
+                                <span>IVA (16%)</span>
+                                <span id="ck-tax">$0.00</span>
+                            </div>
+                            <div class="ticket__row ticket__row--commission">
+                                <span>Comisión Estilista Est.</span>
+                                <span id="ck-commission">$0.00</span>
+                            </div>
+                            <div class="ticket__row ticket__row--total">
+                                <span>Total a Cobrar</span>
+                                <span id="ck-total">$0.00</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="pos-checkout__panel" aria-label="Métodos de pago">
+                        <div class="pos-checkout__panel-head">
+                            <h4 class="pos-checkout__subtitle"><i class="fa-solid fa-wallet"></i> Métodos de Pago</h4>
+                        </div>
+                        <div class="payment-list">
+                            <div class="payment-row">
+                                <label class="payment-row__label" for="pay-cash">
+                                    <i class="fa-solid fa-money-bill-wave"></i> Efectivo
+                                </label>
+                                <input type="number" id="pay-cash" min="0" step="0.01" inputmode="decimal"
+                                       placeholder="0.00" data-action="payment-amount" data-method="cash"
+                                       class="input ticket__received" aria-label="Monto en efectivo">
+                            </div>
+                            <div class="payment-row">
+                                <label class="payment-row__label" for="pay-debit">
+                                    <i class="fa-solid fa-credit-card"></i> Débito
+                                </label>
+                                <input type="number" id="pay-debit" min="0" step="0.01" inputmode="decimal"
+                                       placeholder="0.00" data-action="payment-amount" data-method="debit"
+                                       class="input ticket__received" aria-label="Monto con débito">
+                            </div>
+                            <div class="payment-row">
+                                <label class="payment-row__label" for="pay-pago_movil">
+                                    <i class="fa-solid fa-mobile-screen"></i> Pago Móvil
+                                </label>
+                                <input type="number" id="pay-pago_movil" min="0" step="0.01" inputmode="decimal"
+                                       placeholder="0.00" data-action="payment-amount" data-method="pago_movil"
+                                       class="input ticket__received" aria-label="Monto por Pago Móvil">
+                            </div>
+                            <div class="payment-row">
+                                <label class="payment-row__label" for="pay-divisa">
+                                    <i class="fa-solid fa-money-bill"></i> Divisa
+                                </label>
+                                <input type="number" id="pay-divisa" min="0" step="0.01" inputmode="decimal"
+                                       placeholder="0.00" data-action="payment-amount" data-method="divisa"
+                                       class="input ticket__received" aria-label="Monto en divisa">
+                            </div>
+                        </div>
+                        <p class="payment-hint">Débito y Pago Móvil deben ir a monto exacto; el vuelto se entrega en Efectivo o Divisa.</p>
+
+                        <div class="pos-checkout__summary">
                             <div class="ticket__row ticket__row--paid">
                                 <span>Pagado</span>
                                 <span id="ticket-paid">$0.00</span>
@@ -406,11 +475,36 @@
                             </div>
                         </div>
 
-                        <button type="button" data-action="pay" class="btn btn--success">
-                            <i class="fa-solid fa-credit-card"></i> Procesar Cobro
+                        <div class="pos-checkout__actions">
+                            <button type="button" data-action="pos-step" data-step="1" class="btn btn--neutral">
+                                <i class="fa-solid fa-arrow-left"></i> Atrás
+                            </button>
+                            <button type="button" data-action="pay" class="btn btn--success">
+                                <i class="fa-solid fa-credit-card"></i> Procesar Cobro
+                            </button>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+            <!-- PASO 3: CIERRE (solo tras concretar la venta) -->
+            <div id="pos-done" class="pos-done is-hidden">
+                <div class="pos-done__card">
+                    <i class="fa-solid fa-circle-check pos-done__icon"></i>
+                    <h3 class="pos-done__title">Venta concretada</h3>
+                    <p class="pos-done__sub">La venta quedó registrada, el inventario descontado y la comisión asignada.</p>
+                    <div id="sale-done-preview" class="sale-confirm-preview">
+                        <!-- Lo llena el JS -->
+                    </div>
+                    <div class="pos-done__actions">
+                        <button type="button" data-action="print-last-ticket" class="btn btn--brand">
+                            <i class="fa-solid fa-print"></i> Imprimir ticket
+                        </button>
+                        <button type="button" data-action="pos-new-sale" class="btn btn--success">
+                            <i class="fa-solid fa-plus"></i> Nueva venta
                         </button>
                     </div>
-                </aside>
+                </div>
             </div>
         </section>
 
@@ -912,25 +1006,6 @@
             </div>
         </div>
     </div>
-    <!-- MODAL: VENTA CONCRETADA -->
-    <div id="modal-sale-done" class="modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="modal-sale-done-title">
-        <div class="modal__panel modal__panel--sm">
-            <div class="modal__head">
-                <h3 id="modal-sale-done-title" class="modal__title"><i class="fa-solid fa-circle-check icon--brand"></i> Venta concretada</h3>
-                <button type="button" data-action="close-modal" data-target="modal-sale-done" class="modal__close" aria-label="Cerrar">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-            <div id="sale-done-preview" class="sale-confirm-preview">
-                <!-- Lo llena el JS -->
-            </div>
-            <div class="modal__actions">
-                <button type="button" data-action="print-last-ticket" class="btn btn--brand"><i class="fa-solid fa-print"></i> Imprimir ticket</button>
-                <button type="button" data-action="close-modal" data-target="modal-sale-done" class="btn btn--neutral">Cerrar</button>
-            </div>
-        </div>
-    </div>
-
     <!-- MODAL: AJUSTES DE IMPRESIÓN -->
     <div id="modal-print-settings" class="modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="modal-print-settings-title">
         <div class="modal__panel">

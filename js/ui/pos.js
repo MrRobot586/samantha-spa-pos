@@ -97,6 +97,8 @@ export function renderTicket() {
     }
 
     updateTotals();
+    // Mantén el stepper al día (habilita/deshabilita el paso 2 según la orden).
+    renderPosStep();
 }
 
 export function updateTotals() {
@@ -105,6 +107,7 @@ export function updateTotals() {
     document.getElementById('ticket-tax').textContent = money(tax);
     document.getElementById('ticket-commission').textContent = money(commission);
     document.getElementById('ticket-total').textContent = money(total);
+    renderCheckout({ subtotal, tax, total, commission });
     updatePaymentSummary();
 }
 
@@ -211,6 +214,102 @@ export function renderSaleConfirm() {
             <span>Vuelto</span>
             <span>${money(change)}</span>
         </div>`;
+}
+
+/* --- Wizard de cobro: 1 Orden → 2 Cobro → 3 Cierre -------------------------------
+ * El paso vive en memoria (no se persiste): si la pestaña recarga, la orden
+ * recupera sus ítems pero el usuario vuelve al paso 1. El paso 3 solo se
+ * alcanza al concretar la venta. */
+let posStep = 1;
+
+export function getPosStep() {
+    return posStep;
+}
+
+/**
+ * Navega entre pasos con validación estricta:
+ *  - 1 siempre se puede (volver o empezar de nuevo);
+ *  - 2 exige al menos un ítem en la orden;
+ *  - 3 no se puede elegir: solo se llega a él al concretar la venta.
+ * Devuelve false si la transición no está permitida.
+ */
+export function goToPosStep(paso) {
+    if (paso === 1) {
+        posStep = 1;
+        return true;
+    }
+    if (paso === 2) {
+        if (getState().currentTicket.items.length === 0) return false;
+        posStep = 2;
+        return true;
+    }
+    // El cierre solo existe después de que la venta se haya concretado.
+    return paso === 3 && posStep === 3;
+}
+
+/** Marca el paso 3: lo llama el cobro exitoso justo antes de repintar. */
+export function completePosStep() {
+    posStep = 3;
+}
+
+/** Muestra el panel del paso activo y sincroniza el stepper. */
+export function renderPosStep() {
+    const layout = document.querySelector('#tab-pos .pos-layout');
+    const checkout = document.getElementById('pos-checkout');
+    const done = document.getElementById('pos-done');
+    if (!layout || !checkout || !done) return;
+
+    const conItems = getState().currentTicket.items.length > 0;
+    // Si la orden se quedó sin ítems estando en el cobro, volvemos a 1.
+    if (posStep === 2 && !conItems) posStep = 1;
+
+    layout.classList.toggle('is-hidden', posStep !== 1);
+    checkout.classList.toggle('is-hidden', posStep !== 2);
+    done.classList.toggle('is-hidden', posStep !== 3);
+
+    document.querySelectorAll('[data-action="pos-step"]').forEach(btn => {
+        const destino = Number(btn.dataset.step);
+        btn.disabled = (destino === 2 && !conItems) || (destino === 3 && posStep !== 3);
+        if (!btn.classList.contains('pos-step')) return;
+        const activo = destino === posStep;
+        btn.classList.toggle('is-active', activo);
+        if (activo) btn.setAttribute('aria-current', 'step');
+        else btn.removeAttribute('aria-current');
+    });
+
+    if (posStep === 2) renderCheckout();
+}
+
+/** Resumen del paso 2: ítems, estilista y totales de la orden. */
+export function renderCheckout(totals) {
+    const state = getState();
+    const cont = document.getElementById('checkout-items');
+    if (!cont) return;
+
+    const { subtotal, tax, total, commission } = totals || ticketTotals();
+    const staff = state.staff.find(s => s.id === state.currentTicket.staffId);
+
+    cont.innerHTML = state.currentTicket.items.map(item => `
+        <div class="checkout-item">
+            <div class="checkout-item__info">
+                <p class="checkout-item__name">${escapeHtml(item.name)}</p>
+                <p class="checkout-item__unit">${money(item.price)} c/u</p>
+            </div>
+            <span class="checkout-item__qty">× ${item.qty}</span>
+            <span class="checkout-item__price">${money(item.price * item.qty)}</span>
+        </div>`).join('') || '<p class="empty-cell">La orden está vacía.</p>';
+
+    const staffEl = document.getElementById('checkout-staff');
+    if (staffEl) staffEl.textContent = staff ? staff.name : 'N/A';
+
+    const put = (id, valor) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = valor;
+    };
+    put('ck-subtotal', money(subtotal));
+    put('ck-tax', money(tax));
+    put('ck-commission', money(commission));
+    put('ck-total', money(total));
 }
 
 /** Actualiza los botones de filtro del catálogo según la categoría activa. */

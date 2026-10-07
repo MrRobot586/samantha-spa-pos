@@ -94,6 +94,17 @@ La app arranca en la pantalla de login. Credenciales semilla:
 
 ## Métodos de pago y caja
 
+- **El POS es un wizard de 3 pasos**, en cualquier pantalla:
+  **1 Orden** (catálogo, ítems, estilista y totales) → **2 Cobro**
+  (resumen de la orden + métodos de pago) → **3 Cierre** (solo después de
+  concretar: id de la venta, imprimir ticket, nueva venta). Se avanza con
+  *Continuar al cobro* y se retrocede con *Atrás*/*Volver a la orden*.
+  Las validaciones son estrictas: sin ítems no se pasa al paso 2 (el botón
+  queda deshabilitado y el stepper lo refleja), el paso 3 no se puede
+  elegir desde el stepper (solo existe tras la venta) y la confirmación
+  sigue pasando por el modal *Confirmar venta* entre los pasos 2 y 3.
+  El wizard vive en memoria: la orden persiste en F5 pero se vuelve al
+  paso 1.
 - El ticket se cobra con **Efectivo, Débito, Pago Móvil o Divisa**, en
   **pago mixto**: cada método lleva su propio monto (en la moneda activa,
   guardado en USD). El resumen muestra *Pagado / Falta / Vuelto*.
@@ -163,8 +174,8 @@ variable `var(--x)` debe existir en el proyecto). La UI se verifica con el smoke
 (`npm run smoke` — requiere `python3` y Chrome: login, roles, venta,
 ticket imprimible (con `window.print` interceptado), reimpresión, ajustes de
 impresión, gate de caja, apertura, corte, moneda y tema, CRUD, restaurar
-demo, XSS, el gap de los filtros de Ventas, móvil y responsive en
-varios anchos) y con el checklist del final.
+demo, XSS, el gap de los filtros de Ventas, el wizard de 3 pasos del POS,
+móvil y responsive en varios anchos) y con el checklist del final.
 El CI de GitHub Actions (`.github/workflows/ci.yml`) corre ambas cosas en
 cada push.
 
@@ -208,7 +219,7 @@ js/
     header.js         toggle de moneda, selector de tasa, tema, badge de tasa y badge de caja
     login-view.js     pantalla de acceso
     navigation.js     nav y pestañas según rol (switchTab rechaza lo no permitido)
-    pos.js            catálogo, ticket, pagos mixtos y resumen de la venta
+    pos.js            catálogo, ticket, pagos mixtos y wizard de cobro (3 pasos)
     sales-view.js     historial de ventas y reimpresión de tickets
     receipt.js        HTML del ticket de canje para #print-area
     cash-view.js      pestaña Caja & Cortes + preview del corte
@@ -312,11 +323,14 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
    al recargar, la moneda elegida persiste. Con la fuente en `Tasa Euro`,
    todos los montos en Bs cambian (los de € no) y la elección también
    persiste tras recargar.
-6. Con la caja cerrada, intentar cobrar → toast "La caja está cerrada".
+6. Con la caja cerrada, intentar cobrar (paso 2) → toast "La caja está
+   cerrada" y el wizard no avanza al cierre.
 7. Caja & Cortes → Abrir caja con fondo → el badge pasa a `Caja abierta`.
 8. Vender con pago mixto (p. ej. efectivo + divisa) cubriendo el total →
    el modal confirma y aparece el vuelto; si el total no se cubre o el
-   débito/pago móvil supera el total, el cobro se bloquea.
+   débito/pago móvil supera el total, el cobro se bloquea. Con la orden
+   vacía, *Continuar al cobro* y el paso 2 del stepper están deshabilitados;
+   *Atrás* vuelve al paso 1 sin perder los ítems.
 9. Registrar un retiro y cerrar la caja con el contado → el corte aparece
    en el historial con su diferencia.
 10. Vender un servicio con receta: el stock del insumo baja y la comisión
@@ -340,10 +354,11 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
     elegir un rango y exportar el CSV por estilista (se abren en Excel).
 21. "Restaurar demo" (en Usuarios) pide confirmación y repone inventario,
     ventas y caja de fábrica, dejando un respaldo previo.
-22. Vender un servicio y confirmar → aparece el modal de venta con
-    "Imprimir ticket"; al pulsarlo se abre el diálogo del sistema (el ticket
-    solo muestra los servicios, el código de canje y los servicios
-    agrupados por estilista; los productos no se imprimen).
+22. Vender un servicio y confirmar → el wizard pasa al paso 3 (Cierre) con
+    "Imprimir ticket" y "Nueva venta"; al pulsar imprimir se abre el
+    diálogo del sistema (el ticket solo muestra los servicios, el código de
+    canje y los servicios agrupados por estilista; los productos no se
+    imprimen). "Nueva venta" vuelve al paso 1 con la orden vacía.
 23. Ajustes de impresión (botón de impresora en el topbar, solo admin):
     cambiar a 80 mm y editar encabezado/pie; reimprimir desde la pestaña
     Ventas (con filtro por fecha) conserva y refleja esos ajustes.

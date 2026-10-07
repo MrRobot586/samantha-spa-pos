@@ -77,6 +77,12 @@
     white-space: nowrap;
 }
 
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
 .btn--brand {
     background: var(--brand-600);
     color: #fff;
