@@ -111,7 +111,7 @@ La app arranca en la pantalla de login. Credenciales semilla:
 ## Pruebas
 
 ```bash
-npm test             # node --test tests/ — 89 pruebas, cero dependencias
+npm test             # node --test tests/*.test.mjs — 89 pruebas, cero dependencias
 ```
 
 Cubren la lógica de dominio (ticket, IVA, comisiones, cobro, stock,

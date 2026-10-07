@@ -5,7 +5,7 @@
     "description": "Punto de venta e inventario para spa y salón. HTML, CSS y JavaScript, sin dependencias.",
     "type": "module",
     "scripts": {
-        "test": "node --test tests/",
+        "test": "node --test tests/*.test.mjs",
         "smoke": "node smoke.mjs",
         "serve": "./servir.sh"
     }
