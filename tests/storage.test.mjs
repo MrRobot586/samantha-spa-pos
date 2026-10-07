@@ -134,6 +134,7 @@ test('migración v1 → v2: conserva las ventas y añade las colecciones nuevas'
     assert.deepEqual(state.settings, {
         currency: 'USD',
         theme: 'auto',
+        rateSource: 'usd',
         ticket: {
             printerWidth: 58,
             businessName: 'Samantha Spa',
@@ -225,6 +226,7 @@ test('normalizeState: ajustes, sesión de caja y cierres', () => {
     assert.deepEqual(state.settings, {
         currency: 'USD',
         theme: 'auto',
+        rateSource: 'usd',
         ticket: {
             printerWidth: 58,
             businessName: 'Samantha Spa',
@@ -263,6 +265,14 @@ test('normalizeState: configuración del ticket de canje', () => {
 
     assert.equal(normalizeState({ settings: { ticket: { printerWidth: 42 } } }).settings.ticket.printerWidth, 58,
         'ancho inválido → 58');
+});
+
+test('normalizeState: tasa BCV de referencia', () => {
+    assert.equal(normalizeState({}).settings.rateSource, 'usd', 'ausente → tasa USD (default)');
+    assert.equal(normalizeState({ settings: { rateSource: 'eur' } }).settings.rateSource, 'eur', 'eur se conserva');
+    assert.equal(normalizeState({ settings: { rateSource: 'EUR' } }).settings.rateSource, 'usd', 'case distinto → default');
+    assert.equal(normalizeState({ settings: { rateSource: 'btc' } }).settings.rateSource, 'usd', 'desconocida → default');
+    assert.equal(normalizeState({ settings: 'basura' }).settings.rateSource, 'usd', 'settings basura → default');
 });
 
 test('normalizeState: snapshot de ítems de una venta', () => {

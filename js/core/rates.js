@@ -27,6 +27,29 @@ function isPositive(v) {
     return typeof v === 'number' && Number.isFinite(v) && v > 0;
 }
 
+/** Fuente de tasa BCV elegida por el usuario ('usd' | 'eur'). */
+function currentSource() {
+    const s = getState() && getState().settings;
+    return s && s.rateSource === 'eur' ? 'eur' : 'usd';
+}
+
+/**
+ * Tasa de referencia en Bs por 1 USD (o por 1 €, según la fuente elegida).
+ *  - 'usd' → usdBs (tasa BCV del dólar)
+ *  - 'eur' → eurBs (tasa BCV del euro)
+ * Solo alimenta la conversión a Bs: la vista en € sigue en la cruzada.
+ */
+export function bsRate(source = currentSource(), rates = snapshot) {
+    const r = rates || {};
+    return source === 'eur' ? r.eurBs : r.usdBs;
+}
+
+/** Tasa elegida si es utilizable; si no, null (la conversión cae a USD). */
+function bsRateIfValid(source, rates) {
+    const v = bsRate(source, rates);
+    return isPositive(v) ? v : null;
+}
+
 /** Normaliza la respuesta de la API. Devuelve null si no trae tasas
  *  utilizables (payload roto o cambiado por el proveedor). */
 export function normalizeRates(payload, fetchedAt = Date.now()) {
@@ -43,11 +66,13 @@ export function normalizeRates(payload, fetchedAt = Date.now()) {
     return { usdBs, eurBs, fecha, fetchedAt, offline: false };
 }
 
-/** Convierte un monto en USD a la moneda dada; sin tasa válida se queda en USD. */
-export function convert(usd, currency, rates = snapshot) {
+/** Convierte un monto en USD a la moneda dada; sin tasa válida se queda en USD.
+ *  `source` (opcional) elige qué tasa BCV alimenta el paso a Bs. */
+export function convert(usd, currency, rates = snapshot, source = currentSource()) {
     const amount = Number.isFinite(usd) ? usd : 0;
-    if (currency === 'VES' && isPositive(rates && rates.usdBs)) {
-        return amount * rates.usdBs;
+    if (currency === 'VES') {
+        const bs = bsRateIfValid(source, rates);
+        return bs === null ? amount : amount * bs;
     }
     if (currency === 'EUR' && isPositive(rates && rates.usdBs) && isPositive(rates && rates.eurBs)) {
         return (amount * rates.usdBs) / rates.eurBs;
@@ -57,10 +82,11 @@ export function convert(usd, currency, rates = snapshot) {
 
 /** Inverso de convert: monto en la moneda dada → USD (p. ej. el efectivo
  *  recibido se ingresa en la moneda activa pero se guarda en USD). */
-export function toUSD(amount, currency, rates = snapshot) {
+export function toUSD(amount, currency, rates = snapshot, source = currentSource()) {
     const n = Number.isFinite(amount) ? amount : 0;
-    if (currency === 'VES' && isPositive(rates && rates.usdBs)) {
-        return n / rates.usdBs;
+    if (currency === 'VES') {
+        const bs = bsRateIfValid(source, rates);
+        return bs === null ? n : n / bs;
     }
     if (currency === 'EUR' && isPositive(rates && rates.usdBs) && isPositive(rates && rates.eurBs)) {
         return (n * rates.eurBs) / rates.usdBs;
@@ -73,17 +99,22 @@ export function toUSD(amount, currency, rates = snapshot) {
  * USD conserva el formato histórico `$1,234.56` — es el que se usaba antes
  * de la multi-moneda y lo que esperan los datos y el checklist.
  */
-export function formatMoney(usd, currency = getState().settings.currency, rates = snapshot) {
+export function formatMoney(usd, currency = getState().settings.currency, rates = snapshot, source = currentSource()) {
     const n = Number.isFinite(usd) ? usd : 0;
 
-    if (currency === 'VES' && isPositive(rates && rates.usdBs)) {
-        return 'Bs ' + convert(n, 'VES', rates).toLocaleString('es-VE', {
+    if (currency === 'VES') {
+        const bs = bsRateIfValid(source, rates);
+        if (bs === null) return '$' + n.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+        return 'Bs ' + (n * bs).toLocaleString('es-VE', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         });
     }
     if (currency === 'EUR' && isPositive(rates && rates.usdBs) && isPositive(rates && rates.eurBs)) {
-        return convert(n, 'EUR', rates).toLocaleString('es-ES', {
+        return convert(n, 'EUR', rates, source).toLocaleString('es-ES', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         }) + ' €';

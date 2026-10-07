@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-    convert, formatMoney, normalizeRates, loadRatesCache, refreshRates,
-    isStale, getSnapshot, RATES_TTL
+    convert, toUSD, formatMoney, normalizeRates, loadRatesCache, refreshRates,
+    isStale, getSnapshot, bsRate, RATES_TTL
 } from '../js/core/rates.js';
 import { createMemoryBackend } from '../js/core/storage.js';
 import { RATES_KEY } from '../js/core/config.js';
@@ -28,12 +28,47 @@ test('convert sin tasa válida se queda en USD', () => {
     assert.equal(convert(NaN, 'VES', TASAS), 0, 'monto no numérico → 0');
 });
 
+test('bsRate: elige la tasa BCV correcta según la fuente', () => {
+    assert.equal(bsRate('usd', TASAS), TASAS.usdBs, "fuente 'usd' → tasa del dólar");
+    assert.equal(bsRate('eur', TASAS), TASAS.eurBs, "fuente 'eur' → tasa del euro");
+    assert.equal(bsRate('usd', { usdBs: 100, eurBs: 500 }), 100);
+    assert.equal(bsRate('eur', { usdBs: 100, eurBs: 500 }), 500);
+});
+
+test('convert a Bs usa la tasa BCV elegida; la vista en € no cambia', () => {
+    const usd = convert(65, 'VES', TASAS, 'usd');
+    const eur = convert(65, 'VES', TASAS, 'eur');
+    assert.ok(Math.abs(usd - 65 * 872.3927) < 1e-9, 'Tasa USD → usdBs');
+    assert.ok(Math.abs(eur - 65 * 977.21940683) < 1e-9, 'Tasa Euro → eurBs');
+
+    // La tasa cruzada (€) es siempre usdBs/eurBs, sin importar la fuente.
+    assert.equal(convert(65, 'EUR', TASAS, 'eur'), convert(65, 'EUR', TASAS, 'usd'),
+        'la vista en € no depende de la fuente elegida');
+});
+
+test('convert a Bs con la fuente elegida sin tasa válida → USD', () => {
+    assert.equal(convert(65, 'VES', { usdBs: 872, eurBs: null }, 'eur'), 65, 'eurBs ausente → USD');
+    assert.equal(convert(65, 'VES', { usdBs: 872, eurBs: 0 }, 'eur'), 65, 'eurBs 0 → USD');
+    assert.equal(convert(65, 'VES', { usdBs: null, eurBs: 977 }, 'usd'), 65, 'usdBs ausente → USD');
+    assert.ok(convert(65, 'VES', { usdBs: null, eurBs: 977 }, 'eur') > 65, 'pero la otra tasa sí sirve');
+});
+
+test('toUSD: inverso según la fuente elegida', () => {
+    assert.ok(Math.abs(toUSD(65 * 872.3927, 'VES', TASAS, 'usd') - 65) < 1e-9);
+    assert.ok(Math.abs(toUSD(65 * 977.21940683, 'VES', TASAS, 'eur') - 65) < 1e-9);
+    assert.equal(toUSD(100, 'VES', { usdBs: 872, eurBs: null }, 'eur'), 100, 'sin tasa → sin convertir');
+    assert.equal(toUSD(100, 'USD', TASAS, 'eur'), 100, 'USD es identidad');
+});
+
 test('formatMoney: USD histórico, VES y EUR con locale', () => {
     assert.equal(formatMoney(1234.56, 'USD', TASAS), '$1,234.56', 'el formato USD no cambia');
     // 65 × 872,3927 = 56.705,5255 → es-VE: punto de miles, coma decimal
     assert.equal(formatMoney(65, 'VES', TASAS), 'Bs 56.705,53');
     // 56.705,5255 / 977,2194 = 58,0272… → es-ES
     assert.equal(formatMoney(65, 'EUR', TASAS), '58,03 €');
+    // Con la tasa del euro como referencia: 65 × 977,2194 = 63.519,26
+    assert.equal(formatMoney(65, 'VES', TASAS, 'eur'), 'Bs 63.519,26');
+    assert.equal(formatMoney(65, 'EUR', TASAS, 'eur'), '58,03 €', '€ no cambia con la fuente');
 });
 
 test('formatMoney sin tasa → USD (la UI nunca se rompe)', () => {

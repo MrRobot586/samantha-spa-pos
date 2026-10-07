@@ -311,7 +311,7 @@ async function main() {
 
     // Moneda de visualización: badge de tasa + toggle USD/Bs/€
     await esperar(900); // deja tiempo al fetch de la tasa (si falla, manda la caché)
-    await check('badge de tasa BCV', `document.getElementById('rate-badge').textContent.includes('1 USD =')`);
+    await check('badge de tasa BCV', `document.getElementById('rate-badge').textContent.includes('Tasa USD:')`);
     await check('USD activo por defecto', `document.querySelector('[data-action="set-currency"].is-active').dataset.currency === 'USD'`);
     await check('KPI en USD', `document.getElementById('dash-today-sales').textContent.includes('$')`);
 
@@ -327,6 +327,49 @@ async function main() {
     await evaluar(`document.querySelector('[data-action="set-currency"][data-currency="USD"]').click()`);
     await esperar(200);
     await check('vuelta a USD', `document.getElementById('dash-today-sales').textContent.includes('$')`);
+
+    // --- Fuente de la tasa BCV (Tasa USD / Tasa Euro) ----------------------
+    await check('selector de tasa presente y por defecto Tasa USD',
+        `document.getElementById('rate-source')?.value === 'usd'`);
+    await check('badge con Tasa USD', `document.getElementById('rate-badge').textContent.includes('Tasa USD:')`);
+
+    await evaluar(`document.querySelector('[data-action="set-currency"][data-currency="VES"]').click()`);
+    await esperar(200);
+    await evaluar(`window.__kpiUsd = document.getElementById('dash-today-sales').textContent; true`);
+    await check('KPI en Bs con la tasa del dólar',
+        `document.getElementById('dash-today-sales').textContent.includes('Bs')`);
+
+    await evaluar(`(() => { const s = document.getElementById('rate-source'); s.value = 'eur'; s.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+    await esperar(300);
+    await check('badge con Tasa Euro', `document.getElementById('rate-badge').textContent.includes('Tasa Euro:')`);
+    await check('selector refleja Tasa Euro', `document.getElementById('rate-source').value === 'eur'`);
+    await check('el KPI en Bs cambia al elegir Tasa Euro',
+        `JSON.stringify(document.getElementById('dash-today-sales').textContent) !== JSON.stringify(window.__kpiUsd)`);
+    await check('la fuente quedó guardada en el estado',
+        `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).settings.rateSource === 'eur'`);
+
+    // La vista en € usa la tasa cruzada: no depende de la fuente elegida.
+    await evaluar(`document.querySelector('[data-action="set-currency"][data-currency="EUR"]').click()`);
+    await esperar(200);
+    await evaluar(`window.__kpiEur = document.getElementById('dash-today-sales').textContent; true`);
+    await evaluar(`(() => { const s = document.getElementById('rate-source'); s.value = 'usd'; s.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+    await esperar(300);
+    await check('la vista en € no cambia con la fuente de la tasa',
+        `JSON.stringify(document.getElementById('dash-today-sales').textContent) === JSON.stringify(window.__kpiEur)`);
+    await check('el badge vuelve a Tasa USD',
+        `document.getElementById('rate-badge').textContent.includes('Tasa USD:')`);
+
+    // La fuente elegida sobrevive a F5
+    await evaluar(`(() => { const s = document.getElementById('rate-source'); s.value = 'eur'; s.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+    await esperar(150);
+    await send('Page.navigate', { url: srv.url }, sessionId);
+    await esperar(800);
+    await check('tras F5 la fuente sigue en Tasa Euro',
+        `document.getElementById('rate-source').value === 'eur' && document.getElementById('rate-badge').textContent.includes('Tasa Euro:')`);
+    await evaluar(`(() => { const s = document.getElementById('rate-source'); s.value = 'usd'; s.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+    await esperar(150);
+    await evaluar(`document.querySelector('[data-action="set-currency"][data-currency="USD"]').click()`);
+    await esperar(150);
 
     // La moneda elegida sobrevive a F5
     await evaluar(`document.querySelector('[data-action="set-currency"][data-currency="VES"]').click()`);
@@ -434,9 +477,16 @@ async function main() {
             const t = document.querySelector('.topbar');
             return t.scrollWidth <= t.clientWidth + 1;
         })()`);
+    await check('selector de tasa oculto en tablet angosta',
+        `document.querySelector('.rate-source').offsetParent === null`);
 
     // Bandas intermedias: 768–1023 (etiquetas ocultas) y 1024–1279 (compacto)
-    for (const ancho of [900, 1100]) {
+    // 768 es también el umbral del selector de tasa: aparece ahí por primera vez.
+    await send('Emulation.setDeviceMetricsOverride', { width: 768, height: 900, deviceScaleFactor: 1, mobile: false }, sessionId);
+    await esperar(300);
+    await check('selector de tasa visible a 768px',
+        `document.querySelector('.rate-source').offsetParent !== null`);
+    for (const ancho of [768, 900, 1100]) {
         await send('Emulation.setDeviceMetricsOverride', { width: ancho, height: 900, deviceScaleFactor: 1, mobile: false }, sessionId);
         await esperar(300);
         await check(`topbar sin desborde a ${ancho}px`, `

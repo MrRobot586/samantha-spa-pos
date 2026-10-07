@@ -31,6 +31,11 @@ export const RATES_KEY = 'samantha-spa-pos:rates';
 /** Monedas de visualización. La base de cálculo siempre es USD. */
 export const CURRENCIES = ['USD', 'VES', 'EUR'];
 
+/** Tasas BCV de referencia para convertir a bolívares: la tasa del dólar
+ *  ('usd' → usdBs) o la del euro ('eur' → eurBs). No afecta la vista en €,
+ *  que sigue usando la tasa cruzada. */
+export const RATE_SOURCES = ['usd', 'eur'];
+
 /** Modos de tema en orden de ciclo del botón del topbar.
  *  'auto' sigue el sistema (prefers-color-scheme); dark/light son fijos. */
 export const THEMES = ['auto', 'dark', 'light'];

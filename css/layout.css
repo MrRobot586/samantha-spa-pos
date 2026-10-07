@@ -298,6 +298,73 @@ body.is-logged-out .toast-stack {
     color: #fff;
 }
 
+/* Selector de tasa BCV de referencia (Tasa USD / Tasa Euro): píldora con
+   icono y un <select> transparente, al mismo lenguaje que el toggle. */
+.rate-source {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    padding-left: var(--space-5);
+    color: var(--text-dim);
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.rate-source:hover {
+    color: var(--text-strong);
+    border-color: var(--brand-400);
+}
+
+.rate-source__icon {
+    font-size: var(--fs-sm);
+    color: var(--brand-400);
+}
+
+/* Caret propio (el select es `appearance: none`). */
+.rate-source::after {
+    content: "";
+    margin-right: var(--space-5);
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid currentColor;
+    opacity: 0.7;
+}
+
+.rate-source__select {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    padding: var(--space-3) var(--space-5) var(--space-3) 0;
+    font: inherit;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: inherit;
+    cursor: pointer;
+    text-align: right;
+}
+
+.rate-source__select:focus-visible {
+    outline: 2px solid var(--brand-400);
+    outline-offset: 2px;
+}
+
+.rate-source__select option {
+    background: var(--surface);
+    color: var(--text-strong);
+}
+
+/* Solo donde el topbar tiene holgura: a 640–767 desborda (medido), y por
+   debajo de 640 ya ceden la tasa y la caja, igual que el resto del topbar. */
+@media (max-width: 767px) {
+    .rate-source {
+        display: none;
+    }
+}
+
 .rate-badge {
     display: none;
     padding: var(--space-3) var(--space-5);

@@ -153,6 +153,16 @@
                     <button type="button" data-action="set-currency" data-currency="VES" class="currency-btn">Bs</button>
                     <button type="button" data-action="set-currency" data-currency="EUR" class="currency-btn">€</button>
                 </div>
+                <!-- Tasa BCV de referencia: elige qué tasa del BCV alimenta la
+                     conversión a bolívares (y lo que enseña el badge). -->
+                <div class="rate-source" title="Tasa BCV de referencia">
+                    <i class="fa-solid fa-money-bill-transfer rate-source__icon" aria-hidden="true"></i>
+                    <select id="rate-source" data-action="set-rate-source" class="rate-source__select"
+                            aria-label="Tasa BCV de referencia">
+                        <option value="usd">Tasa USD</option>
+                        <option value="eur">Tasa Euro</option>
+                    </select>
+                </div>
                 <button type="button" id="theme-toggle" data-action="set-theme"
                         class="theme-toggle" data-theme="auto" title="Tema">
                     <i class="fa-solid fa-desktop"></i>

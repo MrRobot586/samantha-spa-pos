@@ -2,7 +2,8 @@
 
 Punto de venta e inventario para spa/salón: catálogo de servicios con
 recetas, inventario de productos de venta e insumos internos, comisiones
-por estilista, **moneda en vivo con tasa BCV** (USD ⇄ Bs ⇄ €),
+por estilista, **moneda en vivo con tasa BCV** (USD ⇄ Bs ⇄ €, con fuente de tasa elegible
+USD o Euro),
 **pagos mixtos (Efectivo, Débito, Pago Móvil, Divisa) con vuelto**, **caja
 con retiros, corte e historial**, **reportes por fecha con export CSV**,
 **tickets de canje imprimibles para impresora térmica** y
@@ -76,6 +77,15 @@ La app arranca en la pantalla de login. Credenciales semilla:
   API key): se pinta la caché al arrancar y se revalida al inicio, cada 10
   minutos si está vencida (TTL 1 h) y con el clic en el badge de tasa.
   Sin red se usa la última tasa guardada y el badge lo indica.
+- **Fuente de la tasa elegible en el topbar**: el selector `Tasa USD` /
+  `Tasa Euro` define qué tasa del BCV alimenta la conversión a bolívares
+  (y lo que pinta el badge: `Tasa USD: 872,39 Bs` o `Tasa Euro: 977,22 Bs`).
+  Cualquier rol lo puede cambiar; queda en `settings.rateSource` (default
+  `usd`) y sobrevive a F5. Solo cambia el paso a Bs: **la vista en € sigue
+  usando la tasa cruzada** (`usdBs / eurBs`) y la de USD no cambia; si la
+  tasa elegida no está disponible, la conversión cae a USD. El selector se
+  oculta por debajo de 768px: el topbar desbordaba a 640–767 (medido). El
+  badge de tasa sigue visible desde 640px con el mismo texto de fuente.
 - Cada transacción guarda un **snapshot de la tasa** (`rates`) y cada corte
   de caja también: los reportes históricos se pueden mostrar en Bs fieles
   aunque la tasa cambie después.
@@ -142,7 +152,7 @@ La app arranca en la pantalla de login. Credenciales semilla:
 ## Pruebas
 
 ```bash
-npm test             # node --test tests/*.test.mjs — 113 pruebas, cero dependencias
+npm test             # node --test tests/*.test.mjs — 118 pruebas, cero dependencias
 ```
 
 Cubren la lógica de dominio (ticket, IVA, comisiones, cobro, stock,
@@ -173,7 +183,7 @@ css/
 js/
   main.js             arranque + delegación de eventos (document[data-action])
   core/
-    config.js         IVA, claves de storage (v2, sesión, tasas), monedas, temas, pestañas
+    config.js         IVA, claves de storage (v2, sesión, tasas), monedas, temas, fuente de tasa, pestañas
     seed.js           datos iniciales (fábrica, no compartida)
     state.js          estado en memoria (sin DOM, testeable)
     storage.js        load/save con backend inyectable, normalización y migración v1→v2
@@ -193,7 +203,7 @@ js/
     staff.js          lookup y tasa de comisión
     users.js          alta/edición/baja de usuarios, PIN, último admin
   ui/                 renders (innerHTML + escapeHtml) y modales
-    header.js         toggle de moneda, tema, badge de tasa y badge de caja
+    header.js         toggle de moneda, selector de tasa, tema, badge de tasa y badge de caja
     login-view.js     pantalla de acceso
     navigation.js     nav y pestañas según rol (switchTab rechaza lo no permitido)
     pos.js            catálogo, ticket, pagos mixtos y resumen de la venta
@@ -282,9 +292,12 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
 3. `valeria`/`1111` → solo Dashboard, POS y Ventas; sin Inventario,
    Comisiones, Caja ni Usuarios; su dashboard no muestra alertas de stock
    y en Ventas solo ve sus propias ventas.
-4. El badge de tasa muestra `1 USD = … Bs` y se actualiza al hacer clic.
+4. El badge de tasa muestra `Tasa USD: … Bs` y se actualiza al hacer clic.
+   Con la fuente en `Tasa Euro` el badge pasa a `Tasa Euro: … Bs`.
 5. Cambiar a `Bs` y `€`: los KPIs, ticket y catálogo cambian de formato;
-   al recargar, la moneda elegida persiste.
+   al recargar, la moneda elegida persiste. Con la fuente en `Tasa Euro`,
+   todos los montos en Bs cambian (los de € no) y la elección también
+   persiste tras recargar.
 6. Con la caja cerrada, intentar cobrar → toast "La caja está cerrada".
 7. Caja & Cortes → Abrir caja con fondo → el badge pasa a `Caja abierta`.
 8. Vender con pago mixto (p. ej. efectivo + divisa) cubriendo el total →

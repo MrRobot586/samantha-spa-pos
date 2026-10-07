@@ -6,8 +6,21 @@
  * permiso 'cash' (admin): abre la pestaña Caja & Cortes. */
 
 import { getState } from '../core/state.js';
-import { getSnapshot } from '../core/rates.js';
+import { getSnapshot, bsRate } from '../core/rates.js';
 import { can, getCurrentUser } from '../core/auth.js';
+
+/** Etiqueta corta de la tasa BCV elegida (Tasa USD / Tasa Euro). */
+function rateSourceLabel(source) {
+    return source === 'eur' ? 'Tasa Euro' : 'Tasa USD';
+}
+
+/** Refleja la tasa BCV elegida en el selector del topbar. */
+export function renderRateSource() {
+    const sel = document.getElementById('rate-source');
+    if (!sel) return;
+    const src = getState().settings.rateSource;
+    sel.value = src === 'eur' ? 'eur' : 'usd';
+}
 
 export function renderCurrency() {
     const actual = getState().settings.currency;
@@ -20,8 +33,10 @@ export function renderRateBadge() {
     const badge = document.getElementById('rate-badge');
     if (!badge) return;
     const s = getSnapshot();
+    const src = getState().settings.rateSource === 'eur' ? 'eur' : 'usd';
+    const tasa = bsRate(src, s);
 
-    if (!s.usdBs) {
+    if (!tasa) {
         badge.textContent = s.offline ? 'Tasa no disponible' : 'Cargando tasa…';
         badge.title = 'Sin respuesta de ve.dolarapi.com: toca para reintentar';
         return;
@@ -30,11 +45,11 @@ export function renderRateBadge() {
     const fecha = s.fecha && !Number.isNaN(new Date(s.fecha).getTime())
         ? new Date(s.fecha).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: '2-digit' })
         : '';
-    badge.textContent = `1 USD = ${s.usdBs.toLocaleString('es-VE', { maximumFractionDigits: 2 })} Bs`
+    badge.textContent = `${rateSourceLabel(src)}: ${tasa.toLocaleString('es-VE', { maximumFractionDigits: 2 })} Bs`
         + (fecha ? ` · ${fecha}` : '')
         + (s.offline ? ' · sin conexión' : '');
     badge.title = s.offline
-        ? 'Tasa guardada (sin conexión): toca para reintentar'
+        ? `${rateSourceLabel(src)} guardada (sin conexión): toca para reintentar`
         : 'Tocar para actualizar la tasa';
 }
 
@@ -79,6 +94,7 @@ export function renderTheme() {
 
 export function renderHeader() {
     renderCurrency();
+    renderRateSource();
     renderRateBadge();
     renderCashBadge();
     renderTheme();

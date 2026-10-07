@@ -15,6 +15,7 @@ export function createSeedState() {
         settings: {
             currency: 'USD',
             theme: 'auto',
+            rateSource: 'usd',
             ticket: {
                 printerWidth: 58,
                 businessName: 'Samantha Spa',

@@ -10,7 +10,7 @@ import { getState, replaceState } from './core/state.js';
 import { loadState, saveState, restoreDemo } from './core/storage.js';
 import { login, logout, getCurrentUser } from './core/auth.js';
 import { loadRatesCache, refreshRates, isStale, toUSD } from './core/rates.js';
-import { CURRENCIES, THEMES, SESSION_IDLE_MS, IDLE_CHECK_MS } from './core/config.js';
+import { CURRENCIES, THEMES, RATE_SOURCES, SESSION_IDLE_MS, IDLE_CHECK_MS } from './core/config.js';
 import { money } from './core/utils.js';
 
 import { switchTab, renderNav, ensureAllowedTab } from './ui/navigation.js';
@@ -443,6 +443,20 @@ function onChange(e) {
         } catch (err) {
             toastError(err.message);
         }
+    } else if (el.dataset.action === 'set-rate-source') {
+        const src = el.value === 'eur' ? 'eur' : 'usd';
+        if (!RATE_SOURCES.includes(src)) {
+            renderHeader();
+            return;
+        }
+        if (getState().settings.rateSource === src) return;
+        getState().settings.rateSource = src;
+        persist();
+        // Toda la UI muestra dinero: repintado completo (badge + montos).
+        renderAll();
+        toastSuccess(src === 'eur'
+            ? 'La tasa de referencia es ahora la del euro (BCV).'
+            : 'La tasa de referencia es ahora la del dólar (BCV).');
     }
 }
 

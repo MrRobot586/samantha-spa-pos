@@ -12,7 +12,7 @@
  *     intacta: sirve de respaldo y cualquier día se puede volver atrás.
  */
 
-import { STORAGE_KEY, LEGACY_STORAGE_KEY, STORAGE_BACKUP_KEY, STORAGE_DEMO_BACKUP_KEY, CURRENCIES, THEMES } from './config.js';
+import { STORAGE_KEY, LEGACY_STORAGE_KEY, STORAGE_BACKUP_KEY, STORAGE_DEMO_BACKUP_KEY, CURRENCIES, THEMES, RATE_SOURCES } from './config.js';
 import { createSeedState } from './seed.js';
 
 const isObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -211,6 +211,7 @@ const ticketText = (v, fallback) =>
 
 function normalizeSettings(raw) {
     const currency = isObject(raw) && CURRENCIES.includes(raw.currency) ? raw.currency : 'USD';
+    const rateSource = isObject(raw) && RATE_SOURCES.includes(raw.rateSource) ? raw.rateSource : 'usd';
     const theme = isObject(raw) && THEMES.includes(raw.theme) ? raw.theme : 'auto';
 
     const tRaw = isObject(raw) && isObject(raw.ticket) ? raw.ticket : {};
@@ -223,7 +224,7 @@ function normalizeSettings(raw) {
         showPrices: tRaw.showPrices !== false
     };
 
-    return { currency, theme, ticket };
+    return { currency, theme, rateSource, ticket };
 }
 
 function normalizeCashSession(raw) {
