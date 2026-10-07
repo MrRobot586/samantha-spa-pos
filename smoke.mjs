@@ -105,6 +105,19 @@ async function main() {
         }
     };
 
+    /** Abre/cierra el menú del topbar solo si hace falta (el menú de estado
+     *  persistido no existe: siempre arranca cerrado tras un reload). */
+    const menuAbierto = async () => {
+        if (await evaluar(`!document.getElementById('topbar-menu-panel').classList.contains('is-hidden')`)) return;
+        await evaluar(`document.getElementById('btn-menu').click()`);
+        await esperar(120);
+    };
+    const menuCerrado = async () => {
+        if (!(await evaluar(`!document.getElementById('topbar-menu-panel').classList.contains('is-hidden')`))) return;
+        await evaluar(`document.getElementById('btn-menu').click()`);
+        await esperar(120);
+    };
+
     await check('título', `document.title`);
 
     // --- Login ---------------------------------------------------------------
@@ -124,6 +137,47 @@ async function main() {
     await check('nav admin: 7 pestañas visibles', `[...document.querySelectorAll('.sidebar__nav .nav-btn')].filter(b => !b.classList.contains('is-hidden')).length === 7`);
     await check('dashboard admin ve alertas de stock', `!document.getElementById('dash-stock-card').classList.contains('is-hidden')`);
     await check('badge de caja visible para admin', `!document.getElementById('cash-badge').classList.contains('is-hidden')`);
+
+    // --- Menú desplegable del topbar ----------------------------------------
+    await check('menú cerrado tras el login',
+        `document.getElementById('topbar-menu-panel').classList.contains('is-hidden') && document.getElementById('btn-menu').getAttribute('aria-expanded') === 'false'`);
+    await check('el topbar solo enseña título + badges + menú',
+        `!document.querySelector('.topbar__right > .currency-toggle') && !document.querySelector('.topbar__right > .rate-source') && !document.querySelector('.topbar__right > .topbar__date')`);
+    await check('badge de tasa visible en la barra', `document.getElementById('rate-badge').offsetParent !== null`);
+    await evaluar(`document.getElementById('btn-menu').click()`);
+    await esperar(120);
+    await check('clic en ⋯ abre el menú',
+        `!document.getElementById('topbar-menu-panel').classList.contains('is-hidden') && document.getElementById('btn-menu').getAttribute('aria-expanded') === 'true'`);
+    await check('moneda y tema dentro del menú',
+        `document.getElementById('topbar-menu-panel').contains(document.querySelector('.currency-toggle')) && document.getElementById('topbar-menu-panel').contains(document.getElementById('theme-toggle'))`);
+    await check('sesión y fecha dentro del menú',
+        `document.getElementById('topbar-menu-panel').contains(document.getElementById('user-chip')) && document.getElementById('topbar-menu-panel').contains(document.getElementById('current-date'))`);
+    await check('grupo Herramientas visible para admin', `!document.getElementById('menu-group-tools').classList.contains('is-hidden')`);
+    await check('el panel cabe en pantalla',
+        `(() => { const r = document.getElementById('topbar-menu-panel').getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth && r.top > 0; })()`);
+    await evaluar(`document.getElementById('page-title').click()`);
+    await esperar(120);
+    await check('clic fuera cierra el menú',
+        `document.getElementById('topbar-menu-panel').classList.contains('is-hidden') && document.getElementById('btn-menu').getAttribute('aria-expanded') === 'false'`);
+    await evaluar(`document.getElementById('btn-menu').click()`);
+    await esperar(120);
+    await evaluar(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+    await esperar(120);
+    await check('ESC cierra el menú', `document.getElementById('topbar-menu-panel').classList.contains('is-hidden')`);
+    await menuAbierto();
+    await evaluar(`document.getElementById('btn-print-settings').click()`);
+    await esperar(150);
+    await check('abrir un modal cierra el menú',
+        `document.getElementById('topbar-menu-panel').classList.contains('is-hidden') && !document.getElementById('modal-print-settings').classList.contains('is-hidden')`);
+    await evaluar(`document.querySelector('[data-action="close-modal"][data-target="modal-print-settings"]').click()`);
+    await esperar(120);
+    await menuAbierto();
+    await evaluar(`document.getElementById('nav-ventas').click()`);
+    await esperar(150);
+    await check('cambiar de pestaña cierra el menú',
+        `document.getElementById('topbar-menu-panel').classList.contains('is-hidden')`);
+    await evaluar(`document.getElementById('nav-dashboard').click()`);
+    await esperar(150);
 
     // Alta de usuarios desde la UI
     await evaluar(`document.getElementById('btn-users').click()`);
@@ -156,6 +210,8 @@ async function main() {
     await check('estilista NO ve ajustes de ticket', `document.getElementById('btn-print-settings').classList.contains('is-hidden')`);
     await check('estilista NO ve el badge de caja', `document.getElementById('cash-badge').classList.contains('is-hidden')`);
     await check('estilista NO ve Usuarios', `document.getElementById('btn-users').classList.contains('is-hidden')`);
+    await check('estilista NO ve la sección Herramientas del menú',
+        `document.getElementById('menu-group-tools').classList.contains('is-hidden')`);
     await check('dashboard estilista oculta alertas de stock', `document.getElementById('dash-stock-card').classList.contains('is-hidden') && document.getElementById('dash-alerts-card').classList.contains('is-hidden')`);
 
     // De vuelta como admin para el resto del flujo
@@ -439,6 +495,8 @@ async function main() {
     // --- Tema (oscuro/claro/auto) ------------------------------------------
     await check('tema aplicado al arrancar', `['dark', 'light'].includes(document.documentElement.dataset.theme)`);
     await check('botón de tema presente con icono', `!!document.getElementById('theme-toggle')?.querySelector('i')`);
+    await menuAbierto();
+    await check('el tema vive en el menú', `document.getElementById('topbar-menu-panel').contains(document.getElementById('theme-toggle'))`);
 
     await evaluar(`document.getElementById('theme-toggle').click()`); // auto → dark
     await esperar(150);
@@ -471,6 +529,7 @@ async function main() {
     await evaluar(`document.getElementById('theme-toggle').click(); document.getElementById('theme-toggle').click()`);
     await esperar(150);
     await check('vuelta a auto tras F5', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).settings.theme === 'auto'`);
+    await menuCerrado();
 
     // XSS: un nombre malicioso debe renderizarse como texto
     await evaluar(`
@@ -491,6 +550,9 @@ async function main() {
             const conImgReal = document.querySelectorAll('#inventory-table-body img').length > 0;
             return conTextoMalicioso && !conImgReal;
         })()`);
+
+    await check('badge de tasa visible a 375px (ya no depende de ≥640)',
+        `document.getElementById('rate-badge').offsetParent !== null`);
 
     // Móvil 375px: la bottom-nav debe estar visible
     await send('Emulation.setDeviceMetricsOverride', { width: 375, height: 700, deviceScaleFactor: 2, mobile: true }, sessionId);
@@ -525,7 +587,7 @@ async function main() {
             return t.scrollWidth <= t.clientWidth + 1;
         })()`);
 
-    // Tablet portrait: aquí los badges de tasa/caja y la fecha ya son visibles
+    // Tablet portrait: aquí el badge de caja (≥640) y la nav con texto vuelven
     await send('Emulation.setDeviceMetricsOverride', { width: 700, height: 900, deviceScaleFactor: 1, mobile: false }, sessionId);
     await esperar(300);
     await check('topbar sin desborde a 700px', `
@@ -533,15 +595,17 @@ async function main() {
             const t = document.querySelector('.topbar');
             return t.scrollWidth <= t.clientWidth + 1;
         })()`);
-    await check('selector de tasa oculto en tablet angosta',
-        `document.querySelector('.rate-source').offsetParent === null`);
+    await menuAbierto();
+    await check('selector de tasa en el menú (700px)',
+        `document.querySelector('.rate-source').offsetParent !== null`);
 
     // Bandas intermedias: 768–1023 (etiquetas ocultas) y 1024–1279 (compacto)
-    // 768 es también el umbral del selector de tasa: aparece ahí por primera vez.
+    // El selector de tasa ya no depende del ancho: vive en el menú.
     await send('Emulation.setDeviceMetricsOverride', { width: 768, height: 900, deviceScaleFactor: 1, mobile: false }, sessionId);
     await esperar(300);
-    await check('selector de tasa visible a 768px',
+    await check('selector de tasa sigue en el menú a 768px',
         `document.querySelector('.rate-source').offsetParent !== null`);
+    await menuCerrado();
     for (const ancho of [768, 900, 1100]) {
         await send('Emulation.setDeviceMetricsOverride', { width: ancho, height: 900, deviceScaleFactor: 1, mobile: false }, sessionId);
         await esperar(300);

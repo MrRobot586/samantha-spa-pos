@@ -147,52 +147,84 @@
             <h2 id="page-title" class="topbar__title">
                 <i class="fa-solid fa-chart-pie"></i> Dashboard General
             </h2>
+            <!-- Solo lo que se lee de un vistazo: título + estado de la tasa +
+                 estado de la caja. Todo lo demás (moneda, fuente de tasa, tema,
+                 ajustes de impresión, usuarios, fecha, sesión y salir) vive en
+                 el menú desplegable para no saturar la barra. -->
             <div class="topbar__right">
-                <div class="currency-toggle" role="group" aria-label="Moneda de visualización">
-                    <button type="button" data-action="set-currency" data-currency="USD" class="currency-btn is-active">USD</button>
-                    <button type="button" data-action="set-currency" data-currency="VES" class="currency-btn">Bs</button>
-                    <button type="button" data-action="set-currency" data-currency="EUR" class="currency-btn">€</button>
-                </div>
-                <!-- Tasa BCV de referencia: elige qué tasa del BCV alimenta la
-                     conversión a bolívares (y lo que enseña el badge). -->
-                <div class="rate-source" title="Tasa BCV de referencia">
-                    <i class="fa-solid fa-money-bill-transfer rate-source__icon" aria-hidden="true"></i>
-                    <select id="rate-source" data-action="set-rate-source" class="rate-source__select"
-                            aria-label="Tasa BCV de referencia">
-                        <option value="usd">Tasa USD</option>
-                        <option value="eur">Tasa Euro</option>
-                    </select>
-                </div>
-                <button type="button" id="theme-toggle" data-action="set-theme"
-                        class="theme-toggle" data-theme="auto" title="Tema">
-                    <i class="fa-solid fa-desktop"></i>
-                </button>
                 <button type="button" id="rate-badge" data-action="refresh-rates" class="rate-badge">
                     Cargando tasa…
-                </button>
-                <button type="button" id="btn-print-settings" data-action="open-modal" data-target="modal-print-settings" class="btn btn--ghost-brand is-hidden" title="Ajustes de impresión de ticket">
-                    <i class="fa-solid fa-print"></i> <span>Ticket</span>
                 </button>
                 <button type="button" id="cash-badge" data-action="switch-tab" data-tab="cash"
                         class="cash-badge is-hidden" title="Estado de la caja">
                     <span class="cash-badge__dot"></span>
                     <span id="cash-badge-text">Caja cerrada</span>
                 </button>
-                <button type="button" id="btn-users" data-action="open-modal" data-target="modal-users"
-                        class="btn btn--ghost-brand is-hidden">
-                    <i class="fa-solid fa-users-gear"></i> <span>Usuarios</span>
-                </button>
-                <div class="topbar__date">
-                    <p id="current-date">Cargando fecha...</p>
-                    <p class="topbar__status">Turno en curso</p>
+
+                <div class="topbar-menu" id="topbar-menu">
+                    <button type="button" id="btn-menu" data-action="toggle-menu"
+                            class="topbar-menu__btn" aria-expanded="false"
+                            aria-controls="topbar-menu-panel" title="Opciones" aria-label="Opciones">
+                        <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
+                    </button>
+
+                    <div id="topbar-menu-panel" class="topbar-menu__panel is-hidden">
+                        <section class="topbar-menu__group">
+                            <p class="topbar-menu__label">Sesión</p>
+                            <div class="topbar__user" id="user-chip" title="">
+                                <div class="topbar__avatar" id="user-initials">—</div>
+                                <p class="topbar__user-name" id="user-chip-name">—</p>
+                            </div>
+                            <div class="topbar__date">
+                                <p id="current-date">Cargando fecha...</p>
+                                <p class="topbar__status">Turno en curso</p>
+                            </div>
+                        </section>
+
+                        <section class="topbar-menu__group">
+                            <p class="topbar-menu__label">Vista</p>
+                            <div class="currency-toggle" role="group" aria-label="Moneda de visualización">
+                                <button type="button" data-action="set-currency" data-currency="USD" class="currency-btn is-active">USD</button>
+                                <button type="button" data-action="set-currency" data-currency="VES" class="currency-btn">Bs</button>
+                                <button type="button" data-action="set-currency" data-currency="EUR" class="currency-btn">€</button>
+                            </div>
+                            <!-- Tasa BCV de referencia: elige qué tasa del BCV alimenta la
+                                 conversión a bolívares (y lo que enseña el badge). -->
+                            <div class="rate-source" title="Tasa BCV de referencia">
+                                <i class="fa-solid fa-money-bill-transfer rate-source__icon" aria-hidden="true"></i>
+                                <select id="rate-source" data-action="set-rate-source" class="rate-source__select"
+                                        aria-label="Tasa BCV de referencia">
+                                    <option value="usd">Tasa USD</option>
+                                    <option value="eur">Tasa Euro</option>
+                                </select>
+                            </div>
+                            <button type="button" id="theme-toggle" data-action="set-theme"
+                                    class="theme-toggle" data-theme="auto" title="Tema">
+                                <i class="fa-solid fa-desktop"></i>
+                            </button>
+                        </section>
+
+                        <!-- Ambos botones requieren el permiso 'users': navigation.js
+                             oculta el grupo entero para los demás roles. -->
+                        <section class="topbar-menu__group is-hidden" id="menu-group-tools">
+                            <p class="topbar-menu__label">Herramientas</p>
+                            <button type="button" id="btn-print-settings" data-action="open-modal" data-target="modal-print-settings"
+                                    class="btn btn--ghost-brand" title="Ajustes de impresión de ticket">
+                                <i class="fa-solid fa-print"></i> <span>Ticket</span>
+                            </button>
+                            <button type="button" id="btn-users" data-action="open-modal" data-target="modal-users"
+                                    class="btn btn--ghost-brand">
+                                <i class="fa-solid fa-users-gear"></i> <span>Usuarios</span>
+                            </button>
+                        </section>
+
+                        <div class="topbar-menu__foot">
+                            <button type="button" data-action="logout" class="btn btn--neutral topbar-menu__logout">
+                                <i class="fa-solid fa-right-from-bracket"></i> <span>Salir</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div class="topbar__user" id="user-chip" title="">
-                    <div class="topbar__avatar" id="user-initials">—</div>
-                    <p class="topbar__user-name" id="user-chip-name">—</p>
-                </div>
-                <button type="button" data-action="logout" class="btn btn--neutral">
-                    <i class="fa-solid fa-right-from-bracket"></i> <span>Salir</span>
-                </button>
             </div>
         </header>
 

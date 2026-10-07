@@ -31,6 +31,9 @@ export function renderNav(role) {
     }
     document.getElementById('btn-users')?.classList.toggle('is-hidden', !can(role, 'users'));
     document.getElementById('btn-print-settings')?.classList.toggle('is-hidden', !can(role, 'users'));
+    // Ambos botones comparten el permiso 'users': si el rol no lo tiene, la
+    // sección entera (incluida su etiqueta "Herramientas") desaparece.
+    document.getElementById('menu-group-tools')?.classList.toggle('is-hidden', !can(role, 'users'));
 }
 
 export function switchTab(tabName) {

@@ -179,29 +179,116 @@ body.is-logged-out .toast-stack {
     flex-shrink: 0;
 }
 
-/* Etiquetas de los botones del topbar: solo icono hasta xl (1280) y
-   con etiqueta desde xl. Evita el desborde en 768–1279. */
-.topbar__right .btn span {
-    display: none;
+/* --- Menú desplegable del topbar --------------------------------------------
+   El topbar solo conserva título + badge de tasa + badge de caja + este
+   botón; el panel guarda moneda, fuente de tasa, tema, ajustes de
+   impresión, usuarios, fecha, sesión y salir. */
+
+.topbar-menu {
+    position: relative;
 }
 
-@media (min-width: 1280px) {
-    .topbar__right .btn span {
-        display: inline;
-    }
+.topbar-menu__btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-3) var(--space-5);
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
 }
 
-.topbar__date {
-    text-align: right;
-    display: none;
+.topbar-menu__btn:hover,
+.topbar-menu__btn[aria-expanded="true"] {
+    color: var(--text-strong);
+    border-color: var(--brand-400);
 }
 
-/* Fecha y nombre solo en pantallas grandes: en tablets (768–1279) la barra
-   no da abasto con badges + controles y desbordaba. */
-@media (min-width: 1280px) {
-    .topbar__date {
-        display: block;
-    }
+.topbar-menu__panel {
+    position: absolute;
+    top: calc(100% + var(--space-4));
+    right: 0;
+    width: 18rem;
+    /* en móvil el topbar ya tiene su propio padding: el panel no puede
+       salirse de la pantalla */
+    max-width: calc(100vw - var(--space-16));
+    background: var(--card);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.4);
+    padding: var(--space-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+    z-index: 20;
+}
+
+.topbar-menu__group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.topbar-menu__group + .topbar-menu__group {
+    border-top: 1px solid var(--border);
+    padding-top: var(--space-6);
+}
+
+.topbar-menu__label {
+    font-size: var(--fs-2xs);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.topbar-menu__foot {
+    border-top: 1px solid var(--border);
+    padding-top: var(--space-6);
+    display: flex;
+}
+
+/* Controles a ancho completo dentro del panel (no desbordan: son los mismos
+   elementos que antes peleaban por espacio en la barra). */
+.topbar-menu__panel .currency-toggle {
+    width: 100%;
+}
+
+.topbar-menu__panel .currency-btn {
+    flex: 1;
+    text-align: center;
+}
+
+.topbar-menu__panel .rate-source {
+    width: 100%;
+}
+
+.topbar-menu__panel .rate-source__select {
+    flex: 1;
+    min-width: 0;
+}
+
+.topbar-menu__panel .theme-toggle,
+.topbar-menu__panel .btn {
+    width: 100%;
+    justify-content: flex-start;
+}
+
+.topbar-menu__panel .theme-toggle {
+    text-align: left;
+}
+
+/* El chip y la fecha se alinean a la izquierda: dentro del panel ya no
+   juegan contra el título de la barra. */
+.topbar-menu__panel .topbar__date {
+    text-align: left;
+}
+
+.topbar-menu__panel .topbar-menu__logout {
+    justify-content: center;
 }
 
 .topbar__date p {
@@ -229,8 +316,8 @@ body.is-logged-out .toast-stack {
     font-size: var(--fs-base);
 }
 
-/* Chip de sesión: avatar con iniciales + nombre (el nombre se oculta en
- * pantallas angostas; el title del chip lleva el rol). */
+/* Chip de sesión (vive en el menú): avatar con iniciales + nombre; el
+ * title del chip lleva el rol. */
 .topbar__user {
     display: flex;
     align-items: center;
@@ -238,7 +325,6 @@ body.is-logged-out .toast-stack {
 }
 
 .topbar__user-name {
-    display: none;
     font-size: var(--fs-sm);
     font-weight: 600;
     color: var(--text-muted);
@@ -246,12 +332,6 @@ body.is-logged-out .toast-stack {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-@media (min-width: 1280px) {
-    .topbar__user-name {
-        display: block;
-    }
 }
 
 /* --- Moneda de visualización + tasa BCV ------------------------------------ */
@@ -357,16 +437,10 @@ body.is-logged-out .toast-stack {
     color: var(--text-strong);
 }
 
-/* Solo donde el topbar tiene holgura: a 640–767 desborda (medido), y por
-   debajo de 640 ya ceden la tasa y la caja, igual que el resto del topbar. */
-@media (max-width: 767px) {
-    .rate-source {
-        display: none;
-    }
-}
-
 .rate-badge {
-    display: none;
+    /* Siempre visible: en el topbar ya no compite con el resto de controles
+       (viven en el menú), así la tasa se lee también en el teléfono. */
+    display: block;
     padding: var(--space-3) var(--space-5);
     font-size: var(--fs-sm);
     font-weight: 600;
@@ -391,12 +465,6 @@ body.is-logged-out .toast-stack {
 .rate-badge:hover {
     color: var(--text-strong);
     border-color: var(--brand-400);
-}
-
-@media (min-width: 640px) {
-    .rate-badge {
-        display: block;
-    }
 }
 
 /* --- Estado de la caja (topbar) ----------------------------------------------------- */
@@ -438,6 +506,8 @@ body.is-logged-out .toast-stack {
     background: var(--success);
 }
 
+/* El badge de caja es admin y solo desde 640: en el teléfono ya caben el
+   título, el de tasa y el botón de menú, pero no dos badges. */
 @media (min-width: 640px) {
     .cash-badge {
         display: inline-flex;

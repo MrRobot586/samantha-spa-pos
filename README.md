@@ -72,7 +72,7 @@ La app arranca en la pantalla de login. Credenciales semilla:
 ## Moneda y tasa BCV
 
 - Los precios **siempre se guardan en USD**; Bs y € son solo visualización
-  (botones `[USD][Bs][€]` en el header, persistidos en `settings.currency`).
+  (botones `[USD][Bs][€]` en el menú del topbar, persistidos en `settings.currency`).
 - La tasa llega de `https://ve.dolarapi.com/v1/cotizaciones` (gratuita, sin
   API key): se pinta la caché al arrancar y se revalida al inicio, cada 10
   minutos si está vencida (TTL 1 h) y con el clic en el badge de tasa.
@@ -83,9 +83,11 @@ La app arranca en la pantalla de login. Credenciales semilla:
   Cualquier rol lo puede cambiar; queda en `settings.rateSource` (default
   `usd`) y sobrevive a F5. Solo cambia el paso a Bs: **la vista en € sigue
   usando la tasa cruzada** (`usdBs / eurBs`) y la de USD no cambia; si la
-  tasa elegida no está disponible, la conversión cae a USD. El selector se
-  oculta por debajo de 768px: el topbar desbordaba a 640–767 (medido). El
-  badge de tasa sigue visible desde 640px con el mismo texto de fuente.
+  tasa elegida no está disponible, la conversión cae a USD. El selector
+  vive en el menú del topbar y está disponible en cualquier ancho (antes se
+  ocultaba por debajo de 768px: el topbar desbordaba a 640–767, medido); el
+  badge de tasa se queda en la barra, a cualquier ancho, con el mismo texto
+  de fuente.
 - Cada transacción guarda un **snapshot de la tasa** (`rates`) y cada corte
   de caja también: los reportes históricos se pueden mostrar en Bs fieles
   aunque la tasa cambie después.
@@ -135,7 +137,7 @@ La app arranca en la pantalla de login. Credenciales semilla:
 - El ticket es un comprobante de **canje de servicios**: incluye un **código
   único** (`C-XXXXXX`), la fecha/hora, los servicios pagados agrupados por
   estilista y el total. Los productos que acompañen la venta no se imprimen.
-- **Configurable** (botón de impresora en el topbar, solo admin): ancho de
+- **Configurable** (botón Ticket en el menú del topbar, solo admin): ancho de
   papel **58 mm / 80 mm**, nombre del negocio, línea secundaria, pie y si se
   muestran los precios.
 - La impresión usa `window.print()` con un CSS de ticket térmico
@@ -148,7 +150,14 @@ La app arranca en la pantalla de login. Credenciales semilla:
 
 ## Tema y responsive
 
-- **Tema `auto | dark | light`** con botón de ciclo en el topbar. `auto` es
+- **Topbar ligero + menú desplegable (⋯):** la barra superior solo enseña
+  título, badge de tasa, badge de caja y el botón de menú. Moneda, fuente
+  de tasa, tema, ajustes de impresión, usuarios, fecha/turno, chip de
+  sesión y Salir viven en un panel anclado bajo la barra; se cierra con un
+  clic fuera, con ESC, al cambiar de pestaña, al abrir un modal o al salir,
+  y la sección "Herramientas" no aparece para los roles sin permiso
+  `users`. El menú no tiene estado: siempre arranca cerrado.
+- **Tema `auto | dark | light`** con botón de ciclo en el menú del topbar. con botón de ciclo en el menú del topbar. `auto` es
   el valor por defecto y sigue a `prefers-color-scheme` (cambia en vivo si
   el sistema cambia). El tema elegido se persiste en `settings.theme` y lo
   restaura antes del primer render un script pre-paint de `<head>`.
@@ -156,9 +165,10 @@ La app arranca en la pantalla de login. Credenciales semilla:
   y breakpoints canónicos **640 / 768 / 1024 / 1280** (todo documentado en
   `css/tokens.css`).
 - **Dispositivos:** la sidebar lateral vive en ≥1024; por debajo pasa a barra
-  inferior fija (con safe-area para el notch). La topbar se compacta por
-  niveles (iconos-only hasta 1280) y el contenido se limita a 1440px en
-  monitores anchos. Objetivos táctiles ≥44px y `prefers-reduced-motion`.
+  inferior fija (con safe-area para el notch). Los controles secundarios
+  salieron de la topbar al menú, así que la barra ya no se compacta por
+  niveles y el contenido se limita a 1440px en monitores anchos. Objetivos
+  táctiles ≥44px y `prefers-reduced-motion`.
 
 ## Pruebas
 
@@ -175,7 +185,8 @@ variable `var(--x)` debe existir en el proyecto). La UI se verifica con el smoke
 ticket imprimible (con `window.print` interceptado), reimpresión, ajustes de
 impresión, gate de caja, apertura, corte, moneda y tema, CRUD, restaurar
 demo, XSS, el gap de los filtros de Ventas, el wizard de 3 pasos del POS,
-móvil y responsive en varios anchos) y con el checklist del final.
+el menú del topbar y responsive en varios anchos) y con el checklist del
+final.
 El CI de GitHub Actions (`.github/workflows/ci.yml`) corre ambas cosas en
 cada push.
 
@@ -187,7 +198,7 @@ css/
   tokens.css          paleta (oscuro + light), tipografía --fs-*, espaciado
                       --space-*, radios, sombras y los breakpoints canónicos
   base.css            reset, scrollbars, foco visible, reduced-motion
-  layout.css          shell (sidebar/header/main) + bottom-nav + topbar responsive
+  layout.css          shell (sidebar/header/main) + bottom-nav + topbar y su menú
   components.css      botones, tablas, badges, modales, toasts, formularios
   print.css           ticket térmico (58/80 mm) para window.print()
   views/              grids y piezas específicas de cada pestaña (un archivo por tab)
@@ -217,6 +228,7 @@ js/
     users.js          alta/edición/baja de usuarios, PIN, último admin
   ui/                 renders (innerHTML + escapeHtml) y modales
     header.js         toggle de moneda, selector de tasa, tema, badge de tasa y badge de caja
+    menu.js           menú desplegable del topbar (abrir/cerrar, clic fuera, ESC)
     login-view.js     pantalla de acceso
     navigation.js     nav y pestañas según rol (switchTab rechaza lo no permitido)
     pos.js            catálogo, ticket, pagos mixtos y wizard de cobro (3 pasos)
@@ -260,9 +272,9 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
 - **Móvil:** la sidebar se convierte en barra inferior fija (<1024px), en vez
   del layout roto del original; en 768–1023 el sidebar de 16rem dejaba el
   contenido a 512px y la topbar desbordaba (defecto del original), así que
-  la nav inferior gana ancho y el lateral vuelve en ≥1024. La topbar se
-  compacta por niveles: iconos-only hasta 1280, y fecha/nombre del usuario
-  vuelven en xl; la tasa se trunca con "…" (completa en el tooltip).
+  la nav inferior gana ancho y el lateral vuelve en ≥1024. Por debajo de
+  640px la topbar se reduce a título + tasa + menú; el resto vive en el
+  menú (⋯), donde la tasa se trunca con "…" (completa en el tooltip).
 - **Tema claro/oscuro vinculado al sistema:** `settings.theme` es
   `auto | dark | light`. Con `auto` sigue a `prefers-color-scheme` en vivo
   (listener de `matchMedia`). Un script pre-paint en `<head>` lee el tema
@@ -337,32 +349,36 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
     del estilista acumula en Comisiones.
 11. Recargar (F5): la sesión, ventas, stock, moneda y caja siguen ahí.
 12. Producto llamado `<img src=x onerror=alert(1)>` → se muestra como texto.
-13. ESC cierra los modales; el catálogo es navegable con Tab.
-14. A 375px de ancho: aparece la barra inferior, sin scroll horizontal.
-15. Tema: el botón del topbar cicla Auto → Oscuro → Claro (el icono cambia);
+13. ESC cierra los modales y el menú del topbar; el catálogo es navegable
+    con Tab.
+14. Menú (⋯): dentro están moneda, fuente de tasa, tema, fecha y sesión; se
+    cierra con clic fuera, con ESC, al cambiar de pestaña y al abrir un
+    modal. Como `valeria`, la sección "Herramientas" no aparece.
+15. A 375px de ancho: aparece la barra inferior, sin scroll horizontal.
+16. Tema: el botón del menú cicla Auto → Oscuro → Claro (el icono cambia);
     con `auto` y el SO en claro/oscuro la app lo sigue en vivo; al recargar
     el tema elegido se mantiene sin parpadeo.
-16. A 700 y 900px el header no desborda; a 900 se ve la barra inferior y a
+17. A 700 y 900px el header no desborda; a 900 se ve la barra inferior y a
     1100 el sidebar lateral vuelve a la izquierda.
-17. A 1600px el contenido queda centrado (máx. ~1440) y los grids de KPIs,
+18. A 1600px el contenido queda centrado (máx. ~1440) y los grids de KPIs,
     catálogo y servicios se adaptan (sin scroll horizontal en ningún ancho).
-18. Editar un producto/servicio desde la tabla actualiza la fila; "Nuevo"
+19. Editar un producto/servicio desde la tabla actualiza la fila; "Nuevo"
     vuelve a abrir el formulario en blanco.
-19. Eliminar un insumo usado por una receta se bloquea con aviso; un
+20. Eliminar un insumo usado por una receta se bloquea con aviso; un
     producto de venta sin receta sí se elimina (con confirmación).
-20. Caja & Cortes: filtrar el historial por fechas y exportar CSV; Comisiones:
+21. Caja & Cortes: filtrar el historial por fechas y exportar CSV; Comisiones:
     elegir un rango y exportar el CSV por estilista (se abren en Excel).
-21. "Restaurar demo" (en Usuarios) pide confirmación y repone inventario,
+22. "Restaurar demo" (en Usuarios) pide confirmación y repone inventario,
     ventas y caja de fábrica, dejando un respaldo previo.
-22. Vender un servicio y confirmar → el wizard pasa al paso 3 (Cierre) con
+23. Vender un servicio y confirmar → el wizard pasa al paso 3 (Cierre) con
     "Imprimir ticket" y "Nueva venta"; al pulsar imprimir se abre el
     diálogo del sistema (el ticket solo muestra los servicios, el código de
     canje y los servicios agrupados por estilista; los productos no se
     imprimen). "Nueva venta" vuelve al paso 1 con la orden vacía.
-23. Ajustes de impresión (botón de impresora en el topbar, solo admin):
+24. Ajustes de impresión (botón Ticket dentro del menú del topbar, solo admin):
     cambiar a 80 mm y editar encabezado/pie; reimprimir desde la pestaña
     Ventas (con filtro por fecha) conserva y refleja esos ajustes.
-24. Dejar la app 20 min sin tocarla cierra la sesión sola y vuelve al login.
+25. Dejar la app 20 min sin tocarla cierra la sesión sola y vuelve al login.
 
 ## Fuera de alcance (posibles siguientes pasos)
 

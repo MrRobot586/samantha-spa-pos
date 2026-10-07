@@ -19,6 +19,7 @@ import { renderHeader, applyTheme } from './ui/header.js';
 import { renderUsersList, fillUserForm, resetUserForm } from './ui/users-view.js';
 import { toast, toastSuccess, toastError } from './ui/dialogs.js';
 import { openModal, closeModal, initModals } from './ui/modals.js';
+import { toggleMenu, closeMenu, initMenu } from './ui/menu.js';
 import { renderStaffSelect, renderCatalog, renderTicket, renderFilters, updateTotals, renderPayment, renderSaleConfirm, collectPayments, updatePaymentSummary, renderPosStep, goToPosStep, completePosStep } from './ui/pos.js';
 import { renderDashboard } from './ui/dashboard.js';
 import { renderServicesCards, fillServiceForm } from './ui/services-view.js';
@@ -162,7 +163,12 @@ let lastSaleTxId = null;
 function handleAction(el, action) {
     switch (action) {
         case 'switch-tab':
+            closeMenu();
             switchTab(el.dataset.tab);
+            break;
+
+        case 'toggle-menu':
+            toggleMenu();
             break;
 
         case 'filter-cat': {
@@ -282,6 +288,7 @@ function handleAction(el, action) {
         }
         case 'open-modal': {
             const target = el.dataset.target;
+            closeMenu();
             if (target === 'modal-print-settings') fillPrintSettings();
             openModal(target);
             break;
@@ -341,6 +348,7 @@ function handleAction(el, action) {
         }
 
         case 'logout':
+            closeMenu();
             logout();
             showLogin();
             break;
@@ -728,6 +736,7 @@ function boot() {
     applyTheme(); // reafirma el tema pre-paint con el settings real (y 'auto' resuelto)
 
     initModals();
+    initMenu();
 
     if (recovered === 'corrupto') {
         toast('Los datos guardados estaban corruptos. Se respaldaron y se reinició el inventario.', 'danger', 6000);
