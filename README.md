@@ -4,7 +4,8 @@ Punto de venta e inventario para spa/salón: catálogo de servicios con
 recetas, inventario de productos de venta e insumos internos, comisiones
 por estilista, **moneda en vivo con tasa BCV** (USD ⇄ Bs ⇄ €),
 **pagos mixtos (Efectivo, Débito, Pago Móvil, Divisa) con vuelto**, **caja
-con retiros, corte e historial**, **reportes por fecha con export CSV** y
+con retiros, corte e historial**, **reportes por fecha con export CSV**,
+**tickets de canje imprimibles para impresora térmica** y
 **CRUD de catálogo y usuarios**.
 HTML, CSS y JavaScript puro, **sin dependencias ni build**.
 
@@ -53,9 +54,10 @@ La app arranca en la pantalla de login. Credenciales semilla:
 
 - **Administrador**: todo (ventas, servicios, inventario, comisiones,
   **Caja & Cortes** y gestión de usuarios).
-- **Estilista**: solo Dashboard (con sus propias ventas) y Caja/POS; su
+- **Estilista**: solo Dashboard (con sus propias ventas), Caja/POS y
+  **Ventas** (para reimprimir sus tickets); su
   venta se atribuye automáticamente a su estilista vinculado. No ve
-  comisiones, inventario ni caja.
+  comisiones, inventario, caja ni los ajustes de impresión.
 - El alta/baja de usuarios, roles y restablecimiento de PIN se hace desde
   el botón **Usuarios** del header (solo admin). Nunca se puede quedar la
   app sin al menos un administrador activo.
@@ -104,6 +106,25 @@ La app arranca en la pantalla de login. Credenciales semilla:
 - El **badge de caja** en el header muestra `Caja abierta`/`Caja cerrada`
   (solo admin) y lleva a la pestaña de caja.
 
+## Tickets de canje imprimibles
+
+- Al concretar una venta se ofrece **Imprimir ticket**; también se puede
+  **reimprimir** desde la pestaña **Ventas** (historial con filtro por fecha;
+  el estilista solo ve sus propias ventas).
+- El ticket es un comprobante de **canje de servicios**: incluye un **código
+  único** (`C-XXXXXX`), la fecha/hora, los servicios pagados agrupados por
+  estilista y el total. Los productos que acompañen la venta no se imprimen.
+- **Configurable** (botón de impresora en el topbar, solo admin): ancho de
+  papel **58 mm / 80 mm**, nombre del negocio, línea secundaria, pie y si se
+  muestran los precios.
+- La impresión usa `window.print()` con un CSS de ticket térmico
+  (`css/print.css`): se elige la impresora en el diálogo del sistema y el
+  ancho del papel se aplica con `@page { size: <ancho>mm auto }`.
+- Cada venta guarda un **snapshot** de sus ítems (id, nombre y precio del
+  momento), así el ticket no cambia si luego se edita el catálogo. Las ventas
+  creadas antes de esta función no tienen nombres y se imprimen con etiquetas
+  genéricas.
+
 ## Tema y responsive
 
 - **Tema `auto | dark | light`** con botón de ciclo en el topbar. `auto` es
@@ -121,17 +142,19 @@ La app arranca en la pantalla de login. Credenciales semilla:
 ## Pruebas
 
 ```bash
-npm test             # node --test tests/*.test.mjs — 89 pruebas, cero dependencias
+npm test             # node --test tests/*.test.mjs — 113 pruebas, cero dependencias
 ```
 
 Cubren la lógica de dominio (ticket, IVA, comisiones, cobro, stock,
 métodos de pago, caja/cortes, tasas y conversión, persistencia —incluido
-el tema y el respaldo de "restaurar demo"—, reportes por fecha,
-autenticación y usuarios). La UI se verifica con el smoke de CDP
+el tema, el ticket de canje y el respaldo de "restaurar demo"—, reportes por
+fecha, autenticación y usuarios). La UI se verifica con el smoke de CDP
 (`npm run smoke` — requiere `python3` y Chrome: login, roles, venta,
-gate de caja, apertura, corte, moneda y tema, CRUD, restaurar demo, XSS,
-móvil y responsive en 6 anchos) y con el checklist del final. El CI de
-GitHub Actions (`.github/workflows/ci.yml`) corre ambas cosas en cada push.
+ticket imprimible (con `window.print` interceptado), reimpresión, ajustes de
+impresión, gate de caja, apertura, corte, moneda y tema, CRUD, restaurar
+demo, XSS, móvil y responsive en varios anchos) y con el checklist del final.
+El CI de GitHub Actions (`.github/workflows/ci.yml`) corre ambas cosas en
+cada push.
 
 ## Estructura
 
@@ -143,8 +166,9 @@ css/
   base.css            reset, scrollbars, foco visible, reduced-motion
   layout.css          shell (sidebar/header/main) + bottom-nav + topbar responsive
   components.css      botones, tablas, badges, modales, toasts, formularios
+  print.css           ticket térmico (58/80 mm) para window.print()
   views/              grids y piezas específicas de cada pestaña (un archivo por tab)
-    dashboard.css  pos.css  cash.css  services.css  inventory.css
+    dashboard.css  pos.css  sales.css  cash.css  services.css  inventory.css
     commissions.css  login.css  users.css
 js/
   main.js             arranque + delegación de eventos (document[data-action])
@@ -165,6 +189,7 @@ js/
     inventory.js      altas, edición, bajas (bloqueadas si están en una receta), low-stock
     services.js       servicios y recetas, edición y baja
     reports.js        agregados por rango de fechas (ventas, comisiones, cortes)
+    receipt.js        datos del ticket de canje (código, grupos por estilista, totales)
     staff.js          lookup y tasa de comisión
     users.js          alta/edición/baja de usuarios, PIN, último admin
   ui/                 renders (innerHTML + escapeHtml) y modales
@@ -172,12 +197,14 @@ js/
     login-view.js     pantalla de acceso
     navigation.js     nav y pestañas según rol (switchTab rechaza lo no permitido)
     pos.js            catálogo, ticket, pagos mixtos y resumen de la venta
+    sales-view.js     historial de ventas y reimpresión de tickets
+    receipt.js        HTML del ticket de canje para #print-area
     cash-view.js      pestaña Caja & Cortes + preview del corte
     dashboard.js      KPIs del día (acotados al rol)
     users-view.js     lista y formulario de usuarios
     csv-export.js     descarga de CSV (Blob + marca de orden de bytes), sin dependencias
     (+ services/inventory/commissions, modales, toasts)
-tests/                node --test (payments, ticket, checkout, cash, inventory, services, reports, rates, storage, auth, users)
+tests/                node --test (payments, ticket, checkout, cash, inventory, services, reports, receipt, rates, storage, auth, users)
 smoke.mjs             smoke E2E por CDP (npm run smoke) — requiere python3 y Chrome
 servir.sh             servidor estático local (Python o Node, sin instalar)
 .github/workflows/ci.yml  CI: npm test + smoke en cada push/PR

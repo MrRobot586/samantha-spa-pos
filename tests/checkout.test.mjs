@@ -29,8 +29,8 @@ test('cobro exitoso: descuenta productos y recetas, paga comisión y registra la
     assert.equal(tx.total, 96.28);
     assert.equal(tx.commission, 32.5);
     assert.deepEqual(tx.items, [
-        { type: 'service', qty: 1 },
-        { type: 'product', qty: 1 }
+        { type: 'service', id: 's1', name: 'Tinte Completo & Broshing', price: 65, qty: 1, staffId: 'st1', staffName: 'Valeria Gómez' },
+        { type: 'product', id: 'p3', name: 'Shampoo Post-Color 250ml', price: 18, qty: 1, staffId: 'st1', staffName: 'Valeria Gómez' }
     ]);
     assert.ok(tx.id.startsWith('TX-'));
     assert.ok(state.transactions.includes(tx));

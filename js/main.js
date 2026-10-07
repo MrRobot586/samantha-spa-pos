@@ -25,6 +25,7 @@ import { renderServicesCards, fillServiceForm } from './ui/services-view.js';
 import { renderInventoryTable, fillProductForm } from './ui/inventory-view.js';
 import { renderCommissions, renderCommissionsReport } from './ui/commissions-view.js';
 import { renderCash, fillCashClosePreview } from './ui/cash-view.js';
+import { renderSales } from './ui/sales-view.js';
 
 import { addItem, changeQty, clearTicket, setTicketStaff, setPaymentAmount, ticketTotals } from './domain/ticket.js';
 import { processPayment } from './domain/checkout.js';
@@ -33,6 +34,8 @@ import { addService, updateService, deleteService } from './domain/services.js';
 import { createUser, updateUser, deleteUser } from './domain/users.js';
 import { openCashSession, addWithdrawal, closeCashSession } from './domain/cash.js';
 import { commissionsBetween, closuresBetween } from './domain/reports.js';
+import { receiptTicketData, hasServices } from './domain/receipt.js';
+import { renderReceiptHtml } from './ui/receipt.js';
 import { downloadCsv } from './ui/csv-export.js';
 
 const persist = () => saveState(getState());
@@ -57,6 +60,7 @@ function renderAll() {
     renderCommissionsReport();
     renderCash();
     renderUsersList();
+    renderSales();
 }
 
 /** Chip del usuario en el topbar + nav filtrada por rol. */
@@ -151,6 +155,9 @@ let restockTargetId = null;
 /** Operación pendiente del modal de confirmación genérico. */
 let pendingConfirm = null;
 
+/** Id de la última venta concretada (para imprimir su ticket de canje). */
+let lastSaleTxId = null;
+
 function handleAction(el, action) {
     switch (action) {
         case 'switch-tab':
@@ -214,6 +221,12 @@ function handleAction(el, action) {
                 const tx = processPayment(state, { payments });
                 closeModal('modal-sale-confirm');
                 renderPayment();
+                lastSaleTxId = tx.id;
+                document.getElementById('sale-done-preview').innerHTML = `
+                    <div class="sale-confirm__row"><span>Venta</span><span>${tx.id}</span></div>
+                    <div class="sale-confirm__row"><span>Total</span><span>${money(tx.total)}</span></div>
+                    <div class="sale-confirm__row"><span>Servicios</span><span>${tx.items.filter(i => i.type === 'service').reduce((a,i)=>a+i.qty,0)}</span></div>`;
+                openModal('modal-sale-done');
                 toastSuccess(tx.changeUSD > 0
                     ? `Venta de ${money(tx.total)} concretada · vuelto ${money(tx.changeUSD)}.`
                     : `Venta de ${money(tx.total)} concretada: inventario descontado y comisión asignada.`);
@@ -226,9 +239,32 @@ function handleAction(el, action) {
             break;
         }
 
-        case 'open-modal':
-            openModal(el.dataset.target);
+
+        case 'print-ticket': {
+            const txId = el.dataset.txId;
+            if (!txId) break;
+            const tx = getState().transactions.find(t => t.id === txId);
+            if (!tx) { toastError('Venta no encontrada.'); break; }
+            printTicket(tx);
             break;
+        }
+        case 'print-last-ticket': {
+            if (!lastSaleTxId) break;
+            const tx = getState().transactions.find(t => t.id === lastSaleTxId);
+            if (!tx) { toastError('Venta no encontrada.'); break; }
+            printTicket(tx);
+            break;
+        }
+        case 'report-sales': {
+            renderSales();
+            break;
+        }
+        case 'open-modal': {
+            const target = el.dataset.target;
+            if (target === 'modal-print-settings') fillPrintSettings();
+            openModal(target);
+            break;
+        }
 
         case 'close-modal':
             closeModal(el.dataset.target);
@@ -425,6 +461,15 @@ function fieldValue(id) {
     return document.getElementById(id).value.trim();
 }
 
+function fillPrintSettings() {
+    const t = getState().settings.ticket;
+    document.getElementById('ticket-width').value = String(t.printerWidth);
+    document.getElementById('ticket-business-name').value = t.businessName;
+    document.getElementById('ticket-business-line').value = t.businessLine;
+    document.getElementById('ticket-footer').value = t.footer;
+    document.getElementById('ticket-show-prices').checked = t.showPrices;
+}
+
 function onSubmit(e) {
     const form = e.target;
     e.preventDefault();
@@ -547,6 +592,24 @@ function onSubmit(e) {
         }
     }
 
+    if (form.id === 'form-print-settings') {
+        try {
+            const st = getState().settings;
+            st.ticket = st.ticket || {};
+            st.ticket.printerWidth = Number(document.getElementById('ticket-width').value) === 80 ? 80 : 58;
+            st.ticket.showPrices = !!document.getElementById('ticket-show-prices').checked;
+            st.ticket.businessName = document.getElementById('ticket-business-name').value.trim().slice(0, 60) || st.ticket.businessName;
+            st.ticket.businessLine = document.getElementById('ticket-business-line').value.trim().slice(0, 60);
+            st.ticket.footer = document.getElementById('ticket-footer').value.trim().slice(0, 80);
+            closeModal('modal-print-settings');
+            persist();
+            toastSuccess('Ajustes de ticket guardados.');
+            renderAll();
+        } catch (err) {
+            toastError(err.message);
+        }
+        return;
+    }
     if (form.id === 'form-cash-open') {
         try {
             const fondo = toUSD(parseFloat(fieldValue('cash-open-fondo')), getState().settings.currency);
@@ -595,6 +658,33 @@ function onSubmit(e) {
 }
 
 /* -------------------------------------------------------------- arranque -- */
+
+function printTicket(tx) {
+    if (!hasServices(tx)) {
+        toastError('La venta no tiene servicios para imprimir en ticket de canje.');
+        return;
+    }
+    const state = getState();
+    const data = receiptTicketData(tx, state.settings);
+    if (!data) {
+        toastError('La venta no tiene servicios para imprimir en ticket de canje.');
+        return;
+    }
+    const printArea = document.getElementById('print-area');
+    printArea.innerHTML = renderReceiptHtml(data);
+    const style = document.createElement('style');
+    style.setAttribute('data-print-ticket', 'true');
+    style.textContent = '@page { size: ' + data.widthMM + 'mm auto; margin: 3mm; }';
+    document.head.appendChild(style);
+    const clean = () => {
+        printArea.innerHTML = '';
+        style.remove();
+        window.removeEventListener('afterprint', clean);
+    };
+    window.addEventListener('afterprint', clean);
+    setTimeout(clean, 10000);
+    window.print();
+}
 
 function boot() {
     const { state, recovered } = loadState();

@@ -131,7 +131,17 @@ test('migración v1 → v2: conserva las ventas y añade las colecciones nuevas'
     // colecciones nuevas presentes
     assert.equal(state.users.length, 4);
     assert.ok(state.users.some(u => u.role === 'admin' && u.active));
-    assert.deepEqual(state.settings, { currency: 'USD', theme: 'auto' });
+    assert.deepEqual(state.settings, {
+        currency: 'USD',
+        theme: 'auto',
+        ticket: {
+            printerWidth: 58,
+            businessName: 'Samantha Spa',
+            businessLine: 'Sucursal Principal',
+            footer: '¡Gracias por su preferencia!',
+            showPrices: true
+        }
+    });
     assert.equal(state.cashSession.open, false);
     assert.deepEqual(state.closures, []);
     // el ticket viejo sigue siendo válido
@@ -212,7 +222,17 @@ test('normalizeState: ajustes, sesión de caja y cierres', () => {
         ]
     });
 
-    assert.deepEqual(state.settings, { currency: 'USD', theme: 'auto' }, 'moneda desconocida → USD');
+    assert.deepEqual(state.settings, {
+        currency: 'USD',
+        theme: 'auto',
+        ticket: {
+            printerWidth: 58,
+            businessName: 'Samantha Spa',
+            businessLine: 'Sucursal Principal',
+            footer: '¡Gracias por su preferencia!',
+            showPrices: true
+        }
+    }, 'moneda desconocida → USD');
     assert.equal(state.cashSession.open, false);
     assert.equal(state.cashSession.fondoInicial, 0);
     assert.equal(state.cashSession.withdrawals.length, 1, 'monto negativo y fecha mala se descartan');
@@ -222,6 +242,47 @@ test('normalizeState: ajustes, sesión de caja y cierres', () => {
     assert.equal(state.closures[0].ventas.debit, 0, 'ventas faltantes → 0');
     assert.equal(state.closures[0].ventas.divisa, 0, 'los métodos nuevos también arrancan en 0');
     assert.equal(state.closures[0].rates.eurBs, null, 'tasas faltantes → null');
+});
+
+test('normalizeState: configuración del ticket de canje', () => {
+    const defaults = normalizeState({}).settings.ticket;
+    assert.deepEqual(defaults, {
+        printerWidth: 58,
+        businessName: 'Samantha Spa',
+        businessLine: 'Sucursal Principal',
+        footer: '¡Gracias por su preferencia!',
+        showPrices: true
+    });
+
+    const custom = normalizeState({
+        settings: { ticket: { printerWidth: 80, businessName: '  Mi Spa  ', showPrices: false } }
+    }).settings.ticket;
+    assert.equal(custom.printerWidth, 80);
+    assert.equal(custom.businessName, 'Mi Spa');
+    assert.equal(custom.showPrices, false);
+
+    assert.equal(normalizeState({ settings: { ticket: { printerWidth: 42 } } }).settings.ticket.printerWidth, 58,
+        'ancho inválido → 58');
+});
+
+test('normalizeState: snapshot de ítems de una venta', () => {
+    const state = normalizeState({
+        transactions: [{
+            id: 'TX-1', date: '2026-10-06T10:00:00.000Z', time: '10:00',
+            staffId: 'st1', staffName: 'Valeria',
+            items: [
+                { type: 'service', id: 's1', name: 'Tinte', price: 65, qty: 2, staffId: 'st1', staffName: 'Valeria' },
+                { type: 'product', qty: 1 }, // viejo sin detalle
+                { type: 'basura', name: 'x', price: 1, qty: 1 } // se descarta
+            ],
+            total: 100, method: 'cash'
+        }]
+    });
+
+    const items = state.transactions[0].items;
+    assert.equal(items.length, 2);
+    assert.deepEqual(items[0], { type: 'service', id: 's1', name: 'Tinte', price: 65, qty: 2, staffId: 'st1', staffName: 'Valeria' });
+    assert.deepEqual(items[1], { type: 'product', id: null, name: null, price: null, qty: 1, staffId: null, staffName: null });
 });
 
 test('normalizeState: tema', () => {

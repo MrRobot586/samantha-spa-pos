@@ -15,6 +15,7 @@ import { defaultBackend } from './storage.js';
 const PERMISSIONS = {
     dashboard: ['admin', 'stylist'],
     pos: ['admin', 'stylist'],
+    ventas: ['admin', 'stylist'],
     services: ['admin'],
     inventory: ['admin'],
     commissions: ['admin'],

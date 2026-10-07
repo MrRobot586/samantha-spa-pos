@@ -136,7 +136,15 @@ function normalizeTransactions(list) {
                 staffName: str(t.staffName) || 'N/A',
                 items: (Array.isArray(t.items) ? t.items : [])
                     .filter(i => isObject(i) && (i.type === 'service' || i.type === 'product'))
-                    .map(i => ({ type: i.type, qty: num(i.qty, 1) ?? 1 })),
+                    .map(i => ({
+                        type: i.type,
+                        id: nonEmpty(i.id) ? i.id : null,
+                        name: nonEmpty(i.name) ? i.name : null,
+                        price: num(i.price, 0),
+                        qty: num(i.qty, 1) ?? 1,
+                        staffId: nonEmpty(i.staffId) ? i.staffId : null,
+                        staffName: nonEmpty(i.staffName) ? i.staffName : null
+                    })),
                 subtotal: num(t.subtotal, 0) ?? 0,
                 tax: num(t.tax, 0) ?? 0,
                 total,
@@ -197,10 +205,25 @@ function normalizeUsers(list, fallback, staff) {
     return clean;
 }
 
+const TICKET_WIDTHS = [58, 80];
+const ticketText = (v, fallback) =>
+    nonEmpty(v) ? v.trim().slice(0, 80) : fallback;
+
 function normalizeSettings(raw) {
     const currency = isObject(raw) && CURRENCIES.includes(raw.currency) ? raw.currency : 'USD';
     const theme = isObject(raw) && THEMES.includes(raw.theme) ? raw.theme : 'auto';
-    return { currency, theme };
+
+    const tRaw = isObject(raw) && isObject(raw.ticket) ? raw.ticket : {};
+    const width = Number(tRaw.printerWidth);
+    const ticket = {
+        printerWidth: TICKET_WIDTHS.includes(width) ? width : 58,
+        businessName: ticketText(tRaw.businessName, 'Samantha Spa'),
+        businessLine: ticketText(tRaw.businessLine, 'Sucursal Principal'),
+        footer: ticketText(tRaw.footer, '¡Gracias por su preferencia!'),
+        showPrices: tRaw.showPrices !== false
+    };
+
+    return { currency, theme, ticket };
 }
 
 function normalizeCashSession(raw) {

@@ -12,6 +12,7 @@ import { getState } from '../core/state.js';
 const TITLES = {
     dashboard: '<i class="fa-solid fa-chart-pie"></i> Dashboard General',
     pos: '<i class="fa-solid fa-cash-register"></i> Punto de Venta / Caja',
+    ventas: '<i class="fa-solid fa-receipt"></i> Ventas & Tickets',
     cash: '<i class="fa-solid fa-vault"></i> Caja & Cortes',
     services: '<i class="fa-solid fa-wand-magic-sparkles"></i> Servicios & Receta Técnica',
     inventory: '<i class="fa-solid fa-boxes-stacked"></i> Productos e Insumos',
@@ -29,6 +30,7 @@ export function renderNav(role) {
         document.getElementById(`nav-${t}`)?.classList.toggle('is-hidden', !can(role, t));
     }
     document.getElementById('btn-users')?.classList.toggle('is-hidden', !can(role, 'users'));
+    document.getElementById('btn-print-settings')?.classList.toggle('is-hidden', !can(role, 'users'));
 }
 
 export function switchTab(tabName) {

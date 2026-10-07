@@ -12,7 +12,17 @@ export function createSeedState() {
             { id: 'u3', name: 'Carlos Mendoza', username: 'carlos', role: 'stylist', pinHash: hashPin('1111', 'ss-carlos'), salt: 'ss-carlos', active: true, staffId: 'st2' },
             { id: 'u4', name: 'Sofía López', username: 'sofia', role: 'stylist', pinHash: hashPin('1111', 'ss-sofia'), salt: 'ss-sofia', active: true, staffId: 'st3' }
         ],
-        settings: { currency: 'USD', theme: 'auto' },
+        settings: {
+            currency: 'USD',
+            theme: 'auto',
+            ticket: {
+                printerWidth: 58,
+                businessName: 'Samantha Spa',
+                businessLine: 'Sucursal Principal',
+                footer: '¡Gracias por su preferencia!',
+                showPrices: true
+            }
+        },
         cashSession: { open: false, openedAt: null, fondoInicial: 0, withdrawals: [] },
         closures: [],
         staff: [

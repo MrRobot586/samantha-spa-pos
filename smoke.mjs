@@ -121,7 +121,7 @@ async function main() {
     await check('login admin → app visible', `!document.body.classList.contains('is-logged-out')`);
     await check('chip del usuario', `document.getElementById('user-chip-name').textContent`);
     await check('admin ve el botón Usuarios', `!document.getElementById('btn-users').classList.contains('is-hidden')`);
-    await check('nav admin: 6 pestañas visibles', `[...document.querySelectorAll('.sidebar__nav .nav-btn')].filter(b => !b.classList.contains('is-hidden')).length === 6`);
+    await check('nav admin: 7 pestañas visibles', `[...document.querySelectorAll('.sidebar__nav .nav-btn')].filter(b => !b.classList.contains('is-hidden')).length === 7`);
     await check('dashboard admin ve alertas de stock', `!document.getElementById('dash-stock-card').classList.contains('is-hidden')`);
     await check('badge de caja visible para admin', `!document.getElementById('cash-badge').classList.contains('is-hidden')`);
 
@@ -149,9 +149,11 @@ async function main() {
     await check('logout → vuelve al login', `document.body.classList.contains('is-logged-out')`);
     await evaluar(`document.getElementById('login-user').value = 'valeria'; document.getElementById('login-pin').value = '1111'; document.getElementById('form-login').requestSubmit(); true`);
     await esperar(300);
-    await check('nav estilista: 2 pestañas visibles', `[...document.querySelectorAll('.sidebar__nav .nav-btn')].filter(b => !b.classList.contains('is-hidden')).length === 2`);
+    await check('nav estilista: 3 pestañas visibles', `[...document.querySelectorAll('.sidebar__nav .nav-btn')].filter(b => !b.classList.contains('is-hidden')).length === 3`);
     await check('estilista NO ve Inventario', `document.getElementById('nav-inventory').classList.contains('is-hidden')`);
     await check('estilista NO ve Caja & Cortes', `document.getElementById('nav-cash').classList.contains('is-hidden')`);
+    await check('estilista ve Ventas', `!document.getElementById('nav-ventas').classList.contains('is-hidden')`);
+    await check('estilista NO ve ajustes de ticket', `document.getElementById('btn-print-settings').classList.contains('is-hidden')`);
     await check('estilista NO ve el badge de caja', `document.getElementById('cash-badge').classList.contains('is-hidden')`);
     await check('estilista NO ve Usuarios', `document.getElementById('btn-users').classList.contains('is-hidden')`);
     await check('dashboard estilista oculta alertas de stock', `document.getElementById('dash-stock-card').classList.contains('is-hidden') && document.getElementById('dash-alerts-card').classList.contains('is-hidden')`);
@@ -232,6 +234,49 @@ async function main() {
     await check('venta guardó método y pagos', `(() => {
         const tx = JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).transactions[0];
         return tx.method === 'cash' && tx.receivedUSD > 0 && Array.isArray(tx.payments) && tx.payments[0].method === 'cash';
+    })()`);
+    await check('la venta guardó el detalle del servicio (snapshot)', `(() => {
+        const tx = JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).transactions[0];
+        return tx.items.some(i => i.type === 'service' && i.name && typeof i.price === 'number');
+    })()`);
+
+    // Ticket de canje tras concretar (se intercepta window.print)
+    await check('modal de venta concretada abierto', `!document.getElementById('modal-sale-done').classList.contains('is-hidden')`);
+    await evaluar(`window.__printed = false; window.print = () => { window.__printed = true; }; true`);
+    await evaluar(`document.querySelector('[data-action="print-last-ticket"]').click()`);
+    await esperar(200);
+    await check('window.print fue invocado', `window.__printed === true`);
+    await check('ticket contiene el servicio', `document.getElementById('print-area').textContent.includes('Tinte Completo & Broshing')`);
+    await check('ticket contiene el estilista', `document.getElementById('print-area').textContent.includes('Valeria Gómez')`);
+    await check('ticket contiene código de canje', `document.getElementById('print-area').textContent.includes('C-')`);
+    await check('ticket usa ancho 58mm', `document.querySelector('#print-area .receipt').style.getPropertyValue('--receipt-width') === '58mm'`);
+    await evaluar(`document.querySelector('[data-action="close-modal"][data-target="modal-sale-done"]').click()`);
+
+    // Pestaña Ventas + reimpresión
+    await evaluar(`document.querySelector('[data-tab="ventas"]').click()`);
+    await esperar(200);
+    await check('pestaña Ventas visible', `!document.getElementById('tab-ventas').classList.contains('is-hidden')`);
+    await check('Ventas lista la venta', `document.querySelectorAll('#sales-list tr').length === 1`);
+    await check('botón imprimir habilitado', `!document.querySelector('#sales-list [data-action="print-ticket"]').disabled`);
+    await evaluar(`window.__printed = false; document.querySelector('#sales-list [data-action="print-ticket"]').click()`);
+    await esperar(150);
+    await check('reimpresión desde Ventas', `window.__printed === true && document.getElementById('print-area').textContent.includes('Tinte Completo & Broshing')`);
+
+    // Ajustes de impresión (admin)
+    await check('admin ve el botón de ticket', `!document.getElementById('btn-print-settings').classList.contains('is-hidden')`);
+    await evaluar(`document.getElementById('btn-print-settings').click()`);
+    await esperar(150);
+    await check('modal de ajustes abierto', `!document.getElementById('modal-print-settings').classList.contains('is-hidden')`);
+    await evaluar(`
+        document.getElementById('ticket-width').value = '80';
+        document.getElementById('ticket-business-name').value = 'Samantha Spa & Estilo';
+        document.getElementById('ticket-footer').value = 'Ticket de canje';
+        document.getElementById('form-print-settings').requestSubmit();
+        true`);
+    await esperar(200);
+    await check('ajustes de ticket persistidos', `(() => {
+        const t = JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).settings.ticket;
+        return t.printerWidth === 80 && t.businessName === 'Samantha Spa & Estilo' && t.footer === 'Ticket de canje';
     })()`);
 
     // Retiro y corte de caja

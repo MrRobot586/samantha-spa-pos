@@ -119,7 +119,17 @@ export function processPayment(state = getState(), opts = {}) {
         time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         staffId: state.currentTicket.staffId,
         staffName: staff ? staff.name : 'N/A',
-        items: state.currentTicket.items.map(i => ({ type: i.type, qty: i.qty })),
+        // Snapshot del ítem (id, nombre y precio del momento): el ticket de
+        // canje y el historial no dependen de que el catálogo siga igual.
+        items: state.currentTicket.items.map(i => ({
+            type: i.type,
+            id: i.id,
+            name: i.name,
+            price: i.price,
+            qty: i.qty,
+            staffId: state.currentTicket.staffId,
+            staffName: staff ? staff.name : 'N/A'
+        })),
         subtotal,
         tax,
         total,

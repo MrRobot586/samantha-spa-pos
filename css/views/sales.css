@@ -1,0 +1,11 @@
+.sales-filters {
+    display: flex;
+    gap: var(--gap-sm);
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.sales-actions {
+    display: flex;
+    gap: var(--gap-sm);
+}
