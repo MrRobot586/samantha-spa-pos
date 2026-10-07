@@ -64,6 +64,24 @@ test('JSON válido pero con la forma rota: normaliza en vez de romper', () => {
     assert.equal(state.posFilterCategory, 'all');
 });
 
+test('normalizeState: migra productos retail→sale y pagos card→debit', () => {
+    const state = normalizeState({
+        products: [{ id: 'p1', name: 'Shampoo', type: 'retail', unit: 'Unidades', stock: 3, minStock: 1, cost: 5, price: 10 }],
+        transactions: [{
+            id: 'TX-1', date: '2026-10-06T10:00:00.000Z', total: 20, method: 'card'
+        }],
+        currentTicket: {
+            items: [],
+            payments: [{ method: 'card', amountUSD: 5 }, { method: 'nope', amountUSD: 1 }]
+        }
+    });
+
+    assert.equal(state.products[0].type, 'sale');
+    assert.equal(state.transactions[0].method, 'debit');
+    assert.deepEqual(state.transactions[0].payments, [{ method: 'debit', amountUSD: 20 }], 'sin detalle se sintetiza el pago');
+    assert.deepEqual(state.currentTicket.payments, [{ method: 'debit', amountUSD: 5 }], 'pagando inválido se descarta');
+});
+
 test('sin backend disponible: semilla y recovered sin-storage', () => {
     const { state, recovered } = loadState(null);
     assert.equal(recovered, 'sin-storage');
@@ -129,7 +147,7 @@ test('migración: si ya existe v2, la v1 se ignora', () => {
     const { state, recovered } = loadState(backend);
 
     assert.equal(recovered, null);
-    assert.equal(state.posFilterCategory, 'retail');
+    assert.equal(state.posFilterCategory, 'sale', 'el filtro "retail" viejo se migra a "sale"');
 });
 
 test('migración: v1 corrupta → respaldo y semilla (no queda a medias)', () => {
@@ -201,7 +219,8 @@ test('normalizeState: ajustes, sesión de caja y cierres', () => {
     assert.equal(state.cashSession.withdrawals[0].amount, 20);
     assert.equal(state.closures.length, 1, 'cierre con fecha ilegible se descarta');
     assert.equal(state.closures[0].diferenciaUSD, -3.5, 'la diferencia negativa se conserva');
-    assert.equal(state.closures[0].ventas.card, 0, 'ventas faltantes → 0');
+    assert.equal(state.closures[0].ventas.debit, 0, 'ventas faltantes → 0');
+    assert.equal(state.closures[0].ventas.divisa, 0, 'los métodos nuevos también arrancan en 0');
     assert.equal(state.closures[0].rates.eurBs, null, 'tasas faltantes → null');
 });
 
@@ -239,7 +258,7 @@ test('round trip de las colecciones nuevas', () => {
     state.closures.push({
         id: 'c1', closedAt: '2026-10-05T18:00:00.000Z', closedById: 'u1', closedByName: 'Administrador',
         openedAt: '2026-10-05T09:00:00.000Z',
-        fondoInicial: 20, ventas: { cash: 50, card: 30, other: 0 }, totalUSD: 80,
+        fondoInicial: 20, ventas: { cash: 50, debit: 30, pago_movil: 0, divisa: 0, other: 0 }, totalUSD: 80,
         retirosUSD: 5, esperadoUSD: 65, contadoUSD: 65, diferenciaUSD: 0, txCount: 3,
         rates: { usdBs: 872.4, eurBs: 977.2, fecha: '2026-10-06T00:00:00-04:00' }
     });
@@ -260,7 +279,7 @@ test('restoreDemo respalda el estado actual y devuelve la semilla', () => {
     state.products[0].name = 'Producto con historial';
     state.closures.push({
         id: 'c1', closedAt: '2026-10-05T18:00:00.000Z', closedById: 'u1', closedByName: 'Administrador',
-        openedAt: '2026-10-05T09:00:00.000Z', fondoInicial: 20, ventas: { cash: 50, card: 30, other: 0 },
+        openedAt: '2026-10-05T09:00:00.000Z', fondoInicial: 20, ventas: { cash: 50, debit: 30, pago_movil: 0, divisa: 0, other: 0 },
         totalUSD: 80, retirosUSD: 5, esperadoUSD: 65, contadoUSD: 65, diferenciaUSD: 0, txCount: 3,
         rates: { usdBs: 872.4, eurBs: 977.2, fecha: '2026-10-06T00:00:00-04:00' }
     });

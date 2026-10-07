@@ -23,8 +23,8 @@ export function createSeedState() {
         products: [
             { id: 'p1', name: 'Tinte Rubio Ceniza 8.1', type: 'internal', unit: 'Gramos', stock: 500, minStock: 100, cost: 0.08, price: 0 },
             { id: 'p2', name: 'Peróxido 20 Vol', type: 'internal', unit: 'Mililitros', stock: 1500, minStock: 300, cost: 0.02, price: 0 },
-            { id: 'p3', name: 'Shampoo Post-Color 250ml', type: 'retail', unit: 'Unidades', stock: 12, minStock: 4, cost: 8.5, price: 18 },
-            { id: 'p4', name: 'Mascarilla Reparadora 500ml', type: 'retail', unit: 'Unidades', stock: 3, minStock: 5, cost: 14, price: 32 },
+            { id: 'p3', name: 'Shampoo Post-Color 250ml', type: 'sale', unit: 'Unidades', stock: 12, minStock: 4, cost: 8.5, price: 18 },
+            { id: 'p4', name: 'Mascarilla Reparadora 500ml', type: 'sale', unit: 'Unidades', stock: 3, minStock: 5, cost: 14, price: 32 },
             { id: 'p5', name: 'Tratamiento Keratina Líquida', type: 'internal', unit: 'Mililitros', stock: 80, minStock: 150, cost: 0.25, price: 0 }
         ],
         services: [
@@ -53,7 +53,7 @@ export function createSeedState() {
         currentTicket: {
             items: [],
             staffId: 'st1',
-            paymentMethod: 'cash'
+            payments: []
         },
         transactions: [],
         posFilterCategory: 'all'

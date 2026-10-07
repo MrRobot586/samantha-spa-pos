@@ -25,6 +25,15 @@ const str = v => (typeof v === 'string' ? v : null);
 const signed = v => (isNum(v) ? v : 0);
 const validDate = v => nonEmpty(v) && !Number.isNaN(new Date(v).getTime());
 
+/** Métodos de pago actuales. 'other' es histórico; 'card' se migra a 'debit'. */
+const PAYMENT_IDS = ['cash', 'debit', 'pago_movil', 'divisa'];
+const HISTORIC_METHOD = 'other';
+function mapMethod(m) {
+    if (m === 'card') return 'debit';           // migración del nombre viejo
+    if (m === HISTORIC_METHOD) return 'other';  // el historial lo conserva
+    return PAYMENT_IDS.includes(m) ? m : null;
+}
+
 function normalizeStaff(list, fallback) {
     if (!Array.isArray(list)) return fallback;
     const clean = list
@@ -47,7 +56,7 @@ function normalizeProducts(list, fallback) {
         .map(p => ({
             id: p.id,
             name: p.name,
-            type: p.type === 'internal' ? 'internal' : 'retail',
+            type: p.type === 'internal' ? 'internal' : 'sale',
             unit: str(p.unit) || 'Unidades',
             stock: num(p.stock, 0) ?? 0,
             minStock: num(p.minStock, 0) ?? 0,
@@ -74,7 +83,7 @@ function normalizeServices(list, fallback, products) {
 }
 
 function normalizeTicket(raw, staff, products, services) {
-    const fallback = { items: [], staffId: staff[0]?.id ?? '', paymentMethod: 'cash' };
+    const fallback = { items: [], staffId: staff[0]?.id ?? '', payments: [] };
     if (!isObject(raw)) return fallback;
 
     const items = (Array.isArray(raw.items) ? raw.items : [])
@@ -93,10 +102,12 @@ function normalizeTicket(raw, staff, products, services) {
             : products.some(p => p.id === i.id));
 
     const staffId = staff.some(s => s.id === raw.staffId) ? raw.staffId : fallback.staffId;
-    const paymentMethod = ['cash', 'card', 'other'].includes(raw.paymentMethod)
-        ? raw.paymentMethod
-        : 'cash';
-    return { items, staffId, paymentMethod };
+
+    const payments = (Array.isArray(raw.payments) ? raw.payments : [])
+        .map(p => (isObject(p) ? { method: mapMethod(p.method), amountUSD: num(p.amountUSD, 0) } : null))
+        .filter(p => p && p.method && p.amountUSD !== null && p.amountUSD > 0);
+
+    return { items, staffId, payments };
 }
 
 function normalizeTransactions(list) {
@@ -106,10 +117,17 @@ function normalizeTransactions(list) {
         .filter(t => !Number.isNaN(new Date(t.date).getTime()))
         .map(t => {
             const total = num(t.total, 0) ?? 0;
-            const method = ['cash', 'card', 'other'].includes(t.method) ? t.method : 'cash';
+            const method = mapMethod(t.method) || 'cash';
             // Ventas viejas sin recibido: se asume pago exacto.
             const receivedUSD = Math.max(total, num(t.receivedUSD, 0) ?? total);
             const changeUSD = Math.max(0, num(t.changeUSD, 0) ?? 0);
+            // Ventas viejas sin detalle: un único pago por el total.
+            const pagosRaw = Array.isArray(t.payments) && t.payments.length > 0
+                ? t.payments
+                : [{ method, amountUSD: total }];
+            const payments = pagosRaw
+                .map(p => (isObject(p) ? { method: mapMethod(p.method), amountUSD: num(p.amountUSD, 0) } : null))
+                .filter(p => p && p.method && p.amountUSD !== null && p.amountUSD > 0);
             return {
                 id: t.id,
                 date: t.date,
@@ -124,6 +142,7 @@ function normalizeTransactions(list) {
                 total,
                 commission: num(t.commission, 0) ?? 0,
                 method,
+                payments,
                 receivedUSD,
                 changeUSD,
                 rates: isObject(t.rates)
@@ -223,7 +242,9 @@ function normalizeClosures(list) {
                 fondoInicial: num(c.fondoInicial, 0) ?? 0,
                 ventas: {
                     cash: num(ventas.cash, 0) ?? 0,
-                    card: num(ventas.card, 0) ?? 0,
+                    debit: num(ventas.debit, 0) ?? num(ventas.card, 0) ?? 0,
+                    pago_movil: num(ventas.pago_movil, 0) ?? 0,
+                    divisa: num(ventas.divisa, 0) ?? 0,
                     other: num(ventas.other, 0) ?? 0
                 },
                 totalUSD: num(c.totalUSD, 0) ?? 0,
@@ -260,8 +281,10 @@ export function normalizeState(raw) {
         services,
         currentTicket: normalizeTicket(raw.currentTicket, staff, products, services),
         transactions: normalizeTransactions(raw.transactions),
-        posFilterCategory: ['all', 'service', 'retail'].includes(raw.posFilterCategory)
-            ? raw.posFilterCategory
+        posFilterCategory: ['all', 'service', 'sale'].includes(
+            raw.posFilterCategory === 'retail' ? 'sale' : raw.posFilterCategory
+        )
+            ? (raw.posFilterCategory === 'retail' ? 'sale' : raw.posFilterCategory)
             : 'all'
     };
 }

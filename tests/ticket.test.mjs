@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { createSeedState } from '../js/core/seed.js';
 import {
-    addItem, changeQty, clearTicket, setTicketStaff, setPaymentMethod, ticketTotals
+    addItem, changeQty, clearTicket, setTicketStaff, setPaymentAmount, ticketTotals
 } from '../js/domain/ticket.js';
 
 test('addItem agrega un servicio con qty 1 y acumula los clics siguientes', () => {
@@ -59,16 +59,31 @@ test('setTicketStaff solo acepta estilistas existentes', () => {
     assert.throws(() => setTicketStaff('st99', state), /no válido/);
 });
 
-test('setPaymentMethod: solo efectivo, tarjeta u otro; vaciar vuelve a efectivo', () => {
+test('setPaymentAmount acumula pagos por método y limpia al bajar a 0', () => {
     const state = createSeedState();
-    setPaymentMethod('card', state);
-    assert.equal(state.currentTicket.paymentMethod, 'card');
-    setPaymentMethod('other', state);
-    assert.equal(state.currentTicket.paymentMethod, 'other');
-    assert.throws(() => setPaymentMethod('bitcoin', state), /no válido/);
+    setPaymentAmount('cash', 10, state);
+    setPaymentAmount('divisa', 5.5, state);
+    assert.deepEqual(state.currentTicket.payments, [
+        { method: 'cash', amountUSD: 10 },
+        { method: 'divisa', amountUSD: 5.5 }
+    ]);
+
+    // Volver a fijar el mismo método reemplaza el monto, no lo duplica.
+    setPaymentAmount('cash', 3, state);
+    assert.deepEqual(state.currentTicket.payments, [
+        { method: 'cash', amountUSD: 3 },
+        { method: 'divisa', amountUSD: 5.5 }
+    ]);
+
+    // 0 elimina el pago del método.
+    setPaymentAmount('cash', 0, state);
+    assert.deepEqual(state.currentTicket.payments, [{ method: 'divisa', amountUSD: 5.5 }]);
+
+    assert.throws(() => setPaymentAmount('bitcoin', 1, state), /no válido/);
+    assert.throws(() => setPaymentAmount('cash', -1, state), /monto del pago no es válido/);
 
     clearTicket(state);
-    assert.equal(state.currentTicket.paymentMethod, 'cash', 'un ticket nuevo cobra en efectivo');
+    assert.deepEqual(state.currentTicket.payments, [], 'un ticket nuevo no arrastra pagos');
 });
 
 test('ticketTotals: subtotal + IVA 16% + total', () => {
@@ -93,9 +108,9 @@ test('ticketTotals: la comisión usa la tasa del estilista seleccionado', () => 
     assert.equal(ticketTotals(state).commission, 26);
 });
 
-test('ticketTotals: el retail no genera comisión', () => {
+test('ticketTotals: el producto de venta no genera comisión', () => {
     const state = createSeedState();
-    addItem('product', 'p3', state); // $18.00 retail
+    addItem('product', 'p3', state); // $18.00 de venta
 
     const totals = ticketTotals(state);
     assert.equal(totals.subtotal, 18);

@@ -6,6 +6,7 @@
  */
 
 import { getState } from '../core/state.js';
+import { PAYMENT_IDS, paymentsOf } from './payments.js';
 
 function dayBounds(desde, hasta) {
     const start = desde ? new Date(`${desde}T00:00:00`) : null;
@@ -28,14 +29,18 @@ export function inRange(iso, desde, hasta) {
 
 /** Totales de ventas del período: monto, impuestos y desglose por método. */
 export function salesBetween(desde, hasta, state = getState()) {
-    const res = { count: 0, subtotal: 0, tax: 0, totalUSD: 0, byMethod: { cash: 0, card: 0, other: 0 } };
+    const res = { count: 0, subtotal: 0, tax: 0, totalUSD: 0, byMethod: {} };
+    for (const id of PAYMENT_IDS) res.byMethod[id] = 0;
+
     for (const tx of state.transactions) {
         if (!inRange(tx.date, desde, hasta)) continue;
         res.count += 1;
         res.subtotal += tx.subtotal;
         res.tax += tx.tax;
         res.totalUSD += tx.total;
-        res.byMethod[tx.method] = (res.byMethod[tx.method] || 0) + tx.total;
+        for (const pago of paymentsOf(tx)) {
+            res.byMethod[pago.method] = (res.byMethod[pago.method] || 0) + pago.amountUSD;
+        }
     }
     return res;
 }

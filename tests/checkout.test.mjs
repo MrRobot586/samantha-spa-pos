@@ -6,11 +6,11 @@ import { addItem, ticketTotals } from '../js/domain/ticket.js';
 import { processPayment, CheckoutError } from '../js/domain/checkout.js';
 import { openCashSession } from '../js/domain/cash.js';
 
-test('cobro exitoso: descuenta retail y BOM, paga comisión y registra la transacción', () => {
+test('cobro exitoso: descuenta productos y recetas, paga comisión y registra la transacción', () => {
     const state = createSeedState();
     openCashSession(0, state);
-    addItem('service', 's1', state); // BOM: 60g p1 + 90ml p2, $65
-    addItem('product', 'p3', state); // retail $18, stock 12
+    addItem('service', 's1', state); // receta: 60g p1 + 90ml p2, $65
+    addItem('product', 'p3', state); // venta $18, stock 12
 
     const tx = processPayment(state);
 
@@ -19,7 +19,7 @@ test('cobro exitoso: descuenta retail y BOM, paga comisión y registra la transa
     assert.equal(state.products.find(p => p.id === 'p1').stock, 440);
     assert.equal(state.products.find(p => p.id === 'p2').stock, 1410);
 
-    // Comisión al estilista del ticket (st1 = 50% de 65 = 32.50; retail no suma)
+    // Comisión al estilista del ticket (st1 = 50% de 65 = 32.50; el producto no suma)
     const valeria = state.staff.find(s => s.id === 'st1');
     assert.equal(valeria.totalCommissions, 32.5);
     assert.equal(valeria.salesCount, 1);
@@ -39,7 +39,7 @@ test('cobro exitoso: descuenta retail y BOM, paga comisión y registra la transa
     assert.equal(state.currentTicket.items.length, 0);
 });
 
-test('stock retail insuficiente: lanza CheckoutError y NO muta el estado', () => {
+test('stock de un producto de venta insuficiente: lanza CheckoutError y NO muta el estado', () => {
     const state = createSeedState();
     openCashSession(0, state);
     const producto = state.products.find(p => p.id === 'p3');
@@ -53,7 +53,7 @@ test('stock retail insuficiente: lanza CheckoutError y NO muta el estado', () =>
     assert.equal(JSON.stringify(state), antes, 'el estado no debe cambiar si el cobro falla');
 });
 
-test('insumo BOM insuficiente: el cobro se bloquea antes de tocar nada', () => {
+test('insumo de receta insuficiente: el cobro se bloquea antes de tocar nada', () => {
     const state = createSeedState();
     openCashSession(0, state);
     state.products.find(p => p.id === 'p1').stock = 10; // la receta pide 60
@@ -77,7 +77,7 @@ test('ticket vacío: CheckoutError con mensaje claro', () => {
     assert.throws(() => processPayment(state), /al menos un ítem/);
 });
 
-test('varias unidades consumen BOM multiplicado', () => {
+test('varias unidades consumen insumos multiplicados', () => {
     const state = createSeedState();
     openCashSession(0, state);
     addItem('service', 's1', state);
@@ -88,17 +88,18 @@ test('varias unidades consumen BOM multiplicado', () => {
     assert.equal(state.products.find(p => p.id === 'p2').stock, 1320);
 });
 
-test('efectivo: recibido mayor al total guarda el cambio', () => {
+test('efectivo: recibido mayor al total guarda el vuelto', () => {
     const state = createSeedState();
     openCashSession(0, state);
     addItem('service', 's1', state); // total = 65 × 1.16 = 75.40
 
-    const tx = processPayment(state, { method: 'cash', receivedUSD: 100 });
+    const tx = processPayment(state, { payments: [{ method: 'cash', amountUSD: 100 }] });
 
     assert.equal(tx.method, 'cash');
     assert.equal(tx.receivedUSD, 100);
-    assert.ok(Math.abs(tx.changeUSD - (100 - tx.total)) < 1e-9, 'cambio = recibido − total');
-    assert.equal(state.currentTicket.paymentMethod, 'cash', 'el siguiente ticket vuelve a efectivo');
+    assert.ok(Math.abs(tx.changeUSD - (100 - tx.total)) < 1e-9, 'vuelto = recibido − total');
+    assert.deepEqual(tx.payments, [{ method: 'cash', amountUSD: tx.total }], 'solo queda el neto en caja');
+    assert.deepEqual(state.currentTicket.payments, [], 'el siguiente ticket no arrastra pagos');
 });
 
 test('efectivo: recibido menor al total → CheckoutError y el estado no cambia', () => {
@@ -107,32 +108,84 @@ test('efectivo: recibido menor al total → CheckoutError y el estado no cambia'
     addItem('service', 's1', state);
     const antes = JSON.stringify(state);
 
-    assert.throws(() => processPayment(state, { method: 'cash', receivedUSD: 10 }), CheckoutError);
-    assert.throws(() => processPayment(state, { method: 'cash', receivedUSD: 10 }), /recibido es menor/);
+    assert.throws(() => processPayment(state, { payments: [{ method: 'cash', amountUSD: 10 }] }), CheckoutError);
+    assert.throws(() => processPayment(state, { payments: [{ method: 'cash', amountUSD: 10 }] }), /Faltan/);
     assert.equal(JSON.stringify(state), antes, 'nada de stock ni comisión si no alcanza el efectivo');
 });
 
-test('tarjeta: sin recibido, cambio 0 y método guardado en la venta', () => {
-    const state = createSeedState();
-    openCashSession(0, state);
-    addItem('service', 's1', state);
-    state.currentTicket.paymentMethod = 'card';
-
-    const tx = processPayment(state, { method: 'card' });
-
-    assert.equal(tx.method, 'card');
-    assert.equal(tx.receivedUSD, tx.total, 'tarjeta se considera pagado al total');
-    assert.equal(tx.changeUSD, 0);
-});
-
-test('pago exacto: recibido = total → cambio 0', () => {
+test('débito: pago exacto, vuelto 0 y método guardado en la venta', () => {
     const state = createSeedState();
     openCashSession(0, state);
     addItem('service', 's1', state);
     const { total } = ticketTotals(state);
 
-    const tx = processPayment(state, { method: 'cash', receivedUSD: total });
+    const tx = processPayment(state, { payments: [{ method: 'debit', amountUSD: total }] });
 
+    assert.equal(tx.method, 'debit');
+    assert.equal(tx.receivedUSD, total, 'el electrónico se considera pagado al total');
+    assert.equal(tx.changeUSD, 0);
+});
+
+test('débito por encima del total → CheckoutError (no hay vuelto electrónico)', () => {
+    const state = createSeedState();
+    openCashSession(0, state);
+    addItem('service', 's1', state);
+    const { total } = ticketTotals(state);
+    const antes = JSON.stringify(state);
+
+    assert.throws(
+        () => processPayment(state, { payments: [{ method: 'debit', amountUSD: total + 5 }] }),
+        /no pueden superar el total/
+    );
+    assert.equal(JSON.stringify(state), antes);
+});
+
+test('pago mixto: efectivo + débito + divisa cubren el total', () => {
+    const state = createSeedState();
+    openCashSession(0, state);
+    addItem('service', 's1', state); // total 75.40
+    const { total } = ticketTotals(state);
+
+    const tx = processPayment(state, {
+        payments: [
+            { method: 'cash', amountUSD: 30 },
+            { method: 'debit', amountUSD: 20 },
+            { method: 'divisa', amountUSD: 30 }
+        ]
+    });
+
+    assert.equal(tx.receivedUSD, 80);
+    assert.ok(Math.abs(tx.changeUSD - (80 - total)) < 1e-9);
+    // El vuelto sale primero del efectivo y luego de la divisa.
+    const cash = tx.payments.find(p => p.method === 'cash');
+    const divisa = tx.payments.find(p => p.method === 'divisa');
+    assert.ok(cash.amountUSD < 30, 'el efectivo absorbe parte del vuelto');
+    assert.ok(divisa.amountUSD <= 30);
+    assert.equal(tx.method, 'divisa', 'la divisa quedó como método dominante');
+    assert.ok(Math.abs(tx.payments.reduce((a, p) => a + p.amountUSD, 0) - total) < 1e-9);
+});
+
+test('pago exacto: total cubierto, vuelto 0', () => {
+    const state = createSeedState();
+    openCashSession(0, state);
+    addItem('service', 's1', state);
+    const { total } = ticketTotals(state);
+
+    const tx = processPayment(state, { payments: [{ method: 'cash', amountUSD: total }] });
+
+    assert.equal(tx.receivedUSD, total);
+    assert.equal(tx.changeUSD, 0);
+});
+
+test('sin pagos: se cobra el total exacto en efectivo (compatibilidad)', () => {
+    const state = createSeedState();
+    openCashSession(0, state);
+    addItem('service', 's1', state);
+    const { total } = ticketTotals(state);
+
+    const tx = processPayment(state);
+
+    assert.equal(tx.method, 'cash');
     assert.equal(tx.receivedUSD, total);
     assert.equal(tx.changeUSD, 0);
 });

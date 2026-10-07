@@ -1,4 +1,4 @@
-/* Catálogo de servicios y sus recetas (BOM).
+/* Catálogo de servicios y sus recetas.
  *
  * Nota: los servicios ya no llevan commissionPercent (decisión del refactor:
  * la comisión la define la tasa del estilista que atiende la venta).

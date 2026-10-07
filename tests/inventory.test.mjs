@@ -6,7 +6,7 @@ import { addProduct, updateProduct, deleteProduct, usagesOfProduct, restock, low
 
 const nuevoProducto = (extra = {}) => ({
     name: 'Gel Fijador 500ml',
-    type: 'retail',
+    type: 'sale',
     unit: 'Unidades',
     stock: 10,
     minStock: 3,
@@ -26,7 +26,7 @@ test('addProduct agrega con id único y forma correcta', () => {
     assert.notEqual(prod.id, otro.id);
 });
 
-test('addProduct valida nombre, stock, costos y precio retail', () => {
+test('addProduct valida nombre, stock, costos y precio de venta', () => {
     const state = createSeedState();
 
     assert.throws(() => addProduct(nuevoProducto({ name: '   ' }), state), /nombre/);
@@ -77,7 +77,7 @@ test('lowStockProducts detecta los insumos bajo mínimo', () => {
 test('updateProduct conserva el id y aplica los campos nuevos', () => {
     const state = createSeedState();
     const actualizado = updateProduct('p3', {
-        name: 'Shampoo Reparador 300ml', type: 'retail', unit: 'Unidades',
+        name: 'Shampoo Reparador 300ml', type: 'sale', unit: 'Unidades',
         stock: 20, minStock: 5, cost: 9, price: 21
     }, state);
 

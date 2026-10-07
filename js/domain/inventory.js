@@ -1,6 +1,6 @@
-/* Inventario híbrido: productos de venta retail + insumos de uso interno (BOM).
- * Incluye altas y reposición con validación (los prompts originales acepatan
- * cantidades negativas — bug #9).
+/* Inventario híbrido: productos de venta + insumos de uso interno (que las
+ * recetas de los servicios consumen). Incluye altas y reposición con
+ * validación (los prompts originales aceptaban cantidades negativas).
  */
 
 import { getState } from '../core/state.js';
@@ -15,7 +15,7 @@ export function lowStockProducts(state = getState()) {
     return state.products.filter(p => p.stock <= p.minStock);
 }
 
-const isValidType = t => t === 'retail' || t === 'internal';
+const isValidType = t => t === 'sale' || t === 'internal';
 const isValidUnit = u => ['Unidades', 'Gramos', 'Mililitros'].includes(u);
 
 /** Valida campos compartidos entre alta y edición; devuelve los limpios. */
@@ -34,7 +34,7 @@ function validate(data) {
     if (!Number.isFinite(minStock) || minStock < 0) throw new Error('El stock mínimo debe ser un número mayor o igual a 0.');
     if (!Number.isFinite(cost) || cost < 0) throw new Error('El costo debe ser un número mayor o igual a 0.');
     if (!Number.isFinite(price) || price < 0) throw new Error('El precio de venta debe ser un número mayor o igual a 0.');
-    if (data.type === 'retail' && price === 0) throw new Error('Un producto de venta retail necesita precio.');
+    if (data.type === 'sale' && price === 0) throw new Error('Un producto de venta necesita precio.');
 
     return { name, type: data.type, unit: data.unit, stock, minStock, cost, price };
 }
@@ -53,7 +53,7 @@ export function addProduct(data, state = getState()) {
         stock: p.stock,
         minStock: p.minStock,
         cost: p.cost,
-        price: p.type === 'retail' ? p.price : 0
+        price: p.type === 'sale' ? p.price : 0
     };
     state.products.push(product);
     return product;
@@ -72,7 +72,7 @@ export function updateProduct(id, data, state = getState()) {
     product.stock = p.stock;
     product.minStock = p.minStock;
     product.cost = p.cost;
-    product.price = p.type === 'retail' ? p.price : 0;
+    product.price = p.type === 'sale' ? p.price : 0;
     return product;
 }
 

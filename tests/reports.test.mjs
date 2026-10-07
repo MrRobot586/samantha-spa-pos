@@ -16,7 +16,7 @@ function estadoConVentas() {
     ];
     state.transactions = [
         { date: '2026-10-05T14:00:00.000Z', staffId: 'st1', staffName: 'Valeria Gómez', total: 100, commission: 50, subtotal: 100, tax: 0, method: 'cash' },
-        { id: 't2', date: '2026-10-06T09:30:00.000Z', staffId: 'st2', staffName: 'Carlos Mendoza', subtotal: 50, tax: 0, total: 50, commission: 20, method: 'card' },
+        { id: 't2', date: '2026-10-06T09:30:00.000Z', staffId: 'st2', staffName: 'Carlos Mendoza', subtotal: 50, tax: 0, total: 50, commission: 20, method: 'debit' },
         { id: 't3', date: '2026-10-06T15:00:00.000Z', staffId: 'st2', staffName: 'Carlos Mendoza', subtotal: 25, tax: 0, total: 25, commission: 10, method: 'cash' }
     ];
     return state;
@@ -35,7 +35,7 @@ test('salesBetween suma monto, impuestos y desglose por método', () => {
     const state = createSeedState();
     state.transactions = [
         { date: '2026-10-06T10:00:00', method: 'cash', subtotal: 100, tax: 16, total: 116 },
-        { date: '2026-10-06T11:00:00', method: 'card', subtotal: 50, tax: 8, total: 58 },
+        { date: '2026-10-06T11:00:00', method: 'debit', subtotal: 50, tax: 8, total: 58 },
         { date: '2026-10-05T11:00:00', method: 'cash', subtotal: 999, tax: 0, total: 999 }
     ];
     const r = salesBetween('2026-10-06', '2026-10-06', state);
@@ -43,8 +43,25 @@ test('salesBetween suma monto, impuestos y desglose por método', () => {
     assert.equal(r.totalUSD, 174);
     assert.equal(r.tax, 24);
     assert.equal(r.byMethod.cash, 116);
-    assert.equal(r.byMethod.card, 58);
-    assert.equal(r.byMethod.other, 0);
+    assert.equal(r.byMethod.debit, 58);
+    assert.equal(r.byMethod.pago_movil, 0);
+});
+
+test('salesBetween reparte las ventas de pago mixto por método', () => {
+    const state = createSeedState();
+    state.transactions = [{
+        date: '2026-10-06T10:00:00',
+        method: 'cash',
+        subtotal: 100, tax: 0, total: 100,
+        payments: [
+            { method: 'cash', amountUSD: 40 },
+            { method: 'divisa', amountUSD: 60 }
+        ]
+    }];
+    const r = salesBetween('2026-10-06', '2026-10-06', state);
+    assert.equal(r.byMethod.cash, 40);
+    assert.equal(r.byMethod.divisa, 60);
+    assert.equal(r.totalUSD, 100);
 });
 
 test('commissionsBetween agrupa por estilista y ordena por comisión', () => {

@@ -29,20 +29,39 @@ test('salesByMethod: agrupa por método y respeta la fecha desde', () => {
     const state = createSeedState();
     state.transactions.push(
         venta('TX-1', 10, 'cash'),
-        venta('TX-2', 20, 'card'),
+        venta('TX-2', 20, 'debit'),
         venta('TX-3', 30, 'other'),
         venta('TX-4', 99, 'cash', '2026-10-05T10:00:00.000Z') // del día anterior
     );
 
     const todo = salesByMethod(null, state);
     assert.equal(todo.cash, 109);
-    assert.equal(todo.card, 20);
+    assert.equal(todo.debit, 20);
     assert.equal(todo.other, 30);
     assert.equal(todo.count, 4);
 
     const hoy = salesByMethod('2026-10-06T00:00:00.000Z', state);
     assert.equal(hoy.cash, 10, 'las ventas anteriores al período no cuentan');
     assert.equal(hoy.count, 3);
+});
+
+test('salesByMethod: reparte los pagos mixtos entre sus métodos', () => {
+    const state = createSeedState();
+    state.transactions.push({
+        id: 'TX-1',
+        date: new Date().toISOString(),
+        total: 50,
+        method: 'cash',
+        payments: [
+            { method: 'cash', amountUSD: 20 },
+            { method: 'debit', amountUSD: 30 }
+        ]
+    });
+
+    const s = salesByMethod(null, state);
+    assert.equal(s.cash, 20);
+    assert.equal(s.debit, 30);
+    assert.equal(s.count, 1);
 });
 
 test('retiros: solo con caja abierta y montos válidos', () => {
@@ -59,22 +78,24 @@ test('retiros: solo con caja abierta y montos válidos', () => {
     assert.equal(state.cashSession.withdrawals.length, 1);
 });
 
-test('closeCashSession: corte = fondo + efectivo − retiros y registra la diferencia', () => {
+test('closeCashSession: corte = fondo + dinero físico − retiros y registra la diferencia', () => {
     const state = createSeedState();
     openCashSession(50, state);
     state.transactions.push(
         venta('TX-1', 40, 'cash'),
-        venta('TX-2', 30, 'card'),
+        venta('TX-2', 30, 'debit'),
         venta('TX-3', 10, 'other')
     );
     addWithdrawal(10, 'Retiro', state);
 
     const corte = closeCashSession(75, state);
 
-    assert.equal(corte.esperadoUSD, 80, '50 de fondo + 40 en efectivo − 10 de retiro');
+    assert.equal(corte.esperadoUSD, 80, '50 de fondo + 40 físicos − 10 de retiro (débito no entra al cajón)');
     assert.equal(corte.contadoUSD, 75);
     assert.equal(corte.diferenciaUSD, -5, 'faltante de 5 → negativo');
-    assert.deepEqual(corte.ventas, { cash: 40, card: 30, other: 10 });
+    assert.equal(corte.ventas.cash, 40);
+    assert.equal(corte.ventas.debit, 30);
+    assert.equal(corte.ventas.other, 10);
     assert.equal(corte.totalUSD, 80);
     assert.equal(corte.retirosUSD, 10);
     assert.equal(corte.txCount, 3);
@@ -82,6 +103,16 @@ test('closeCashSession: corte = fondo + efectivo − retiros y registra la difer
     assert.equal(state.cashSession.withdrawals.length, 0, 'los retiros se congelan en el corte');
     assert.equal(state.closures.length, 1, 'el corte queda en el historial');
     assert.throws(() => closeCashSession(10, state), CashError, 'no se cierra dos veces');
+});
+
+test('closeCashSession: la divisa cuenta como dinero físico en el esperado', () => {
+    const state = createSeedState();
+    openCashSession(20, state);
+    state.transactions.push(venta('TX-1', 30, 'divisa'));
+
+    const corte = closeCashSession(50, state);
+    assert.equal(corte.esperadoUSD, 50, '20 de fondo + 30 en divisa');
+    assert.equal(corte.diferenciaUSD, 0);
 });
 
 test('closeCashSession: contado exacto → diferencia 0; contado malo → error', () => {

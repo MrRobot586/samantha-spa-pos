@@ -1,14 +1,16 @@
-/* Cobro del ticket: valida stock, descuenta retail y BOM, acumula la
- * comisión del estilista y registra la transacción.
+/* Cobro del ticket: valida stock, descuenta productos y consume los insumos
+ * de cada servicio, acumula la comisión del estilista y registra la venta.
  *
  * La validación ocurre ANTES de cualquier mutación: si algo falta, se lanza
  * CheckoutError y el estado queda intacto (el original podía dejar el stock
- * en negativo — bug #4).
+ * en negativo). Este módulo no cobra un solo método: delega la liquidación
+ * del pago mixto en domain/payments.js (settlePayments).
  */
 
 import { getState } from '../core/state.js';
 import { nextTransactionId } from '../core/utils.js';
 import { getSnapshot } from '../core/rates.js';
+import { settlePayments, primaryMethod } from './payments.js';
 import { findStaff, commissionRateOf } from './staff.js';
 import { findProduct } from './inventory.js';
 import { findService } from './services.js';
@@ -67,13 +69,12 @@ function applyDeductions(state) {
 /**
  * Procesa el cobro del ticket actual.
  * @param {object} [opts]
- * @param {'cash'|'card'|'other'} [opts.method] método de pago (default 'cash')
- * @param {number} [opts.receivedUSD] efectivo recibido en USD; en efectivo se
- *        valida contra el total y de ahí sale el cambio. Si se omite se
- *        asume pago exacto.
+ * @param {Array<{method:string, amountUSD:number}>} [opts.payments] pagos
+ *        brutos (montos en USD). Si se omite, se cobra el total exacto en
+ *        efectivo (compatibilidad).
  * @returns {object} la transacción registrada
- * @throws {CheckoutError} si el ticket está vacío, no hay stock o el
- *         recibido es menor que el total (antes de cualquier mutación)
+ * @throws {CheckoutError} si el ticket está vacío, no hay stock, la caja
+ *         está cerrada o los pagos no cubren el total (todo antes de mutar)
  */
 export function processPayment(state = getState(), opts = {}) {
     if (state.currentTicket.items.length === 0) {
@@ -92,19 +93,16 @@ export function processPayment(state = getState(), opts = {}) {
     const staff = findStaff(state.currentTicket.staffId, state);
     const { subtotal, tax, total, commission } = ticketTotals(state);
 
-    const method = ['cash', 'card', 'other'].includes(opts.method)
-        ? opts.method
-        : 'cash';
+    // Pagos: los del ticket (pago mixto) o, si no, total exacto en efectivo.
+    const rawPayments = Array.isArray(opts.payments) && opts.payments.length > 0
+        ? opts.payments
+        : [{ method: 'cash', amountUSD: total }];
 
-    let receivedUSD = total;
-    let changeUSD = 0;
-    if (method === 'cash') {
-        receivedUSD = Number.isFinite(opts.receivedUSD) ? opts.receivedUSD : total;
-        if (receivedUSD + 1e-9 < total) {
-            throw new CheckoutError('El monto recibido es menor al total a cobrar.');
-        }
-        changeUSD = receivedUSD - total;
-        if (changeUSD < 1e-9) changeUSD = 0;
+    let settle;
+    try {
+        settle = settlePayments(rawPayments, total);
+    } catch (err) {
+        throw new CheckoutError(err.message);
     }
 
     applyDeductions(state);
@@ -126,9 +124,12 @@ export function processPayment(state = getState(), opts = {}) {
         tax,
         total,
         commission,
-        method,
-        receivedUSD,
-        changeUSD,
+        // `method` es el método dominante (etiquetas/legado); el detalle del
+        // pago mixto vive en `payments`, ya con el vuelto descontado.
+        method: primaryMethod(settle.payments),
+        payments: settle.payments,
+        receivedUSD: settle.paidUSD,
+        changeUSD: settle.changeUSD,
         // Tasa BCV del momento: el importe se guarda en USD y este snapshot
         // permite reportar la venta en Bs fieles aunque la tasa cambie.
         rates: (() => {
@@ -139,7 +140,7 @@ export function processPayment(state = getState(), opts = {}) {
     state.transactions.unshift(tx);
 
     state.currentTicket.items = [];
-    state.currentTicket.paymentMethod = 'cash';
+    state.currentTicket.payments = [];
     return tx;
 }
 

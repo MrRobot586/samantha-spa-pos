@@ -1,19 +1,22 @@
-/* Lógica del ticket en curso: agregar ítems, cantidades y cálculo del
- * total. Sin DOM: se puede probar en node puro.
+/* Ticket actual: ítems, cantidades, total y métodos de pago. Sin DOM: se
+ * puede probar en node puro.
  *
  * Regla de comisión (decisión del refactor): la comisión de un servicio es
- * la tasa del ESTILISTA SELECCIONADO, no un porcentaje propio del servicio
- * (el original calculaba con el % del servicio e ignoraba al estilista —
- * bug #3). Los servicios ya no llevan campo commissionPercent.
+ * la tasa del ESTILISTA SELECCIONADO, no un porcentaje propio del servicio.
+ * Los servicios ya no llevan campo commissionPercent.
+ *
+ * Pago mixto: el ticket guarda una lista `payments` de { method, amountUSD }.
+ * La liquidación (vuelto, reglas por método) vive en domain/payments.js.
  */
 
 import { getState } from '../core/state.js';
 import { TAX_RATE } from '../core/config.js';
+import { isPaymentMethod } from './payments.js';
 import { findStaff } from './staff.js';
 import { findProduct } from './inventory.js';
 import { findService } from './services.js';
 
-/** Agrega un servicio o producto retail al ticket (qty 1 o +1 si ya existe). */
+/** Agrega un servicio o producto de venta al ticket (qty 1 o +1 si ya existe). */
 export function addItem(type, id, state = getState()) {
     if (type !== 'service' && type !== 'product') {
         throw new Error('Tipo de ítem no válido.');
@@ -22,8 +25,8 @@ export function addItem(type, id, state = getState()) {
     const item = type === 'service' ? findService(id, state) : findProduct(id, state);
     if (!item) throw new Error('El ítem ya no existe en el catálogo.');
 
-    if (type === 'product' && item.type !== 'retail') {
-        throw new Error('Los insumos de uso interno no se venden por separado.');
+    if (type === 'product' && item.type !== 'sale') {
+        throw new Error('Los productos de uso interno no se venden por separado.');
     }
 
     const existing = state.currentTicket.items.find(i => i.type === type && i.id === id);
@@ -47,7 +50,7 @@ export function changeQty(index, delta, state = getState()) {
 
 export function clearTicket(state = getState()) {
     state.currentTicket.items = [];
-    state.currentTicket.paymentMethod = 'cash';
+    state.currentTicket.payments = [];
 }
 
 /** Cambia el estilista atribuido al ticket (valida que exista). */
@@ -58,14 +61,27 @@ export function setTicketStaff(staffId, state = getState()) {
     state.currentTicket.staffId = staffId;
 }
 
-export const PAYMENT_METHODS = ['cash', 'card', 'other'];
+/**
+ * Fija el monto pagado con un método (pago mixto). Un monto de 0 o vacío
+ * quita ese método del ticket.
+ */
+export function setPaymentAmount(method, amountUSD, state = getState()) {
+    if (!isPaymentMethod(method)) throw new Error('Método de pago no válido.');
 
-/** Método de pago del ticket: cash (efectivo), card (tarjeta) u otro. */
-export function setPaymentMethod(method, state = getState()) {
-    if (!PAYMENT_METHODS.includes(method)) {
-        throw new Error('Método de pago no válido.');
+    const amount = Number(amountUSD);
+    if (!Number.isFinite(amount) || amount < 0) {
+        throw new Error('El monto del pago no es válido.');
     }
-    state.currentTicket.paymentMethod = method;
+
+    const list = state.currentTicket.payments;
+    const idx = list.findIndex(p => p.method === method);
+    if (amount <= 0) {
+        if (idx >= 0) list.splice(idx, 1);
+        return state.currentTicket;
+    }
+    if (idx >= 0) list[idx].amountUSD = amount;
+    else list.push({ method, amountUSD: amount });
+    return state.currentTicket;
 }
 
 /**
