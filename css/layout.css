@@ -243,23 +243,13 @@ body.is-logged-out .toast-stack {
 }
 
 /* El pie reparte el ancho en tres partes iguales: tema, Configuración (si
-   el rol lo permite) y Salir. Los botones etiquetados dejan que su texto se
-   recorte con puntos suspensivos antes de forzar el ancho. */
+   el rol lo permite) y Salir. Los tres son solo icono centrado. */
 .topbar-menu__foot .btn {
     flex: 1;
     min-width: 0;
     justify-content: center;
-    /* padding horizontal reducido para que los tres botones puedan llegar a
-       un tercio exacto sin desbordar el panel (la etiqueta se recorta). */
-    padding-left: var(--space-3);
-    padding-right: var(--space-3);
-}
-
-.topbar-menu__foot .btn span {
-    min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    height: 2.25rem;
+    padding: 0;
 }
 
 .topbar-menu__foot .theme-toggle {

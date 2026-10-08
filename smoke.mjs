@@ -188,6 +188,8 @@ async function main() {
             for (const r of rects) if (r.height === 0) return false;
             return rects.slice(1).every((r, i) => Math.abs(r.top - rects[i].top) < 2);
         })()`);
+    await check('los botones del pie son solo icono (sin texto)',
+        `[...document.querySelectorAll('.topbar-menu__foot button')].every(b => !b.querySelector('span') && !!b.querySelector('i'))`);
     await check('el menú ya no tiene grupo Herramientas', `!document.querySelector('#topbar-menu-panel #menu-group-tools')`);
     await check('el panel cabe en pantalla',
         `(() => { const r = document.getElementById('topbar-menu-panel').getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth && r.top > 0; })()`);

@@ -216,7 +216,7 @@ en el menú del topbar:
 - **Tema `auto | dark | light`** con botón de ciclo dentro del
   menú (ya no en el pie del sidebar, que queda vacío). En el pie del menú el
   botón de tema **comparte fila y ancho con Configuración y Salir** (los tres
-  ocupan un tercio del espacio; las etiquetas se recortan si no caben).
+  ocupan un tercio del espacio y son solo icono, centrado).
   `auto` es el valor
   por defecto y sigue a `prefers-color-scheme` (cambia en vivo si el
   sistema cambia). El tema elegido se persiste en `settings.theme` y lo
@@ -445,8 +445,9 @@ como nombre accesible) y la topbar se reduce a título + caja + tasa + menú
     con clic fuera o ESC. La fecha se muestra como dd/mm/aaaa.
 15. Menú de sesión (icono de usuario + nombre activo): chip con iniciales y
     nombre + la fecha dd/mm/aaaa, y una fila con el tema,
-    **Configuración** (solo admin, ya no vive en la sidebar) y Salir; el
-    botón de tema ocupa un tercio de la fila, igual que los otros dos. Se
+    **Configuración** (solo admin, ya no vive en la sidebar) y Salir; los
+    tres botones son solo icono centrado y el del tema ocupa un tercio de la
+    fila, igual que los otros dos. Se
     cierra con clic fuera, con ESC, al cambiar de pestaña y al abrir un modal.
  16. Configuración (admin): agregar un método «Zelle» electrónico → aparece en
     la lista y al instante en las opciones del select del cobro del POS (un
