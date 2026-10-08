@@ -251,14 +251,15 @@ en el menú del topbar:
 ## Pruebas
 
 ```bash
-npm test             # node --test tests/*.test.mjs — 132 pruebas, cero dependencias
+npm test             # node --test tests/*.test.mjs — 136 pruebas, cero dependencias
 ```
 
 Cubren la lógica de dominio (ticket, IVA, comisiones, cobro, stock,
 métodos de pago, caja/cortes, tasas y conversión, persistencia —incluido
 el tema, el ticket de canje y el respaldo de "restaurar demo"—, reportes por
-fecha, autenticación y usuarios) y una guarda estática del CSS (toda
-variable `var(--x)` debe existir en el proyecto). La UI se verifica con el smoke de CDP
+fecha, autenticación y usuarios) y dos guardas estáticas: del CSS (toda
+variable `var(--x)` debe existir en el proyecto) y de los assets (los
+favicon referenciados en `index.html` existen y miden lo declarado). La UI se verifica con el smoke de CDP
 (`npm run smoke` — requiere `python3` y Chrome: login, roles, venta,
 impresión y reimpresión, Configuración (CRUD de métodos de pago, comisión
 del rol y ticket), gate de caja, apertura, corte, moneda y tema, CRUD,
@@ -278,6 +279,7 @@ cada push.
 
 ```
 index.html            estructura semántica, sin handlers en línea (data-action)
+assets/               favicon: SVG de origen + PNG/ICO generados (commiteados)
 css/
   tokens.css          paleta (oscuro + light), tipografía --fs-*, espaciado
                       --space-*, radios, sombras y los breakpoints canónicos
@@ -324,8 +326,9 @@ js/
     settings-view.js  pestaña Configuración: CRUD de métodos de pago, comisión, ticket y datos
     csv-export.js     descarga de CSV (Blob + marca de orden de bytes), sin dependencias
     (+ services/inventory/commissions, modales, toasts)
-tests/                node --test (payments, ticket, checkout, cash, inventory, services, reports, receipt, rates, storage, auth, users, css)
+tests/                node --test (assets, payments, ticket, checkout, cash, inventory, services, reports, receipt, rates, storage, auth, users, css)
 smoke.mjs             smoke E2E por CDP (npm run smoke) — requiere python3 y Chrome
+generar-favicon.mjs   regenera assets/ (PNG/ICO) desde favicon.svg con Chrome headless
 servir.sh             servidor estático local (Python o Node, sin instalar)
 .github/workflows/ci.yml  CI: npm test + smoke en cada push/PR
 ```
@@ -525,6 +528,9 @@ como nombre accesible) y la topbar se reduce a título + caja + tasa + menú
     adjunta una imagen (se comprime) que aparece como chip en la fila, como
     `Ref. …` + *Ver comprobante* en el modal de confirmación y dentro de la
     venta guardada.
+35. La pestaña del navegador muestra el favicon (la «S» con el degradado de
+    marca) en el SVG y en los PNG de respaldo; `node generar-favicon.mjs`
+    lo regenera desde `assets/favicon.svg` si cambia el diseño.
 
 ## Fuera de alcance (posibles siguientes pasos)
 
