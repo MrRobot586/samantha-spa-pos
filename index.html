@@ -374,6 +374,14 @@
                         </div>
                     </div>
 
+                    <div id="ticket-bulk" class="ticket__bulk is-hidden">
+                        <span class="ticket__bulk-count" id="ticket-bulk-count">0 seleccionados</span>
+                        <button type="button" data-action="bulk-clear" class="btn btn--neutral btn--sm">Quitar selección</button>
+                        <button type="button" data-action="bulk-remove" class="btn btn--danger btn--sm">
+                            <i class="fa-solid fa-trash-can"></i> Eliminar
+                        </button>
+                    </div>
+
                     <div class="ticket__footer">
                         <div class="ticket__row">
                             <span>Subtotal</span>
@@ -444,41 +452,10 @@
                         <div class="pos-checkout__panel-head">
                             <h4 class="pos-checkout__subtitle"><i class="fa-solid fa-wallet"></i> Métodos de Pago</h4>
                         </div>
-                        <div class="payment-list">
-                            <div class="payment-row">
-                                <label class="payment-row__label" for="pay-cash">
-                                    <i class="fa-solid fa-money-bill-wave"></i> Efectivo
-                                </label>
-                                <input type="number" id="pay-cash" min="0" step="0.01" inputmode="decimal"
-                                       placeholder="0.00" data-action="payment-amount" data-method="cash"
-                                       class="input ticket__received" aria-label="Monto en efectivo">
-                            </div>
-                            <div class="payment-row">
-                                <label class="payment-row__label" for="pay-debit">
-                                    <i class="fa-solid fa-credit-card"></i> Débito
-                                </label>
-                                <input type="number" id="pay-debit" min="0" step="0.01" inputmode="decimal"
-                                       placeholder="0.00" data-action="payment-amount" data-method="debit"
-                                       class="input ticket__received" aria-label="Monto con débito">
-                            </div>
-                            <div class="payment-row">
-                                <label class="payment-row__label" for="pay-pago_movil">
-                                    <i class="fa-solid fa-mobile-screen"></i> Pago Móvil
-                                </label>
-                                <input type="number" id="pay-pago_movil" min="0" step="0.01" inputmode="decimal"
-                                       placeholder="0.00" data-action="payment-amount" data-method="pago_movil"
-                                       class="input ticket__received" aria-label="Monto por Pago Móvil">
-                            </div>
-                            <div class="payment-row">
-                                <label class="payment-row__label" for="pay-divisa">
-                                    <i class="fa-solid fa-money-bill"></i> Divisa
-                                </label>
-                                <input type="number" id="pay-divisa" min="0" step="0.01" inputmode="decimal"
-                                       placeholder="0.00" data-action="payment-amount" data-method="divisa"
-                                       class="input ticket__received" aria-label="Monto en divisa">
-                            </div>
+                        <div class="payment-list" id="payment-list">
+                            <!-- Lo llena el JS a partir de los métodos activos -->
                         </div>
-                        <p class="payment-hint">Débito y Pago Móvil deben ir a monto exacto; el vuelto se entrega en Efectivo o Divisa.</p>
+                        <p class="payment-hint">Los métodos electrónicos cobran el monto exacto; el vuelto se entrega por los físicos (Efectivo y otros).</p>
 
                         <div class="pos-checkout__summary">
                             <div class="ticket__row ticket__row--paid">

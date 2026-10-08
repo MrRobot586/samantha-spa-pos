@@ -199,6 +199,59 @@
     gap: var(--space-4);
 }
 
+.ticket-item.is-selected {
+    border-color: var(--brand-500);
+    background: var(--brand-10);
+}
+
+.ticket-item__check {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.ticket-item__check input {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--brand-600);
+    cursor: pointer;
+}
+
+.ticket-item__remove {
+    flex-shrink: 0;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: var(--radius-sm);
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s, color 0.15s;
+}
+
+.ticket-item__remove:hover {
+    background: var(--danger-strong);
+    color: #fff;
+}
+
+.ticket__bulk {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-8);
+    border-top: 1px solid var(--border);
+    background: var(--surface-2);
+    flex-shrink: 0;
+}
+
+.ticket__bulk-count {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--text-strong);
+    margin-right: auto;
+}
+
 .ticket-item__info {
     overflow: hidden;
 }
@@ -333,6 +386,16 @@
     width: 1rem;
     text-align: center;
     color: var(--brand-500);
+}
+
+.payment-row__label .badge--fisico {
+    color: var(--success);
+    background: var(--success-10);
+}
+
+.payment-row__label .badge--electronico {
+    color: var(--brand-400);
+    background: var(--brand-10);
 }
 
 .payment-hint {

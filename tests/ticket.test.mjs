@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 
 import { createSeedState } from '../js/core/seed.js';
 import {
-    addItem, changeQty, clearTicket, setTicketStaff, setPaymentAmount, ticketTotals
+    addItem, changeQty, clearTicket, setTicketStaff, setPaymentAmount, ticketTotals,
+    removeItem, removeItems
 } from '../js/domain/ticket.js';
 
 test('addItem agrega un servicio con qty 1 y acumula los clics siguientes', () => {
@@ -52,6 +53,33 @@ test('clearTicket vacía la orden', () => {
     assert.equal(state.currentTicket.items.length, 0);
 });
 
+test('removeItem quita un ítem puntual y tolera índices fuera de rango', () => {
+    const state = createSeedState();
+    addItem('service', 's1', state);
+    addItem('product', 'p3', state);
+    addItem('service', 's2', state);
+
+    removeItem(0, state);
+    assert.deepEqual(state.currentTicket.items.map(i => i.id), ['p3', 's2']);
+
+    removeItem(99, state);
+    removeItem(-1, state);
+    assert.equal(state.currentTicket.items.length, 2);
+});
+
+test('removeItems borra varios a la vez (acción masiva del checklist)', () => {
+    const state = createSeedState();
+    addItem('service', 's1', state);
+    addItem('product', 'p3', state);
+    addItem('service', 's2', state);
+
+    removeItems([0, 2], state);
+    assert.deepEqual(state.currentTicket.items.map(i => i.id), ['p3']);
+
+    removeItems([], state);
+    assert.equal(state.currentTicket.items.length, 1);
+});
+
 test('setTicketStaff solo acepta estilistas existentes', () => {
     const state = createSeedState();
     setTicketStaff('st3', state);
@@ -84,6 +112,14 @@ test('setPaymentAmount acumula pagos por método y limpia al bajar a 0', () => {
 
     clearTicket(state);
     assert.deepEqual(state.currentTicket.payments, [], 'un ticket nuevo no arrastra pagos');
+});
+
+test('setPaymentAmount acepta métodos custom activos (settings.paymentMethods)', () => {
+    const state = createSeedState();
+    state.settings.paymentMethods.push({ id: 'zelle', label: 'Zelle', icon: 'fa-credit-card', type: 'electronico' });
+
+    setPaymentAmount('zelle', 20, state);
+    assert.deepEqual(state.currentTicket.payments, [{ method: 'zelle', amountUSD: 20 }]);
 });
 
 test('ticketTotals: subtotal + IVA 16% + total', () => {

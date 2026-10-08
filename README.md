@@ -107,11 +107,22 @@ La app arranca en la pantalla de login. Credenciales semilla:
   sigue pasando por el modal *Confirmar venta* entre los pasos 2 y 3.
   El wizard vive en memoria: la orden persiste en F5 pero se vuelve al
   paso 1.
+- **Cada ítem del ticket tiene su casilla de `checkbox` y un botón ✕ propio**
+  para borrarlo sin tocar las cantidades. Marcar opciones muestra una barra
+  de **acciones masivas** (contador + *Quitar selección* + *Eliminar*); la
+  selección solo duerme en la UI, no se persiste, y se limpia al reevaluar la
+  orden (se prunan índices que dejen de existir). El `checkbox` fuerza el
+  re-render del listado para mantener el contador al día sin desincronizar el
+  resto del ticket.
 - El ticket se cobra con los **métodos de pago activos** (`settings.paymentMethods`):
   de fábrica son **Efectivo, Débito, Pago Móvil y Divisa**, y el administrador
   los agrega, renombra o borra desde la pestaña **Configuración**. El cobro es
   en **pago mixto**: cada método lleva su propio monto (en la moneda activa,
   guardado en USD). El resumen muestra *Pagado / Falta / Vuelto*.
+- **Las filas de pago se construyen en el DOM** a partir de los métodos activos
+  (`#payment-list`): cada una muestra su reloj de tipo
+  **Físico/Electrónico** junto al nombre, y `Configuración` repinta el POS al
+  instante (agregar un método lo hace aparecer en el cobro sin recargar).
 - Reglas del pago mixto:
   - **Métodos físicos** (Efectivo, Divisa…) están en el cajón: pueden superar el
     total y generan **vuelto** (se descuenta primero del efectivo y luego de los
@@ -204,7 +215,7 @@ en el menú del topbar:
 ## Pruebas
 
 ```bash
-npm test             # node --test tests/*.test.mjs — 123 pruebas, cero dependencias
+npm test             # node --test tests/*.test.mjs — 126 pruebas, cero dependencias
 ```
 
 Cubren la lógica de dominio (ticket, IVA, comisiones, cobro, stock,
@@ -401,10 +412,11 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
     Configuración). El tema y la fecha viven en el pie del sidebar (no en el
     menú).
 15. Configuración (admin): agregar un método «Zelle» electrónico → aparece en
-    la lista y en el POS; intentar duplicarlo → toast «Ya existe»; renombrarlo
-    conserva el id estable; borrarlo pide confirmación y vuelve a 4. El
-    Efectivo aparece como fijo sin botones. Cambiar la comisión del rol a
-    50 % y guardar → queda `stylistCommissionRate: 50`.
+    la lista y al instante en las filas de pago del POS (cada una muestra su
+    badge **Físico/Electrónico**); intentar duplicarlo → toast «Ya existe»;
+    renombrarlo conserva el id estable; borrarlo pide confirmación y vuelve a
+    4. El Efectivo aparece como fijo sin botones. Cambiar la comisión del rol
+    a 50 % y guardar → queda `stylistCommissionRate: 50`.
 16. A 375px de ancho: aparece la barra inferior con solo iconos (sin scroll
     horizontal); a 700 y 900px los ítems vuelven a mostrar el texto.
 17. Tema: el botón del pie del sidebar cicla Auto → Oscuro → Claro (el
@@ -431,6 +443,10 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
     cambiar a 80 mm y editar encabezado/pie; reimprimir desde la pestaña
     Ventas (con filtro por fecha) conserva y refleja esos ajustes.
 26. Dejar la app 20 min sin tocarla cierra la sesión sola y vuelve al login.
+27. Checklist del ticket: borrar un ítem con su ✕ deja la orden sin ese
+    servicio; marcar casillas muestra la barra con contador y *Quitar
+    selección*; *Eliminar* borra todos los marcados y la barra desaparece con
+    la orden vacía. La selección no persiste en F5.
 
 ## Fuera de alcance (posibles siguientes pasos)
 

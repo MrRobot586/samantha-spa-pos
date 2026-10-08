@@ -20,16 +20,16 @@ import { renderUsersList, fillUserForm, resetUserForm } from './ui/users-view.js
 import { toast, toastSuccess, toastError } from './ui/dialogs.js';
 import { openModal, closeModal, initModals } from './ui/modals.js';
 import { toggleMenu, closeMenu, initMenu } from './ui/menu.js';
-import { renderStaffSelect, renderCatalog, renderTicket, renderFilters, updateTotals, renderPayment, renderSaleConfirm, collectPayments, updatePaymentSummary, renderPosStep, goToPosStep, completePosStep } from './ui/pos.js';
+import { renderStaffSelect, renderCatalog, renderTicket, renderFilters, updateTotals, renderPayment, renderSaleConfirm, collectPayments, updatePaymentSummary, renderPosStep, goToPosStep, completePosStep, toggleItem, removeSelectedItems, clearSelected } from './ui/pos.js';
 import { renderDashboard } from './ui/dashboard.js';
 import { renderServicesCards, fillServiceForm } from './ui/services-view.js';
 import { renderInventoryTable, fillProductForm } from './ui/inventory-view.js';
 import { renderCommissions, renderCommissionsReport } from './ui/commissions-view.js';
 import { renderCash, fillCashClosePreview } from './ui/cash-view.js';
 import { renderSales } from './ui/sales-view.js';
-import { renderSettings, renderPaymentMethods, saveMethod, deleteMethod, fillMethodForm, resetMethodForm } from './ui/settings-view.js';
+import { renderSettings, saveMethod, deleteMethod, fillMethodForm, resetMethodForm } from './ui/settings-view.js';
 
-import { addItem, changeQty, clearTicket, setTicketStaff, setPaymentAmount, ticketTotals } from './domain/ticket.js';
+import { addItem, changeQty, clearTicket, setTicketStaff, setPaymentAmount, ticketTotals, removeItem, removeItems } from './domain/ticket.js';
 import { processPayment } from './domain/checkout.js';
 import { addProduct, updateProduct, deleteProduct, restock, findProduct } from './domain/inventory.js';
 import { addService, updateService, deleteService } from './domain/services.js';
@@ -216,6 +216,27 @@ function handleAction(el, action) {
             renderTicket();
             renderPayment();
             persist();
+            break;
+
+        case 'remove-item':
+            removeItem(Number(el.dataset.idx));
+            renderTicket();
+            persist();
+            break;
+
+        case 'bulk-remove': {
+            const indices = removeSelectedItems();
+            if (indices.length > 0) {
+                removeItems(indices);
+                renderTicket();
+                persist();
+                toastSuccess(`${indices.length} ítem${indices.length > 1 ? 's' : ''} eliminado${indices.length > 1 ? 's' : ''} de la orden.`);
+            }
+            break;
+        }
+
+        case 'bulk-clear':
+            clearSelected();
             break;
 
         case 'pay': {
@@ -501,6 +522,8 @@ function onChange(e) {
         } catch (err) {
             toastError(err.message);
         }
+    } else if (el.dataset.action === 'toggle-item') {
+        toggleItem(Number(el.dataset.idx));
     } else if (el.dataset.action === 'set-rate-source') {
         const src = el.value === 'eur' ? 'eur' : 'usd';
         if (!RATE_SOURCES.includes(src)) {
@@ -676,10 +699,10 @@ function onSubmit(e) {
     if (form.id === 'form-payment-method') {
         try {
             const res = saveMethod();
-            renderPaymentMethods();
             persist();
+            renderAll();
             toastSuccess(res.added
-                ? `Método "${res.label}" agregado.`
+                ? `Método "${res.label}" agregado: ya aparece en el cobro del POS.`
                 : `Método "${res.label}" actualizado.`);
         } catch (err) {
             toastError(err.message);

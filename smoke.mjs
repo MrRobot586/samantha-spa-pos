@@ -268,8 +268,14 @@ async function main() {
     await evaluar(`document.querySelector('.pos__next').click()`);
     await esperar(150);
 
-    // Pago mixto: cuatro métodos disponibles y resumen Pagado/Falta/Vuelto
+    // Pago mixto: métodos activos (filas dinámicas) y resumen Pagado/Falta/Vuelto
     await check('cuatro inputs de pago', `document.querySelectorAll('[data-action="payment-amount"]').length === 4`);
+    await check('filas de pago marcan su tipo (2 físicos / 2 electrónicos)', `(() => {
+        const rows = document.querySelectorAll('.payment-row');
+        return rows.length === 4
+            && document.querySelectorAll('.payment-row .badge--fisico').length === 2
+            && document.querySelectorAll('.payment-row .badge--electronico').length === 2;
+    })()`);
     await evaluar(`(() => { const i = document.querySelector('[data-action="payment-amount"][data-method="cash"]'); i.value = '100'; i.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
     await esperar(120);
     await check('vuelto calculado ($24.60)', `document.getElementById('ticket-change').textContent.includes('24.60')`);
@@ -703,6 +709,46 @@ async function main() {
     await check('insumo con receta no se elimina', `
         document.getElementById('inventory-table-body').textContent.includes('Tinte Rubio Ceniza')`);
 
+    // --- Fase C: borrado por ítem y acciones masivas del checklist ----------
+    await evaluar(`document.querySelector('[data-action="switch-tab"][data-tab="pos"]').click(); true`);
+    await esperar(200);
+    await evaluar(`(() => {
+        const nuevo = document.querySelector('.pos-done [data-action="pos-new-sale"]');
+        if (nuevo) { nuevo.click(); return true; }
+        const volver = document.querySelector('[data-action="pos-step"][data-step="1"]');
+        if (volver) volver.click();
+        return true;
+    })()`);
+    await esperar(200);
+    await check('POS en paso 1 para el checklist', `!document.querySelector('#tab-pos .pos-layout').classList.contains('is-hidden')`);
+    // Dos ítems: un servicio + un producto de venta
+    await evaluar(`document.querySelector('[data-action="add-item"][data-type="service"]').click(); true`);
+    await esperar(80);
+    await evaluar(`document.querySelector('[data-action="add-item"][data-type="product"][data-id="p3"]')?.click(); true`);
+    await esperar(80);
+    await check('dos ítems en la orden', `document.querySelectorAll('#ticket-items-container .ticket-item').length === 2`);
+    await check('cada ítem tiene su botón de quitar', `document.querySelectorAll('#ticket-items-container [data-action="remove-item"]').length === 2`);
+    // Borrar por ítem (el primero)
+    await evaluar(`document.querySelector('#ticket-items-container [data-action="remove-item"]').click(); true`);
+    await esperar(150);
+    await check('borrar por ítem deja uno', `document.querySelectorAll('#ticket-items-container .ticket-item').length === 1`);
+    await check('la orden se guardó sin el ítem borrado', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).currentTicket.items.length === 1`);
+    // Checklist: marcar el ítem → barra de acciones masivas
+    await evaluar(`document.querySelector('#ticket-items-container [data-action="toggle-item"]').click(); true`);
+    await esperar(100);
+    await check('barra de acciones masivas visible', `!document.getElementById('ticket-bulk').classList.contains('is-hidden')`);
+    await check('contador de la barra', `document.getElementById('ticket-bulk-count').textContent.includes('1 seleccionado')`);
+    await check('fila marcada como seleccionada', `document.querySelector('.ticket-item.is-selected') !== null`);
+    await evaluar(`document.querySelector('[data-action="bulk-clear"]').click(); true`);
+    await esperar(100);
+    await check('quitar selección oculta la barra', `document.getElementById('ticket-bulk').classList.contains('is-hidden')`);
+    // Volver a marcar y eliminar en masa
+    await evaluar(`document.querySelector('#ticket-items-container [data-action="toggle-item"]').click(); true`);
+    await esperar(100);
+    await evaluar(`document.querySelector('[data-action="bulk-remove"]').click(); true`);
+    await esperar(150);
+    await check('acciones masivas vacían la orden', `document.querySelectorAll('#ticket-items-container .ticket-item').length === 0`);
+
     // --- Configuración: CRUD de métodos de pago + comisión del rol ----------
     await evaluar(`document.getElementById('nav-settings').click(); true`);
     await esperar(200);
@@ -716,6 +762,7 @@ async function main() {
         true`);
     await esperar(200);
     await check('método custom agregado (5)', `document.querySelectorAll('#payment-methods-list tr').length === 5`);
+    await check('el POS refleja el método nuevo al instante (5 inputs)', `document.querySelectorAll('[data-action="payment-amount"]').length === 5`);
     await check('el método se ve con su tipo', `(() => {
         const rows = [...document.querySelectorAll('#payment-methods-list tr')];
         const z = rows.find(r => r.textContent.includes('Zelle'));

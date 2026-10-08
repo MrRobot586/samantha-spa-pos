@@ -11,7 +11,7 @@
 
 import { getState } from '../core/state.js';
 import { TAX_RATE } from '../core/config.js';
-import { isPaymentMethod } from './payments.js';
+import { isPaymentMethod, activePaymentMethods } from './payments.js';
 import { findStaff, roleCommissionRate } from './staff.js';
 import { findProduct } from './inventory.js';
 import { findService } from './services.js';
@@ -48,6 +48,19 @@ export function changeQty(index, delta, state = getState()) {
     }
 }
 
+/** Quita el ítem en `index` del ticket (adelgaza la lista, no el catálogo). */
+export function removeItem(index, state = getState()) {
+    if (!Number.isInteger(index) || index < 0 || index >= state.currentTicket.items.length) return;
+    state.currentTicket.items.splice(index, 1);
+}
+
+/** Quita varios ítems de una vez (acción masiva del checklist). */
+export function removeItems(indices, state = getState()) {
+    const set = new Set(indices.filter(Number.isInteger));
+    if (set.size === 0) return;
+    state.currentTicket.items = state.currentTicket.items.filter((_, i) => !set.has(i));
+}
+
 export function clearTicket(state = getState()) {
     state.currentTicket.items = [];
     state.currentTicket.payments = [];
@@ -66,7 +79,9 @@ export function setTicketStaff(staffId, state = getState()) {
  * quita ese método del ticket.
  */
 export function setPaymentAmount(method, amountUSD, state = getState()) {
-    if (!isPaymentMethod(method)) throw new Error('Método de pago no válido.');
+    if (!isPaymentMethod(method, activePaymentMethods(state))) {
+        throw new Error('Método de pago no válido.');
+    }
 
     const amount = Number(amountUSD);
     if (!Number.isFinite(amount) || amount < 0) {

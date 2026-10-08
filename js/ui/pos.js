@@ -7,6 +7,21 @@ import { toUSD, convert } from '../core/rates.js';
 import { ticketTotals, setPaymentAmount } from '../domain/ticket.js';
 import { activePaymentMethods, methodLabel, settlePayments } from '../domain/payments.js';
 
+const TYPE_LABELS = { fisico: 'Físico', electronico: 'Electrónico' };
+
+/** Índices marcados en el checklist de la orden (solo UI, no se persiste). */
+const selected = new Set();
+
+function clearSelection() {
+    selected.clear();
+}
+
+function pruneSelection(items) {
+    for (const idx of [...selected]) {
+        if (idx < 0 || idx >= items.length) selected.delete(idx);
+    }
+}
+
 export function renderStaffSelect() {
     const state = getState();
     const select = document.getElementById('pos-staff-select');
@@ -71,8 +86,10 @@ export function renderTicket() {
     const state = getState();
     const container = document.getElementById('ticket-items-container');
     const items = state.currentTicket.items;
+    pruneSelection(items);
 
     if (items.length === 0) {
+        clearSelection();
         container.innerHTML = `
             <div class="empty-state">
                 <i class="fa-solid fa-basket-shopping"></i>
@@ -81,7 +98,12 @@ export function renderTicket() {
             </div>`;
     } else {
         container.innerHTML = items.map((item, idx) => `
-            <div class="ticket-item">
+            <div class="ticket-item${selected.has(idx) ? ' is-selected' : ''}">
+                <label class="ticket-item__check" title="Seleccionar para acciones masivas">
+                    <input type="checkbox" data-action="toggle-item" data-idx="${idx}"
+                           aria-label="Seleccionar ${escapeHtml(item.name)}"
+                           ${selected.has(idx) ? 'checked' : ''}>
+                </label>
                 <div class="ticket-item__info">
                     <p class="ticket-item__name">${escapeHtml(item.name)}</p>
                     <p class="ticket-item__unit">${money(item.price)} c/u</p>
@@ -93,12 +115,49 @@ export function renderTicket() {
                     <button type="button" data-action="qty" data-idx="${idx}" data-delta="1"
                             class="qty-btn qty-btn--plus" aria-label="Agregar uno">+</button>
                 </div>
+                <button type="button" data-action="remove-item" data-idx="${idx}"
+                        class="ticket-item__remove" aria-label="Quitar ${escapeHtml(item.name)} del ticket">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
             </div>`).join('');
     }
 
+    renderBulk();
     updateTotals();
     // Mantén el stepper al día (habilita/deshabilita el paso 2 según la orden).
     renderPosStep();
+}
+
+/** Barra de acciones masivas del checklist (visible solo con selección). */
+export function renderBulk() {
+    const bar = document.getElementById('ticket-bulk');
+    if (!bar) return;
+    const count = selected.size;
+    const countEl = document.getElementById('ticket-bulk-count');
+    if (countEl) countEl.textContent = `${count} seleccionado${count === 1 ? '' : 's'}`;
+    bar.classList.toggle('is-hidden', count === 0);
+}
+
+/** Marca/desmarca un ítem del checklist (toggle desde el checkbox). */
+export function toggleItem(idx) {
+    const items = getState().currentTicket.items;
+    if (!Number.isInteger(idx) || idx < 0 || idx >= items.length) return;
+    selected.has(idx) ? selected.delete(idx) : selected.add(idx);
+    renderTicket();
+}
+
+/** Desmarca todos los ítems del checklist (sin borrar nada). */
+export function clearSelected() {
+    clearSelection();
+    renderTicket();
+}
+
+/** Elimina los ítems seleccionados (acción masiva) y vuelve a pintar.
+ *  Devuelve los índices borrados (para que el llamador los aplique al dominio). */
+export function removeSelectedItems() {
+    const indices = [...selected];
+    clearSelection();
+    return indices;
 }
 
 export function updateTotals() {
@@ -111,10 +170,31 @@ export function updateTotals() {
     updatePaymentSummary();
 }
 
-/** Vuelca los pagos guardados a los inputs (montos en la moneda activa). */
+/**
+ * Pinta las filas de pago (una por método activo de settings.paymentMethods)
+ * y vuelca los pagos guardados a los inputs (montos en la moneda activa).
+ * Reconstruir aquí es seguro: a medio teclear no se repinta (solo pasa por
+ * eventos discretos), y el monto de cada fila se lee desde currentTicket.
+ */
 export function renderPayment() {
     const state = getState();
-    for (const method of activePaymentMethods(state)) {
+    const list = document.getElementById('payment-list');
+    if (!list) return;
+
+    const methods = activePaymentMethods(state);
+    list.innerHTML = methods.map(m => `
+        <div class="payment-row">
+            <label class="payment-row__label" for="pay-${escapeHtml(m.id)}">
+                <i class="fa-solid ${escapeHtml(m.icon || 'fa-credit-card')}" aria-hidden="true"></i>
+                <span>${escapeHtml(m.label)}</span>
+                <span class="badge badge--tag badge--${escapeHtml(m.type)}">${escapeHtml(TYPE_LABELS[m.type] || m.type)}</span>
+            </label>
+            <input type="number" id="pay-${escapeHtml(m.id)}" min="0" step="0.01" inputmode="decimal"
+                   placeholder="0.00" data-action="payment-amount" data-method="${escapeHtml(m.id)}"
+                   class="input ticket__received" aria-label="Monto de ${escapeHtml(m.label)}">
+        </div>`).join('');
+
+    for (const method of methods) {
         const input = paymentInput(method.id);
         if (!input) continue;
         const pago = state.currentTicket.payments.find(p => p.method === method.id);
@@ -154,7 +234,7 @@ export function updatePaymentSummary() {
 
     let change = 0;
     try {
-        change = settlePayments(state.currentTicket.payments, total).changeUSD;
+        change = settlePayments(state.currentTicket.payments, total, activePaymentMethods(state)).changeUSD;
     } catch {
         change = 0;
     }
@@ -171,10 +251,11 @@ export function renderSaleConfirm() {
     const { subtotal, tax, total } = ticketTotals();
     const staff = state.staff.find(s => s.id === state.currentTicket.staffId);
     const pagos = state.currentTicket.payments;
+    const methods = activePaymentMethods(state);
 
     let change = 0;
     try {
-        change = settlePayments(pagos, total).changeUSD;
+        change = settlePayments(pagos, total, methods).changeUSD;
     } catch {
         change = 0;
     }
@@ -182,7 +263,7 @@ export function renderSaleConfirm() {
     const filasPago = pagos.length > 0
         ? pagos.map(p => `
             <div class="sale-confirm__row">
-                <span>${escapeHtml(methodLabel(p.method, activePaymentMethods(state)))}</span>
+                <span>${escapeHtml(methodLabel(p.method, methods))}</span>
                 <span>${money(p.amountUSD)}</span>
             </div>`).join('')
         : '<div class="sale-confirm__row"><span>Sin pagos registrados</span><span>—</span></div>';
