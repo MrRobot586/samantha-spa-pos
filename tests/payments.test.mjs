@@ -152,3 +152,37 @@ test('métodos custom: aplican en etiquetas, vuelto y arqueo', () => {
     assert.throws(() => settlePayments([{ method: 'zelle', amountUSD: 20 }], 10, methods),
         /no pueden superar el total/);
 });
+test('normalizePayments: conserva referencia y comprobante válidos, descarta los malformados', () => {
+    const adjunto = { name: 'transferencia.png', mime: 'image/png', data: 'data:image/png;base64,QUJD' };
+    const pagos = normalizePayments([
+        { method: 'pago_movil', amountUSD: 10.5, reference: '  00123456789  ', attachment: adjunto },
+        { method: 'cash', amountUSD: 3, reference: '   ', attachment: { name: 'x.png', data: 'no-es-data-url' } },
+        { method: 'debit', amountUSD: 7, reference: 42, attachment: 'nope' },
+        { method: 'divisa', amountUSD: 2, reference: 'x'.repeat(80) }
+    ]);
+
+    assert.deepEqual(pagos[0], { method: 'pago_movil', amountUSD: 10.5, reference: '00123456789', attachment: adjunto },
+        'referencia se recorta y el adjunto se conserva tal cual');
+    assert.deepEqual(pagos[1], { method: 'cash', amountUSD: 3 }, 'referencia vacía y adjunto sin data URL se descartan');
+    assert.deepEqual(pagos[2], { method: 'debit', amountUSD: 7 }, 'tipos no string no rompen el pago');
+    assert.equal(pagos[3].reference.length, 60, 'referencia larga se trunca a MAX_REFERENCE');
+    assert.equal(pagos[3].attachment, undefined);
+});
+
+test('settlePayments: el vuelto ajusta el monto sin borrar la referencia ni el comprobante', () => {
+    const adjunto = { name: 'recibo.pdf', mime: 'application/pdf', data: 'data:application/pdf;base64,QUJD' };
+    const s = settlePayments([
+        { method: 'cash', amountUSD: 150, reference: 'REF-1', attachment: adjunto },
+        { method: 'debit', amountUSD: 10 }
+    ], 120);
+
+    assert.equal(s.changeUSD, 40);
+    assert.equal(s.payments[0].method, 'cash');
+    assert.equal(s.payments[0].amountUSD, 110, 'el vuelto descuenta del efectivo');
+    assert.equal(s.payments[0].reference, 'REF-1');
+    assert.deepEqual(s.payments[0].attachment, adjunto);
+
+    assert.throws(() => settlePayments(
+        [{ method: 'cash', amountUSD: 5, reference: 'REF-2' }], 100), /Faltan/,
+        'un pago corto sigue fallando aunque lleve referencia');
+});

@@ -418,3 +418,48 @@ test('normalizeState: métodos de pago custom y comisión del rol se normalizan'
     assert.deepEqual(state3.settings.paymentMethods, createSeedState().settings.paymentMethods);
     assert.equal(state3.settings.stylistCommissionRate, 45, 'negativo → defecto de fábrica');
 });
+
+test('referencia y comprobante de pago sobreviven a guardar y cargar', () => {
+    const backend = createMemoryBackend();
+    const state = createSeedState();
+    const adjunto = { name: 'transferencia.png', mime: 'image/png', data: 'data:image/png;base64,QUJD' };
+
+    state.currentTicket.payments.push({
+        method: 'pago_movil', amountUSD: 40, reference: ' 00123456789 ', attachment: adjunto
+    });
+    state.transactions.push({
+        id: 'TX-REF-1', date: new Date().toISOString(), time: '10:00',
+        staffId: 'st1', staffName: 'Valeria Gómez',
+        items: [{ type: 'service', qty: 1 }],
+        subtotal: 65, tax: 10.4, total: 75.4, commission: 29.25,
+        payments: [{ method: 'cash', amountUSD: 75.4, reference: 'REF-9', attachment: adjunto }]
+    });
+
+    assert.equal(saveState(state, backend), true);
+    const { state: cargado } = loadState(backend);
+
+    assert.deepEqual(cargado.currentTicket.payments, [
+        { method: 'pago_movil', amountUSD: 40, reference: '00123456789', attachment: adjunto }
+    ]);
+    assert.deepEqual(cargado.transactions[0].payments, [
+        { method: 'cash', amountUSD: 75.4, reference: 'REF-9', attachment: adjunto }
+    ], 'la venta guardada conserva referencia y comprobante');
+});
+
+test('comprobante malformado o gigante se descarta y el pago queda con su monto', () => {
+    const gigante = 'data:image/png;base64,' + 'A'.repeat(1_600_001);
+    const state = normalizeState({
+        currentTicket: {
+            items: [],
+            payments: [
+                { method: 'cash', amountUSD: 12.5, reference: 42, attachment: { name: 'x.png', data: 'no-data-url' } },
+                { method: 'debit', amountUSD: 9, reference: 'R-1', attachment: { name: 'grande.png', mime: 'image/png', data: gigante } }
+            ]
+        }
+    });
+
+    assert.deepEqual(state.currentTicket.payments, [
+        { method: 'cash', amountUSD: 12.5 },
+        { method: 'debit', amountUSD: 9, reference: 'R-1' }
+    ]);
+});

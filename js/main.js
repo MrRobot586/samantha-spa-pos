@@ -20,7 +20,7 @@ import { renderUsersList, fillUserForm, resetUserForm } from './ui/users-view.js
 import { toast, toastSuccess, toastError } from './ui/dialogs.js';
 import { openModal, closeModal, initModals } from './ui/modals.js';
 import { toggleMenu, closeMenu, initMenu } from './ui/menu.js';
-import { renderStaffSelect, renderCatalog, renderTicket, renderFilters, updateTotals, renderPayment, renderSaleConfirm, collectPayments, updatePaymentSummary, renderPosStep, goToPosStep, completePosStep, toggleItem, removeSelectedItems, clearSelected, initCatalogDrag, addPaymentSlot, removePaymentSlot, resetPaymentSlots } from './ui/pos.js';
+import { renderStaffSelect, renderCatalog, renderTicket, renderFilters, updateTotals, renderPayment, renderSaleConfirm, collectPayments, updatePaymentSummary, renderPosStep, goToPosStep, completePosStep, toggleItem, removeSelectedItems, clearSelected, initCatalogDrag, addPaymentSlot, removePaymentSlot, resetPaymentSlots, fillPaymentAmount, setSlotReference, setSlotAttachment, removeSlotAttachment } from './ui/pos.js';
 import { renderDashboard } from './ui/dashboard.js';
 import { renderServicesCards, fillServiceForm } from './ui/services-view.js';
 import { renderInventoryTable, fillProductForm } from './ui/inventory-view.js';
@@ -260,12 +260,14 @@ function handleAction(el, action) {
 
         case 'pay': {
             try {
-                const payments = collectPayments();
                 // Sin montos: se precarga el total en efectivo (lo habitual).
-                if (payments.length === 0) {
+                if (collectPayments().length === 0) {
                     const { total } = ticketTotals();
                     setPaymentAmount('cash', total);
                     renderPayment();
+                    // Vuelve a colectar: así el pago recién creado hereda la
+                    // referencia y el comprobante del efectivo.
+                    collectPayments();
                 }
                 renderSaleConfirm();
                 openModal('modal-sale-confirm');
@@ -319,6 +321,24 @@ function handleAction(el, action) {
 
         case 'remove-payment-method':
             removePaymentSlot(el.dataset.method);
+            // Se persiste para que el método no vuelva con su monto, su
+            // referencia y su comprobante después de un F5.
+            collectPayments();
+            persist();
+            break;
+
+        case 'fill-payment-amount':
+            fillPaymentAmount(el.dataset.method);
+            break;
+
+        case 'pick-payment-attachment':
+            el.closest('.payment-row')?.querySelector('[data-action="payment-attachment"]')?.click();
+            break;
+
+        case 'remove-payment-attachment':
+            removeSlotAttachment(el.dataset.method);
+            collectPayments();
+            persist();
             break;
 
         case 'pos-new-sale':
@@ -539,6 +559,70 @@ function onClick(e) {
     handleAction(el, el.dataset.action);
 }
 
+/* --- Comprobantes de pago (adjuntos) ------------------------------
+ * Imágenes: se reducen a 1280px de lado y JPEG 0.75 para que la cuota de
+ * localStorage no se llene con fotos del teléfono. PDF: se adjunta tal cual
+ * (con tope); si no entra, queda el número de referencia. */
+const MAX_PDF_BYTES = 1_000_000;
+const MAX_ATTACHMENT_DATA = 1.6e6; // alineado a domain/payments.js
+
+function fileToDataURL(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error('No se pudo leer el archivo.'));
+        reader.readAsDataURL(file);
+    });
+}
+
+function compressImage(file) {
+    return fileToDataURL(file).then(url => new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            const MAX = 1280;
+            const escala = Math.min(1, MAX / Math.max(img.width, img.height));
+            const w = Math.max(1, Math.round(img.width * escala));
+            const h = Math.max(1, Math.round(img.height * escala));
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            // Fondo blanco: sin él, una PNG con transparencia sale negra al
+            // convertirse a JPEG.
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, w, h);
+            ctx.drawImage(img, 0, 0, w, h);
+            const tipo = (file.type === 'image/png' || file.type === 'image/webp')
+                ? 'image/jpeg'
+                : file.type;
+            resolve(canvas.toDataURL(tipo, 0.75));
+        };
+        img.onerror = () => reject(new Error('No se pudo leer la imagen.'));
+        img.src = url;
+    }));
+}
+
+async function readAttachment(file) {
+    const esImagen = typeof file.type === 'string' && file.type.startsWith('image/');
+    const esPdf = file.type === 'application/pdf';
+    if (!esImagen && !esPdf) {
+        throw new Error('Adjunta una imagen o un PDF.');
+    }
+    if (esPdf && file.size > MAX_PDF_BYTES) {
+        throw new Error('El PDF supera 1 MB: usa una foto reducida o solo el número de referencia.');
+    }
+
+    const data = esImagen ? await compressImage(file) : await fileToDataURL(file);
+    if (data.length > MAX_ATTACHMENT_DATA) {
+        throw new Error('El archivo sigue pesando demasiado: usa el número de referencia.');
+    }
+    return {
+        name: String(file.name || 'comprobante').slice(0, 80),
+        mime: esPdf ? 'application/pdf' : data.slice(5, data.indexOf(';')),
+        data
+    };
+}
+
 function onChange(e) {
     const el = e.target.closest('[data-action]');
     if (!el) return;
@@ -566,6 +650,24 @@ function onChange(e) {
         toastSuccess(src === 'eur'
             ? 'La tasa de referencia es ahora la del euro (BCV).'
             : 'La tasa de referencia es ahora la del dólar (BCV).');
+    } else if (el.dataset.action === 'payment-reference') {
+        // Al salir del campo se fija lo escrito y se persiste junto con los
+        // montos que ya estaban cobrados.
+        setSlotReference(el.dataset.method, el.value);
+        collectPayments();
+        persist();
+    } else if (el.dataset.action === 'payment-attachment') {
+        const file = el.files && el.files[0];
+        if (!file) return;
+        readAttachment(file)
+            .then(att => {
+                setSlotAttachment(el.dataset.method, att);
+                collectPayments();
+                persist();
+                el.value = '';
+                toastSuccess(`Comprobante "${att.name}" adjunto.`);
+            })
+            .catch(err => toastError(err.message));
     }
 }
 
@@ -577,6 +679,11 @@ function onInput(e) {
     } else if (el.dataset.action === 'payment-amount') {
         collectPayments();
         updatePaymentSummary();
+    } else if (el.dataset.action === 'payment-reference') {
+        // Sin repintar: se perdería el foco de la escritura. La referencia
+        // viaja con el pago al confirmar (y se persiste al salir del campo).
+        setSlotReference(el.dataset.method, el.value);
+        collectPayments();
     }
 }
 

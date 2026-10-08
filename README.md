@@ -128,8 +128,20 @@ La app arranca en la pantalla de login. Credenciales semilla:
   (`#payment-list`), pero el cobro no los fija todos: los métodos se eligen con
   el **select + botón «Agregar»** y solo los agregados quedan con su input de
   monto (cada uno muestra su reloj de tipo **Físico/Electrónico** junto al
-  nombre). `Configuración` repinta el POS al instante (agregar un método lo
-  hace aparecer en las opciones del select sin recargar).
+   nombre). `Configuración` repinta el POS al instante (agregar un método lo
+   hace aparecer en las opciones del select sin recargar).
+- **Completar el monto con un clic:** cada fila trae un botón de mira que
+  escribe lo que falta por cubrir con ese método: el **total del ticket** si
+  nadie ha pagado todavía o el **resto** si otros métodos ya aportaron (nunca
+  baja de 0).
+- **Referencia y comprobante por método:** bajo el monto, la fila acepta el
+  **número de referencia** (hasta 60 caracteres) y el **adjunto de un
+  comprobante** (foto o PDF: las imágenes se reducen a 1280px en JPEG 0.75
+  para no llenar el localStorage; el PDF pasa tal cual si no excede 1 MB, y
+  si no entra se pide solo la referencia). Ambos viajan con el pago al
+  **modal de confirmación** (`Ref. …` y enlace *Ver comprobante*) y quedan en
+  el **registro de la venta**; al recargar (F5) el ticket en cobro los
+  recupera.
 - Reglas del pago mixto:
   - **Métodos físicos** (Efectivo, Divisa…) están en el cajón: pueden superar el
     total y generan **vuelto** (se descuenta primero del efectivo y luego de los
@@ -239,7 +251,7 @@ en el menú del topbar:
 ## Pruebas
 
 ```bash
-npm test             # node --test tests/*.test.mjs — 127 pruebas, cero dependencias
+npm test             # node --test tests/*.test.mjs — 132 pruebas, cero dependencias
 ```
 
 Cubren la lógica de dominio (ticket, IVA, comisiones, cobro, stock,
@@ -254,7 +266,9 @@ restaurar demo, XSS, el gap de los filtros de Ventas, el wizard de 3 pasos
 del POS, el menú del topbar (tema, sesión con la fecha, acceso a
 Configuración), el panel de la tasa (moneda+fuente+refresco), el badge de
 caja con icono de estado y fecha, barra inferior solo con iconos, el tope de
-stock del ticket, el cobro a elección (select + Agregar), la tarjeta de
+stock del ticket, el cobro a elección (select + Agregar), el botón de
+completar el monto (total/falta), la referencia y el comprobante adjunto de
+cada método (fila, modal y venta guardada), la tarjeta de
 comisión y el tema compartiendo el tercio del pie, checks en
 7 anchos, 0 errores de consola) y con el checklist del final.
 El CI de GitHub Actions (`.github/workflows/ci.yml`) corre ambas cosas en
@@ -286,8 +300,8 @@ js/
     rates.js          tasa BCV (fetch + caché), convert/toUSD, formatMoney
     utils.js          escapeHtml, money, uid, ids de transacción, fechas
   domain/             100% sin DOM → tests en node
-    payments.js       métodos de pago activos (settings.paymentMethods), liquidación del pago mixto y vuelto
-    ticket.js         ítems, cantidades, subtotal/IVA/comisión y pagos del ticket
+    payments.js       métodos de pago activos (settings.paymentMethods), liquidación del pago mixto y vuelto, referencia/comprobante por pago
+    ticket.js         ítems, cantidades, subtotal/IVA/comisión, pagos y monto pendiente por método
     checkout.js       gate de caja → validación de stock → liquidación → transacción
     cash.js           apertura, retiros, ventas por método, corte e historial
     inventory.js      altas, edición, bajas (bloqueadas si están en una receta), low-stock
@@ -505,6 +519,12 @@ como nombre accesible) y la topbar se reduce a título + caja + tasa + menú
 33. Cobro a elección: sin métodos fijos, se agregan con el select + «Agregar»;
     al escribir montos el resumen Pagado/Falta/Vuelto reacciona y al enviar
     con solo el total cubierto se confirma la venta.
+34. Completar monto y comprobante: el botón de la mira de cada fila rellena la
+    casilla con el **total** si nadie pagó y con la **falta** si otro método
+    ya aportó; el campo de referencia se guarda al salir del campo, y el clip
+    adjunta una imagen (se comprime) que aparece como chip en la fila, como
+    `Ref. …` + *Ver comprobante* en el modal de confirmación y dentro de la
+    venta guardada.
 
 ## Fuera de alcance (posibles siguientes pasos)
 

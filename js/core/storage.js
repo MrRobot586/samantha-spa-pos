@@ -35,6 +35,45 @@ function mapMethod(m, known = []) {
     return PAYMENT_IDS.includes(m) || known.includes(m) ? m : null;
 }
 
+/* Comprobante opcional de un pago (misma idea que domain/payments.js, pero
+ * duplicado a propósito: esta capa no importa de dominio para no crear
+ * ciclos ni acoplar la persistencia a las reglas de cobro). */
+const MAX_REFERENCE = 60;
+const MAX_ATTACHMENT_DATA = 1.6e6;
+
+function cleanReference(ref) {
+    if (typeof ref !== 'string') return null;
+    const limpio = ref.trim().slice(0, MAX_REFERENCE);
+    return limpio || null;
+}
+
+function cleanAttachment(att) {
+    if (!isObject(att)) return null;
+    const name = (str(att.name) || '').trim().slice(0, 80);
+    const mime = (str(att.mime) || '').trim().slice(0, 60);
+    const raw = str(att.data);
+    const data = raw && raw.startsWith('data:') ? raw : '';
+    if (!name || !data || data.length > MAX_ATTACHMENT_DATA) return null;
+    return { name, mime, data };
+}
+
+/** Pagos de un ticket o de una venta: método vigente + monto > 0, conservando
+ *  la referencia y el comprobante cuando son válidos. */
+function normalizePaymentList(list, knownMethods) {
+    if (!Array.isArray(list)) return [];
+    return list
+        .map(p => {
+            if (!isObject(p)) return null;
+            const limpio = { method: mapMethod(p.method, knownMethods), amountUSD: num(p.amountUSD, 0) };
+            const reference = cleanReference(p.reference);
+            const attachment = cleanAttachment(p.attachment);
+            if (reference !== null) limpio.reference = reference;
+            if (attachment !== null) limpio.attachment = attachment;
+            return limpio;
+        })
+        .filter(p => p && p.method && p.amountUSD !== null && p.amountUSD > 0);
+}
+
 function normalizeStaff(list, fallback) {
     if (!Array.isArray(list)) return fallback;
     const clean = list
@@ -104,9 +143,7 @@ function normalizeTicket(raw, staff, products, services, knownMethods = []) {
 
     const staffId = staff.some(s => s.id === raw.staffId) ? raw.staffId : fallback.staffId;
 
-    const payments = (Array.isArray(raw.payments) ? raw.payments : [])
-        .map(p => (isObject(p) ? { method: mapMethod(p.method, knownMethods), amountUSD: num(p.amountUSD, 0) } : null))
-        .filter(p => p && p.method && p.amountUSD !== null && p.amountUSD > 0);
+    const payments = normalizePaymentList(raw.payments, knownMethods);
 
     return { items, staffId, payments };
 }
@@ -126,9 +163,7 @@ function normalizeTransactions(list, knownMethods = []) {
             const pagosRaw = Array.isArray(t.payments) && t.payments.length > 0
                 ? t.payments
                 : [{ method, amountUSD: total }];
-            const payments = pagosRaw
-                .map(p => (isObject(p) ? { method: mapMethod(p.method, knownMethods), amountUSD: num(p.amountUSD, 0) } : null))
-                .filter(p => p && p.method && p.amountUSD !== null && p.amountUSD > 0);
+            const payments = normalizePaymentList(pagosRaw, knownMethods);
             return {
                 id: t.id,
                 date: t.date,

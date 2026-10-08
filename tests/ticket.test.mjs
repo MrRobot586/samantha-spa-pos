@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { createSeedState } from '../js/core/seed.js';
 import {
     addItem, changeQty, clearTicket, setTicketStaff, setPaymentAmount, ticketTotals,
-    removeItem, removeItems
+    removeItem, removeItems, pendingAmountFor
 } from '../js/domain/ticket.js';
 
 test('addItem agrega un servicio con qty 1 y acumula los clics siguientes', () => {
@@ -188,4 +188,24 @@ test('ticketTotals: el producto de venta no genera comisión', () => {
     const totals = ticketTotals(state);
     assert.equal(totals.subtotal, 18);
     assert.equal(totals.commission, 0);
+});
+
+test('pendingAmountFor: total si nadie pagó, la falta si otros aportaron, y 0 si ya se cubrió', () => {
+    const state = createSeedState();
+    addItem('service', 's1', state); // 65 → total 75.40
+
+    // Nadie ha pagado → el total del ticket.
+    assert.equal(pendingAmountFor('cash', state), 75.4);
+
+    // Efectivo puso 50: a otro método le falta 25.40 y al propio no se le
+    // descuenta lo suyo (sigue viendo el total).
+    setPaymentAmount('cash', 50, state);
+    assert.equal(pendingAmountFor('debit', state), 25.4);
+    assert.equal(pendingAmountFor('cash', state), 75.4);
+
+    // Ya se pagó el total por otros métodos → lo que falta es 0.
+    setPaymentAmount('debit', 25.4, state);
+    setPaymentAmount('divisa', 75.4, state);
+    assert.equal(pendingAmountFor('cash', state), 0);
+    assert.equal(pendingAmountFor('debit', state), 0);
 });

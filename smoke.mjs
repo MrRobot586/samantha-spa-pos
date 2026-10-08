@@ -323,11 +323,79 @@ async function main() {
     await check('vuelto calculado ($24.60)', `document.getElementById('ticket-change').textContent.includes('24.60')`);
     await check('resumen Pagado refleja el monto', `document.getElementById('ticket-paid').textContent.includes('100')`);
 
+    // Completar el monto con un clic: total si nadie pagó, la falta si otros
+    await check('fila con botón «completar con el total pendiente»',
+        `!!document.querySelector('[data-action="fill-payment-amount"][data-method="cash"]')`);
+    await evaluar(`document.querySelector('[data-action="fill-payment-amount"][data-method="cash"]').click(); true`);
+    await esperar(120);
+    await check('completar escribe el total del ticket (75.40)',
+        `Number(document.querySelector('[data-action="payment-amount"][data-method="cash"]').value) === 75.4`);
+    await evaluar(`(() => {
+        const i = document.querySelector('[data-action="payment-amount"][data-method="cash"]');
+        i.value = '50';
+        i.dispatchEvent(new Event('input', { bubbles: true }));
+        document.getElementById('payment-select').value = 'debit';
+        document.querySelector('[data-action="add-payment-method"]').click();
+        return true;
+    })()`);
+    await esperar(150);
+    await evaluar(`document.querySelector('[data-action="fill-payment-amount"][data-method="debit"]').click(); true`);
+    await esperar(120);
+    await check('con otro método aportando, completa con la falta (25.40)',
+        `Number(document.querySelector('[data-action="payment-amount"][data-method="debit"]').value) === 25.4`);
+    await evaluar(`document.querySelector('[data-action="remove-payment-method"][data-method="debit"]').click(); true`);
+    await esperar(120);
+    await check('método retirado deja una sola fila',
+        `document.querySelectorAll('#payment-list .payment-row').length === 1`);
+
+    // Referencia y comprobante del método de pago
+    await check('la fila de pago trae el campo de referencia',
+        `!!document.querySelector('[data-action="payment-reference"][data-method="cash"]')`);
+    await evaluar(`(() => {
+        const i = document.querySelector('[data-action="payment-reference"][data-method="cash"]');
+        i.value = 'REF-123';
+        i.dispatchEvent(new Event('input', { bubbles: true }));
+        i.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+    })()`);
+    await esperar(200);
+    await check('referencia guardada en el ticket persistido',
+        `((JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).currentTicket.payments.find(p => p.method === 'cash') || {}).reference) === 'REF-123'`);
+    await check('acción de adjuntar comprobante en la fila',
+        `!!document.querySelector('[data-action="pick-payment-attachment"][data-method="cash"]')`);
+    await evaluar(`(() => {
+        const c = document.createElement('canvas');
+        c.width = 8;
+        c.height = 8;
+        c.getContext('2d').fillRect(0, 0, 8, 8);
+        const b64 = c.toDataURL('image/png').split(',')[1];
+        const bytes = Uint8Array.from(atob(b64), ch => ch.charCodeAt(0));
+        const dt = new DataTransfer();
+        dt.items.add(new File([bytes], 'comprobante.png', { type: 'image/png' }));
+        const input = document.querySelector('[data-action="payment-attachment"][data-method="cash"]');
+        input.files = dt.files;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+    })()`);
+    await esperar(500);
+    await check('chip del comprobante adjunto en la fila',
+        `!!document.querySelector('.payment-row .payment-ref__chip')`);
+    await check('el comprobante se abre como data URL',
+        `(document.querySelector('.payment-ref__chip')?.getAttribute('href') || '').startsWith('data:image/')`);
+    await check('comprobante guardado en el ticket persistido',
+        `((JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).currentTicket.payments.find(p => p.method === 'cash') || {}).attachment || {}).name === 'comprobante.png'`);
+    await check('acción de quitar comprobante presente',
+        `!!document.querySelector('[data-action="remove-payment-attachment"][data-method="cash"]')`);
+
     // La caja arranca cerrada: el modal confirma, pero el cobro se rechaza (gate)
     await check('badge de caja con caja cerrada (icono opaco)', `document.getElementById('cash-badge-icon').classList.contains('fa-lock') && !document.getElementById('cash-badge-icon').classList.contains('fa-cash-register')`);
     await evaluar(`document.querySelector('[data-action="pay"]').click()`);
     await esperar(200);
     await check('modal de confirmación de venta abierto', `!document.getElementById('modal-sale-confirm').classList.contains('is-hidden')`);
+    await check('modal de confirmación muestra la referencia',
+        `document.getElementById('sale-confirm-preview').textContent.includes('Ref. REF-123')`);
+    await check('modal de confirmación enlaza el comprobante',
+        `(document.querySelector('#sale-confirm-preview .sale-confirm__ref-link')?.getAttribute('href') || '').startsWith('data:image/')`);
     await evaluar(`document.querySelector('[data-action="confirm-sale"]').click()`);
     await esperar(250);
     await check('caja cerrada → cobro bloqueado', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).transactions.length === 0 && document.querySelectorAll('#ticket-items-container .ticket-item').length === 1`);
@@ -377,6 +445,11 @@ async function main() {
     await check('la venta guardó el detalle del servicio (snapshot)', `(() => {
         const tx = JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).transactions[0];
         return tx.items.some(i => i.type === 'service' && i.name && typeof i.price === 'number');
+    })()`);
+    await check('la venta guardó la referencia y el comprobante del pago', `(() => {
+        const p = (JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).transactions[0].payments || [])[0] || {};
+        return p.reference === 'REF-123' && !!p.attachment && p.attachment.name === 'comprobante.png'
+            && String(p.attachment.data).startsWith('data:image/');
     })()`);
 
     // Ticket de canje tras concretar (se intercepta window.print)

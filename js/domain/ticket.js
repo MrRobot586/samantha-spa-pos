@@ -121,6 +121,19 @@ export function setPaymentAmount(method, amountUSD, state = getState()) {
 }
 
 /**
+ * Cuánto falta por cubrir con `method` (en USD): el total del ticket menos lo
+ * que ya aportaron los demás métodos. Si nadie ha pagado es el total; nunca
+ * baja de 0. Es lo que el cajero suele querer tildar en una fila de cobro.
+ */
+export function pendingAmountFor(method, state = getState()) {
+    const { total } = ticketTotals(state);
+    const pagadoOtros = state.currentTicket.payments
+        .filter(p => p.method !== method)
+        .reduce((suma, p) => suma + (Number(p.amountUSD) || 0), 0);
+    return Math.max(Math.round((total - pagadoOtros) * 100) / 100, 0);
+}
+
+/**
  * Subtotal, IVA, total y comisión estimada del ticket actual.
  * Comisión: solo sobre servicios, con la tasa del rol (settings), y solo si
  * hay un estilista seleccionado (sin estilista no hay a quién acreditarla).

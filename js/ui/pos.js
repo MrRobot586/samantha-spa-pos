@@ -4,7 +4,7 @@
 import { getState } from '../core/state.js';
 import { money, escapeHtml } from '../core/utils.js';
 import { toUSD, convert } from '../core/rates.js';
-import { ticketTotals, setPaymentAmount } from '../domain/ticket.js';
+import { ticketTotals, setPaymentAmount, pendingAmountFor } from '../domain/ticket.js';
 import { activePaymentMethods, methodLabel, settlePayments } from '../domain/payments.js';
 
 const TYPE_LABELS = { fisico: 'Físico', electronico: 'Electrónico' };
@@ -224,10 +224,15 @@ export function updateTotals() {
 /**
  * Pinta el cobro: un select + «Agregar» elige qué métodos se usan; solo los
  * agregados tienen fila con su monto (ya no se fijan todos en la UI). Los
- * métodos viven en `slots` (únicamente UI); los montos sí se persisten en
- * `currentTicket.payments`.
+ * slots son únicamente UI y además cargan la referencia y el comprobante
+ * del método; los montos se persisten en `currentTicket.payments`.
  */
 const slots = [];
+
+/** Slot del método agregado (o undefined si no está en el cobro). */
+function slotOf(method) {
+    return slots.find(s => s.method === method);
+}
 
 export function resetPaymentSlots() {
     slots.length = 0;
@@ -237,14 +242,21 @@ export function resetPaymentSlots() {
 export function addPaymentSlot() {
     const select = document.getElementById('payment-select');
     const id = select?.value;
-    if (!id || slots.includes(id)) return;
-    slots.push(id);
+    if (!id || slotOf(id)) return;
+    // Si ese pago ya traía referencia/comprobante (F5 en pleno cobro), lo
+    // recupera del ticket en vez de empezar de cero.
+    const pago = getState().currentTicket.payments.find(p => p.method === id);
+    slots.push({
+        method: id,
+        reference: (pago && pago.reference) || '',
+        attachment: (pago && pago.attachment) || null
+    });
     renderPayment();
 }
 
 /** Quita un método del cobro y limpia su monto en el ticket. */
 export function removePaymentSlot(id) {
-    const idx = slots.indexOf(id);
+    const idx = slots.findIndex(s => s.method === id);
     if (idx < 0) return;
     slots.splice(idx, 1);
     try {
@@ -253,6 +265,43 @@ export function removePaymentSlot(id) {
         /* No era un pago registrado: no hay nada que limpiar. */
     }
     renderPayment();
+}
+
+/** Guarda la referencia/número de operación del método en su slot. */
+export function setSlotReference(method, reference) {
+    const slot = slotOf(method);
+    if (!slot) return;
+    slot.reference = String(reference ?? '');
+}
+
+/** Adjunta el comprobante (data URL) al método y repinta la fila. */
+export function setSlotAttachment(method, attachment) {
+    const slot = slotOf(method);
+    if (!slot) return;
+    slot.attachment = attachment;
+    renderPayment();
+}
+
+/** Quita el comprobante adjunto del método y repinta la fila. */
+export function removeSlotAttachment(method) {
+    const slot = slotOf(method);
+    if (!slot) return;
+    slot.attachment = null;
+    renderPayment();
+}
+
+/**
+ * Escribe en la casilla de monto de `method` lo que falta por cubrir con ese
+ * método (el total si nadie pagó; la falta si otros métodos ya aportaron) y
+ * dispara el mismo evento `input` que usaría el cajero.
+ */
+export function fillPaymentAmount(method) {
+    const input = [...document.querySelectorAll('#payment-list [data-action="payment-amount"]')]
+        .find(i => i.dataset.method === method);
+    if (!input) return;
+    const pendiente = pendingAmountFor(method);
+    input.value = String(Number(convert(pendiente, getState().settings.currency).toFixed(2)));
+    input.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 export function renderPayment() {
@@ -265,21 +314,29 @@ export function renderPayment() {
     if (slots.length === 0) {
         // Rehidrata los métodos del ticket (p. ej. tras un F5 a mitad de cobro).
         for (const p of state.currentTicket.payments) {
-            if (methods.some(m => m.id === p.method)) slots.push(p.method);
+            if (methods.some(m => m.id === p.method)) {
+                slots.push({
+                    method: p.method,
+                    reference: p.reference || '',
+                    attachment: p.attachment || null
+                });
+            }
         }
     }
 
-    const restantes = methods.filter(m => !slots.includes(m.id));
+    const elegidos = slots.map(s => s.method);
+    const restantes = methods.filter(m => !elegidos.includes(m.id));
     select.innerHTML = restantes.length
         ? restantes.map(m => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.label)}</option>`).join('')
         : '<option value="" disabled>Sin métodos disponibles</option>';
     select.value = restantes[0]?.id ?? '';
 
-    list.innerHTML = slots.map(id => {
-        const m = methods.find(x => x.id === id);
+    list.innerHTML = slots.map(slot => {
+        const m = methods.find(x => x.id === slot.method);
         if (!m) return '';
-        const pago = state.currentTicket.payments.find(p => p.method === id);
+        const pago = state.currentTicket.payments.find(p => p.method === slot.method);
         const valor = pago ? String(Number(convert(pago.amountUSD, state.settings.currency).toFixed(2))) : '';
+        const adjunto = slot.attachment;
         return `
             <div class="payment-row">
                 <label class="payment-row__label" for="pay-${escapeHtml(m.id)}">
@@ -288,13 +345,43 @@ export function renderPayment() {
                     <span class="badge badge--tag badge--${escapeHtml(m.type)}">${escapeHtml(TYPE_LABELS[m.type] || m.type)}</span>
                 </label>
                 <input type="number" id="pay-${escapeHtml(m.id)}" min="0" step="0.01" inputmode="decimal"
-                       placeholder="0.00" data-action="payment-amount" data-method="${escapeHtml(m.id)}"
+                       placeholder="0.00" value="${escapeHtml(valor)}" data-action="payment-amount" data-method="${escapeHtml(m.id)}"
                        class="input ticket__received" aria-label="Monto de ${escapeHtml(m.label)}">
+                <button type="button" data-action="fill-payment-amount" data-method="${escapeHtml(m.id)}"
+                        class="btn btn--neutral btn--icon" title="Completar con el total pendiente"
+                        aria-label="Completar el monto de ${escapeHtml(m.label)} con el total pendiente">
+                    <i class="fa-solid fa-bullseye" aria-hidden="true"></i>
+                </button>
                 <button type="button" data-action="remove-payment-method" data-method="${escapeHtml(m.id)}"
                         class="btn btn--danger btn--ghost btn--icon" title="Quitar ${escapeHtml(m.label)} del cobro"
                         aria-label="Quitar ${escapeHtml(m.label)} del cobro">
                     <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                 </button>
+                <div class="payment-ref">
+                    <input type="text" id="ref-${escapeHtml(m.id)}" maxlength="60" autocomplete="off"
+                           data-action="payment-reference" data-method="${escapeHtml(m.id)}"
+                           class="input payment-ref__input" placeholder="Nro. de referencia / comprobante (opcional)"
+                           value="${escapeHtml(slot.reference)}" aria-label="Referencia de ${escapeHtml(m.label)}">
+                    <input type="file" accept="image/*,application/pdf" class="payment-ref__file"
+                           data-action="payment-attachment" data-method="${escapeHtml(m.id)}"
+                           aria-hidden="true" tabindex="-1">
+                    <button type="button" data-action="pick-payment-attachment" data-method="${escapeHtml(m.id)}"
+                            class="btn btn--neutral btn--icon" title="Adjuntar comprobante (imagen o PDF)"
+                            aria-label="Adjuntar comprobante de ${escapeHtml(m.label)}">
+                        <i class="fa-solid fa-paperclip" aria-hidden="true"></i>
+                    </button>
+                    ${adjunto ? `
+                    <a class="payment-ref__chip" href="${escapeHtml(adjunto.data)}" target="_blank" rel="noopener"
+                       title="Ver comprobante en una pestaña nueva">
+                        <i class="fa-solid fa-file-arrow-down" aria-hidden="true"></i>
+                        <span>${escapeHtml(adjunto.name)}</span>
+                    </a>
+                    <button type="button" data-action="remove-payment-attachment" data-method="${escapeHtml(m.id)}"
+                            class="btn btn--danger btn--ghost btn--icon" title="Quitar comprobante"
+                            aria-label="Quitar comprobante de ${escapeHtml(m.label)}">
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                    </button>` : ''}
+                </div>
             </div>`;
     }).join('') || '<p class="payment-empty">Elige un método y toca Agregar.</p>';
 
@@ -304,7 +391,8 @@ export function renderPayment() {
 /**
  * Lee los inputs del cobro (solo los métodos agregados), actualiza el ticket
  * (en USD) y devuelve una copia de los pagos. Un campo vacío o ilegible
- * cuenta como 0 (método sin usar).
+ * cuenta como 0 (método sin usar). La referencia y el comprobante del slot
+ * viajan con el pago, siempre que este tenga monto.
  */
 export function collectPayments() {
     const state = getState();
@@ -316,6 +404,16 @@ export function collectPayments() {
             : toUSD(n, state.settings.currency);
         setPaymentAmount(input.dataset.method, usd);
     });
+
+    for (const slot of slots) {
+        const pago = state.currentTicket.payments.find(p => p.method === slot.method);
+        if (!pago) continue;
+        if (slot.reference) pago.reference = slot.reference;
+        else delete pago.reference;
+        if (slot.attachment) pago.attachment = slot.attachment;
+        else delete pago.attachment;
+    }
+
     return state.currentTicket.payments.map(p => ({ ...p }));
 }
 
@@ -355,11 +453,19 @@ export function renderSaleConfirm() {
     }
 
     const filasPago = pagos.length > 0
-        ? pagos.map(p => `
+        ? pagos.map(p => {
+            const meta = [
+                p.reference ? `Ref. ${escapeHtml(p.reference)}` : '',
+                p.attachment
+                    ? `<a class="sale-confirm__ref-link" href="${escapeHtml(p.attachment.data)}" target="_blank" rel="noopener">Ver comprobante</a>`
+                    : ''
+            ].filter(Boolean).join(' · ');
+            return `
             <div class="sale-confirm__row">
-                <span>${escapeHtml(methodLabel(p.method, methods))}</span>
+                <span>${escapeHtml(methodLabel(p.method, methods))}${meta ? `<small class="sale-confirm__meta">${meta}</small>` : ''}</span>
                 <span>${money(p.amountUSD)}</span>
-            </div>`).join('')
+            </div>`;
+        }).join('')
         : '<div class="sale-confirm__row"><span>Sin pagos registrados</span><span>—</span></div>';
 
     document.getElementById('sale-confirm-preview').innerHTML = `

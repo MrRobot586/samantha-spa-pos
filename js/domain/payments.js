@@ -10,6 +10,10 @@
  *  - El vuelto se descuenta primero de Efectivo y luego de Divisa, para que
  *    los pagos guardados reflejen el dinero neto retenido en caja.
  *
+ *  Cada pago puede traer campos opcionales de comprobante: `reference`
+ *  (número de operación, texto corto) y `attachment` ({ name, mime, data }
+ *  con data URL en base64). Ambos viajan hasta la venta registrada.
+ *
  * Métodos dinámicos: la lista de métodos vigentes vive en
  * `settings.paymentMethods` (admin las edita desde Configuración). Cada
  * método es `{ id, label, icon, type }` con `type` ∈ 'fisico' | 'electronico'.
@@ -70,6 +74,28 @@ const LEGACY_LABELS = { card: 'Tarjeta (histórico)', other: 'Otro (histórico)'
 const EPS = 1e-9;
 const round2 = n => Math.round((n + Number.EPSILON) * 100) / 100;
 
+/* Referencia/comprobante de un pago (campos opcionales que acompañan al monto
+ * y viajan hasta la venta registrada). */
+export const MAX_REFERENCE = 60;
+/** Límite del adjunto en base64 (~1.5 MB de texto): protege la cuota del
+ *  localStorage. Las imágenes ya se recortan antes de llegar aquí. */
+export const MAX_ATTACHMENT_DATA = 1.6e6;
+
+function cleanReference(ref) {
+    if (typeof ref !== 'string') return undefined;
+    const limpio = ref.trim().slice(0, MAX_REFERENCE);
+    return limpio || undefined;
+}
+
+function cleanAttachment(att) {
+    if (!att || typeof att !== 'object' || Array.isArray(att)) return undefined;
+    const name = typeof att.name === 'string' ? att.name.trim().slice(0, 80) : '';
+    const mime = typeof att.mime === 'string' ? att.mime.trim().slice(0, 60) : '';
+    const data = typeof att.data === 'string' && att.data.startsWith('data:') ? att.data : '';
+    if (!name || !data || data.length > MAX_ATTACHMENT_DATA) return undefined;
+    return { name, mime, data };
+}
+
 export function methodById(id, methods = PAYMENT_METHODS) {
     const list = methods && methods.length > 0 ? methods : PAYMENT_METHODS;
     return list.find(m => m.id === id) || null;
@@ -103,16 +129,24 @@ export function cashDrawerMethods(methods = PAYMENT_METHODS) {
 
 /**
  * Limpia una lista de pagos: solo montos > 0 con método conocido o histórico.
- * @returns {Array<{method: string, amountUSD: number}>}
+ * Conserva los campos opcionales (referencia y comprobante) si son válidos.
+ * @returns {Array<{method: string, amountUSD: number, reference?: string, attachment?: object}>}
  */
 export function normalizePayments(payments, methods = PAYMENT_METHODS) {
     if (!Array.isArray(payments)) return [];
     return payments
         .filter(p => p && typeof p.method === 'string'
             && (isPaymentMethod(p.method, methods) || isLegacyMethod(p.method)))
-        .map(p => ({ method: p.method, amountUSD: Number(p.amountUSD) }))
+        .map(p => {
+            const limpio = { method: p.method, amountUSD: Number(p.amountUSD) };
+            const reference = cleanReference(p.reference);
+            const attachment = cleanAttachment(p.attachment);
+            if (reference !== undefined) limpio.reference = reference;
+            if (attachment !== undefined) limpio.attachment = attachment;
+            return limpio;
+        })
         .filter(p => Number.isFinite(p.amountUSD) && p.amountUSD > EPS)
-        .map(p => ({ method: p.method, amountUSD: round2(p.amountUSD) }));
+        .map(p => ({ ...p, amountUSD: round2(p.amountUSD) }));
 }
 
 /** Pagos de una transacción ya cobrada; las ventas viejas se tratan como un

@@ -403,6 +403,8 @@
     align-items: center;
     justify-content: space-between;
     gap: var(--space-3);
+    /* Segunda línea: referencia + comprobante (100% del ancho). */
+    flex-wrap: wrap;
 }
 
 .payment-row__label {
@@ -441,6 +443,51 @@
 
 .payment-row .btn--icon {
     flex: 0 0 auto;
+}
+
+/* Segunda línea de la fila: número de referencia y comprobante adjunto. */
+.payment-ref {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex: 1 1 100%;
+    min-width: 0;
+}
+
+.payment-ref__input {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--fs-sm);
+    padding: var(--space-2) var(--space-4);
+}
+
+/* El input de archivo se abre desde el botón de clip: nunca se ve. */
+.payment-ref__file {
+    display: none;
+}
+
+.payment-ref__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    max-width: 14rem;
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius);
+    background: var(--brand-10);
+    color: var(--brand-400);
+    font-size: var(--fs-2xs);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.payment-ref__chip span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.payment-ref__chip:hover {
+    background: var(--brand-20);
 }
 
 .payment-hint {
@@ -490,6 +537,20 @@
     font-size: var(--fs-lg);
     font-weight: 700;
     color: var(--text-strong);
+}
+
+/* Referencia y comprobante bajo el nombre de cada método. */
+.sale-confirm__meta {
+    display: block;
+    font-size: var(--fs-2xs);
+    color: var(--text-muted);
+    font-weight: 400;
+    overflow-wrap: anywhere;
+}
+
+.sale-confirm__ref-link {
+    color: var(--brand-400);
+    text-decoration: underline;
 }
 
 .sale-confirm__sep {
