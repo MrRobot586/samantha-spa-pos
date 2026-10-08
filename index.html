@@ -199,20 +199,18 @@
                             <p class="topbar-menu__date" id="menu-date"></p>
                         </section>
 
-                        <section class="topbar-menu__group">
-                            <p class="topbar-menu__label">Vista</p>
+                        <div class="topbar-menu__foot">
                             <button type="button" id="theme-toggle" data-action="set-theme"
                                     class="theme-toggle" data-theme="auto" title="Tema">
                                 <i class="fa-solid fa-desktop"></i>
                             </button>
-                        </section>
-
-                        <div class="topbar-menu__foot">
                             <button type="button" data-action="switch-tab" data-tab="settings" id="menu-settings"
-                                    class="btn btn--neutral topbar-menu__admin is-hidden">
+                                    class="btn btn--neutral topbar-menu__admin is-hidden"
+                                    title="Configuración" aria-label="Configuración">
                                 <i class="fa-solid fa-gear"></i> <span>Configuración</span>
                             </button>
-                            <button type="button" data-action="logout" class="btn btn--neutral topbar-menu__logout">
+                            <button type="button" data-action="logout" class="btn btn--neutral topbar-menu__logout"
+                                    title="Salir" aria-label="Salir de la sesión">
                                 <i class="fa-solid fa-right-from-bracket"></i> <span>Salir</span>
                             </button>
                         </div>
@@ -457,10 +455,17 @@
                         <div class="pos-checkout__panel-head">
                             <h4 class="pos-checkout__subtitle"><i class="fa-solid fa-wallet"></i> Métodos de Pago</h4>
                         </div>
-                        <div class="payment-list" id="payment-list">
-                            <!-- Lo llena el JS a partir de los métodos activos -->
+                        <div class="payment-add">
+                            <select id="payment-select" class="select payment-add__select"
+                                    aria-label="Método de pago a agregar"></select>
+                            <button type="button" data-action="add-payment-method" class="btn btn--brand btn--sm">
+                                <i class="fa-solid fa-plus"></i> Agregar
+                            </button>
                         </div>
-                        <p class="payment-hint">Los métodos electrónicos cobran el monto exacto; el vuelto se entrega por los físicos (Efectivo y otros).</p>
+                        <div class="payment-list" id="payment-list">
+                            <!-- Lo llena el JS: solo los métodos agregados tienen fila de monto -->
+                        </div>
+                        <p class="payment-hint">Agrega cada método de pago usado y escribe su monto. El vuelto solo se entrega por los físicos (Efectivo y otros); los electrónicos cobran el importe exacto.</p>
 
                         <div class="pos-checkout__summary">
                             <div class="ticket__row ticket__row--paid">
@@ -774,8 +779,10 @@
                     <div class="settings-commission">
                         <div class="field">
                             <label for="commission-rate" class="field__label field__label--sm">Porcentaje</label>
-                            <input type="number" id="commission-rate" min="0" max="100" step="0.5" inputmode="decimal" class="input" required>
-                            <span class="settings-commission__unit">%</span>
+                            <div class="settings-commission__control">
+                                <input type="number" id="commission-rate" min="0" max="100" step="0.5" inputmode="decimal" class="input" required>
+                                <span class="settings-commission__unit" aria-hidden="true">%</span>
+                            </div>
                         </div>
                         <button type="submit" class="btn btn--brand">Guardar</button>
                     </div>

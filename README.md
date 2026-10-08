@@ -125,9 +125,11 @@ La app arranca en la pantalla de login. Credenciales semilla:
   en **pago mixto**: cada método lleva su propio monto (en la moneda activa,
   guardado en USD). El resumen muestra *Pagado / Falta / Vuelto*.
 - **Las filas de pago se construyen en el DOM** a partir de los métodos activos
-  (`#payment-list`): cada una muestra su reloj de tipo
-  **Físico/Electrónico** junto al nombre, y `Configuración` repinta el POS al
-  instante (agregar un método lo hace aparecer en el cobro sin recargar).
+  (`#payment-list`), pero el cobro no los fija todos: los métodos se eligen con
+  el **select + botón «Agregar»** y solo los agregados quedan con su input de
+  monto (cada uno muestra su reloj de tipo **Físico/Electrónico** junto al
+  nombre). `Configuración` repinta el POS al instante (agregar un método lo
+  hace aparecer en las opciones del select sin recargar).
 - Reglas del pago mixto:
   - **Métodos físicos** (Efectivo, Divisa…) están en el cajón: pueden superar el
     total y generan **vuelto** (se descuenta primero del efectivo y luego de los
@@ -140,6 +142,9 @@ La app arranca en la pantalla de login. Credenciales semilla:
     traiga).
   - Si falta por cubrir, `Procesar cobro` abre el **modal de confirmación** de la
     venta y el cobro se rechaza sin descontar stock ni comisión.
+- **El stock de los productos de venta limita el ticket:** agregar un producto
+  sin stock o subir la cantidad por encima de lo disponible se rechaza con
+  aviso (no entra al ticket ni al persistir).
 - **La caja arranca cerrada: no se puede cobrar hasta abrirla.** La pestaña
   **Caja & Cortes** (solo admin) gestiona:
   - **Apertura** con fondo inicial (en la moneda activa, guardado en USD).
@@ -202,13 +207,17 @@ en el menú del topbar:
   clic fuera o ESC. El **badge de caja** lleva la fecha dd/mm/aaaa y un
   icono de estado (máquina registradora verde = abierta / candado opaco =
   cerrada). El **menú de sesión** guarda el chip con el nombre y la fecha,
-  el tema cuadrado, el acceso a Configuración (solo admin) y Salir; se
+  y una fila con el tema, el acceso a Configuración (solo admin)
+  y Salir; se
   cierra con un clic fuera, con ESC, al cambiar de pestaña, al abrir un
   modal o al salir. El menú no tiene estado: siempre arranca cerrado. Los
   ajustes (pagos, comisión, impresión, usuarios, Restaurar demo) viven en
   la pestaña Configuración, a la que ya no se llega desde la sidebar.
-- **Tema `auto | dark | light`** con botón de ciclo cuadrado dentro del
-  menú (ya no en el pie del sidebar, que queda vacío). `auto` es el valor
+- **Tema `auto | dark | light`** con botón de ciclo dentro del
+  menú (ya no en el pie del sidebar, que queda vacío). En el pie del menú el
+  botón de tema **comparte fila y ancho con Configuración y Salir** (los tres
+  ocupan un tercio del espacio; las etiquetas se recortan si no caben).
+  `auto` es el valor
   por defecto y sigue a `prefers-color-scheme` (cambia en vivo si el
   sistema cambia). El tema elegido se persiste en `settings.theme` y lo
   restaura antes del primer render un script pre-paint de `<head>`.
@@ -230,7 +239,7 @@ en el menú del topbar:
 ## Pruebas
 
 ```bash
-npm test             # node --test tests/*.test.mjs — 126 pruebas, cero dependencias
+npm test             # node --test tests/*.test.mjs — 127 pruebas, cero dependencias
 ```
 
 Cubren la lógica de dominio (ticket, IVA, comisiones, cobro, stock,
@@ -242,9 +251,11 @@ variable `var(--x)` debe existir en el proyecto). La UI se verifica con el smoke
 impresión y reimpresión, Configuración (CRUD de métodos de pago, comisión
 del rol y ticket), gate de caja, apertura, corte, moneda y tema, CRUD,
 restaurar demo, XSS, el gap de los filtros de Ventas, el wizard de 3 pasos
-del POS, el menú del topbar (tema cuadrado, sesión con la fecha, acceso a
+del POS, el menú del topbar (tema, sesión con la fecha, acceso a
 Configuración), el panel de la tasa (moneda+fuente+refresco), el badge de
-caja con icono de estado y fecha, barra inferior solo con iconos, checks en
+caja con icono de estado y fecha, barra inferior solo con iconos, el tope de
+stock del ticket, el cobro a elección (select + Agregar), la tarjeta de
+comisión y el tema compartiendo el tercio del pie, checks en
 7 anchos, 0 errores de consola) y con el checklist del final.
 El CI de GitHub Actions (`.github/workflows/ci.yml`) corre ambas cosas en
 cada push.
@@ -433,21 +444,26 @@ como nombre accesible) y la topbar se reduce a título + caja + tasa + menú
     fuente de la tasa (Tasa USD/Euro) y el botón de actualización; se cierra
     con clic fuera o ESC. La fecha se muestra como dd/mm/aaaa.
 15. Menú de sesión (icono de usuario + nombre activo): chip con iniciales y
-    nombre + la fecha dd/mm/aaaa, botón de tema cuadrado, **Configuración**
-    (solo admin, ya no vive en la sidebar) y Salir; se cierra con clic
-    fuera, con ESC, al cambiar de pestaña y al abrir un modal.
-16. Configuración (admin): agregar un método «Zelle» electrónico → aparece en
-    la lista y al instante en las filas de pago del POS (cada una muestra su
-    badge **Físico/Electrónico**); intentar duplicarlo → toast «Ya existe»;
+    nombre + la fecha dd/mm/aaaa, y una fila con el tema,
+    **Configuración** (solo admin, ya no vive en la sidebar) y Salir; el
+    botón de tema ocupa un tercio de la fila, igual que los otros dos. Se
+    cierra con clic fuera, con ESC, al cambiar de pestaña y al abrir un modal.
+ 16. Configuración (admin): agregar un método «Zelle» electrónico → aparece en
+    la lista y al instante en las opciones del select del cobro del POS (un
+    método solo se cobra si se agrega con el select + botón «Agregar», y su
+    fila muestra el badge **Físico/Electrónico**); intentar duplicarlo → toast
+    «Ya existe»;
     renombrarlo conserva el id estable; borrarlo pide confirmación y vuelve a
     4. El Efectivo aparece como fijo (iconos de editar/eliminar solo en los
-    métodos no fijos). Cambiar la comisión del rol a 50 % y guardar → queda
-    `stylistCommissionRate: 50`.
+    métodos no fijos). En la tarjeta de comisión el `%` vive dentro del
+    campo y el botón queda alineado al fondo. Cambiar la comisión del rol a
+    50 % y guardar → queda `stylistCommissionRate: 50`.
 17. A 375px de ancho: aparece la barra inferior con solo iconos (sin scroll
     horizontal); a 700 y 900px los ítems vuelven a mostrar el texto.
-18. Tema: el botón cuadrado del menú cicla Auto → Oscuro → Claro (el
-    icono cambia); con `auto` y el SO en claro/oscuro la app lo sigue en
-    vivo; al recargar el tema elegido se mantiene sin parpadeo.
+18. Tema: el botón del menú (en la fila con Configuración y Salir) cicla
+    Auto → Oscuro → Claro (el icono cambia); con `auto` y el SO en
+    claro/oscuro la app lo sigue en vivo; al recargar el tema elegido se
+    mantiene sin parpadeo.
 19. Badge de caja: con la caja abierta muestra la máquina registradora en
     verde + la fecha; al cerrarla, el candado se vuelve opaco. Los modales
     entran con animación y su botón de cerrar es circular.
@@ -482,6 +498,12 @@ como nombre accesible) y la topbar se reduce a título + caja + tasa + menú
     tarjetas apiladas: el encabezado desaparece y cada celda muestra su
     etiqueta al lado del valor; al volver a ≥640px recuperan la tabla
     clásica.
+32. El stock limita el ticket: agregar un producto cuyo stock es 0 no entra a
+    la orden (aviso); e intentar subir la cantidad de un ítem por encima del
+    stock disponible lanza el error sin tocar la orden.
+33. Cobro a elección: sin métodos fijos, se agregan con el select + «Agregar»;
+    al escribir montos el resumen Pagado/Falta/Vuelto reacciona y al enviar
+    con solo el total cubierto se confirma la venta.
 
 ## Fuera de alcance (posibles siguientes pasos)
 

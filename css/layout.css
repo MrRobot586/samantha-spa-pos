@@ -226,8 +226,8 @@ body.is-logged-out .toast-stack {
     gap: var(--space-4);
 }
 
-/* El botón de tema es cuadrado (control puntual), no una fila a lo ancho
-   del panel; el resto de botones del panel siguen a ancho completo. */
+/* El botón de tema vive en el pie del menú, compartiendo la fila con
+   Configuración y Salir; internamente queda apto para centrar el icono. */
 .topbar-menu__panel .theme-toggle {
     width: 2.25rem;
     height: 2.25rem;
@@ -235,7 +235,6 @@ body.is-logged-out .toast-stack {
     padding: 0;
     justify-content: center;
     text-align: center;
-    align-self: flex-start;
 }
 
 .topbar-menu__panel .btn {
@@ -243,11 +242,33 @@ body.is-logged-out .toast-stack {
     justify-content: flex-start;
 }
 
-/* El pie reparte el ancho entre Configuración (si el rol lo permite) y
-   Salir, centrando el icono y el texto de cada uno. */
+/* El pie reparte el ancho en tres partes iguales: tema, Configuración (si
+   el rol lo permite) y Salir. Los botones etiquetados dejan que su texto se
+   recorte con puntos suspensivos antes de forzar el ancho. */
 .topbar-menu__foot .btn {
     flex: 1;
+    min-width: 0;
     justify-content: center;
+    /* padding horizontal reducido para que los tres botones puedan llegar a
+       un tercio exacto sin desbordar el panel (la etiqueta se recorta). */
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+}
+
+.topbar-menu__foot .btn span {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.topbar-menu__foot .theme-toggle {
+    flex: 1;
+    align-self: stretch;
+    min-width: 0;
+    width: auto;
+    height: auto;
+    min-height: 0;
 }
 
 .topbar__avatar {

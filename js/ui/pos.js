@@ -222,57 +222,100 @@ export function updateTotals() {
 }
 
 /**
- * Pinta las filas de pago (una por método activo de settings.paymentMethods)
- * y vuelca los pagos guardados a los inputs (montos en la moneda activa).
- * Reconstruir aquí es seguro: a medio teclear no se repinta (solo pasa por
- * eventos discretos), y el monto de cada fila se lee desde currentTicket.
+ * Pinta el cobro: un select + «Agregar» elige qué métodos se usan; solo los
+ * agregados tienen fila con su monto (ya no se fijan todos en la UI). Los
+ * métodos viven en `slots` (únicamente UI); los montos sí se persisten en
+ * `currentTicket.payments`.
  */
+const slots = [];
+
+export function resetPaymentSlots() {
+    slots.length = 0;
+}
+
+/** Agrega el método elegido en el select al cobro (una fila para su monto). */
+export function addPaymentSlot() {
+    const select = document.getElementById('payment-select');
+    const id = select?.value;
+    if (!id || slots.includes(id)) return;
+    slots.push(id);
+    renderPayment();
+}
+
+/** Quita un método del cobro y limpia su monto en el ticket. */
+export function removePaymentSlot(id) {
+    const idx = slots.indexOf(id);
+    if (idx < 0) return;
+    slots.splice(idx, 1);
+    try {
+        setPaymentAmount(id, 0);
+    } catch {
+        /* No era un pago registrado: no hay nada que limpiar. */
+    }
+    renderPayment();
+}
+
 export function renderPayment() {
     const state = getState();
     const list = document.getElementById('payment-list');
-    if (!list) return;
+    const select = document.getElementById('payment-select');
+    if (!list || !select) return;
 
     const methods = activePaymentMethods(state);
-    list.innerHTML = methods.map(m => `
-        <div class="payment-row">
-            <label class="payment-row__label" for="pay-${escapeHtml(m.id)}">
-                <i class="fa-solid ${escapeHtml(m.icon || 'fa-credit-card')}" aria-hidden="true"></i>
-                <span>${escapeHtml(m.label)}</span>
-                <span class="badge badge--tag badge--${escapeHtml(m.type)}">${escapeHtml(TYPE_LABELS[m.type] || m.type)}</span>
-            </label>
-            <input type="number" id="pay-${escapeHtml(m.id)}" min="0" step="0.01" inputmode="decimal"
-                   placeholder="0.00" data-action="payment-amount" data-method="${escapeHtml(m.id)}"
-                   class="input ticket__received" aria-label="Monto de ${escapeHtml(m.label)}">
-        </div>`).join('');
-
-    for (const method of methods) {
-        const input = paymentInput(method.id);
-        if (!input) continue;
-        const pago = state.currentTicket.payments.find(p => p.method === method.id);
-        input.value = pago ? String(Number(convert(pago.amountUSD, state.settings.currency).toFixed(2))) : '';
+    if (slots.length === 0) {
+        // Rehidrata los métodos del ticket (p. ej. tras un F5 a mitad de cobro).
+        for (const p of state.currentTicket.payments) {
+            if (methods.some(m => m.id === p.method)) slots.push(p.method);
+        }
     }
+
+    const restantes = methods.filter(m => !slots.includes(m.id));
+    select.innerHTML = restantes.length
+        ? restantes.map(m => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.label)}</option>`).join('')
+        : '<option value="" disabled>Sin métodos disponibles</option>';
+    select.value = restantes[0]?.id ?? '';
+
+    list.innerHTML = slots.map(id => {
+        const m = methods.find(x => x.id === id);
+        if (!m) return '';
+        const pago = state.currentTicket.payments.find(p => p.method === id);
+        const valor = pago ? String(Number(convert(pago.amountUSD, state.settings.currency).toFixed(2))) : '';
+        return `
+            <div class="payment-row">
+                <label class="payment-row__label" for="pay-${escapeHtml(m.id)}">
+                    <i class="fa-solid ${escapeHtml(m.icon || 'fa-credit-card')}" aria-hidden="true"></i>
+                    <span>${escapeHtml(m.label)}</span>
+                    <span class="badge badge--tag badge--${escapeHtml(m.type)}">${escapeHtml(TYPE_LABELS[m.type] || m.type)}</span>
+                </label>
+                <input type="number" id="pay-${escapeHtml(m.id)}" min="0" step="0.01" inputmode="decimal"
+                       placeholder="0.00" data-action="payment-amount" data-method="${escapeHtml(m.id)}"
+                       class="input ticket__received" aria-label="Monto de ${escapeHtml(m.label)}">
+                <button type="button" data-action="remove-payment-method" data-method="${escapeHtml(m.id)}"
+                        class="btn btn--danger btn--ghost btn--icon" title="Quitar ${escapeHtml(m.label)} del cobro"
+                        aria-label="Quitar ${escapeHtml(m.label)} del cobro">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+            </div>`;
+    }).join('') || '<p class="payment-empty">Elige un método y toca Agregar.</p>';
+
     updatePaymentSummary();
 }
 
-function paymentInput(method) {
-    return document.querySelector(`[data-action="payment-amount"][data-method="${method}"]`);
-}
-
 /**
- * Lee los inputs, actualiza el ticket (en USD) y devuelve una copia de los
- * pagos. Un campo vacío o ilegible cuenta como 0 (método sin usar).
+ * Lee los inputs del cobro (solo los métodos agregados), actualiza el ticket
+ * (en USD) y devuelve una copia de los pagos. Un campo vacío o ilegible
+ * cuenta como 0 (método sin usar).
  */
 export function collectPayments() {
     const state = getState();
-    for (const method of activePaymentMethods(state)) {
-        const input = paymentInput(method.id);
-        const crudo = input ? input.value.trim() : '';
+    document.querySelectorAll('#payment-list [data-action="payment-amount"]').forEach(input => {
+        const crudo = input.value.trim();
         const n = Number(crudo);
         const usd = crudo === '' || !Number.isFinite(n) || n <= 0
             ? 0
             : toUSD(n, state.settings.currency);
-        setPaymentAmount(method.id, usd);
-    }
+        setPaymentAmount(input.dataset.method, usd);
+    });
     return state.currentTicket.payments.map(p => ({ ...p }));
 }
 

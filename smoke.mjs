@@ -178,6 +178,16 @@ async function main() {
         `document.getElementById('topbar-menu-panel').contains(document.getElementById('user-chip')) && document.getElementById('topbar-menu-panel').contains(document.getElementById('menu-date'))`);
     await check('tema y fecha viven en el menú, no en el sidebar',
         `document.getElementById('topbar-menu-panel').contains(document.getElementById('theme-toggle')) && document.getElementById('topbar-menu-panel').contains(document.getElementById('menu-date')) && !document.querySelector('.sidebar__bottom')`);
+    await check('tema, Configuración y Salir comparten la fila del pie',
+        `(() => {
+            const foot = document.querySelector('.topbar-menu__foot');
+            const ids = ['theme-toggle', 'menu-settings'];
+            for (const id of ids) if (!foot.contains(document.getElementById(id))) return false;
+            if (!foot.querySelector('[data-action="logout"]')) return false;
+            const rects = [...foot.children].map(c => c.getBoundingClientRect());
+            for (const r of rects) if (r.height === 0) return false;
+            return rects.slice(1).every((r, i) => Math.abs(r.top - rects[i].top) < 2);
+        })()`);
     await check('el menú ya no tiene grupo Herramientas', `!document.querySelector('#topbar-menu-panel #menu-group-tools')`);
     await check('el panel cabe en pantalla',
         `(() => { const r = document.getElementById('topbar-menu-panel').getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth && r.top > 0; })()`);
@@ -293,17 +303,23 @@ async function main() {
     await evaluar(`document.querySelector('.pos__next').click()`);
     await esperar(150);
 
-    // Pago mixto: métodos activos (filas dinámicas) y resumen Pagado/Falta/Vuelto
-    await check('cuatro inputs de pago', `document.querySelectorAll('[data-action="payment-amount"]').length === 4`);
-    await check('filas de pago marcan su tipo (2 físicos / 2 electrónicos)', `(() => {
-        const rows = document.querySelectorAll('.payment-row');
-        return rows.length === 4
-            && document.querySelectorAll('.payment-row .badge--fisico').length === 2
-            && document.querySelectorAll('.payment-row .badge--electronico').length === 2;
+    // Pago a elección: el cobro ya no fija todos los métodos; se agregan con
+    // el select + «Agregar» y después se escribe el monto de cada uno.
+    await check('cobro sin filas fijas: el select ofrece los 4 métodos',
+        `document.querySelectorAll('#payment-select option').length === 4 && document.querySelectorAll('#payment-list .payment-row').length === 0`);
+    await evaluar(`(() => {
+        document.getElementById('payment-select').value = 'cash';
+        document.querySelector('[data-action="add-payment-method"]').click();
+        return true;
     })()`);
+    await esperar(150);
+    await check('método agregado aparece con su fila', `document.querySelectorAll('#payment-list .payment-row').length === 1`);
+    await check('la fila marca su tipo (Físico)', `!!document.querySelector('#payment-list .payment-row .badge--fisico')`);
+    await check('el select ya no ofrece el método agregado', `![...document.querySelectorAll('#payment-select option')].some(o => o.value === 'cash')`);
     await evaluar(`(() => { const i = document.querySelector('[data-action="payment-amount"][data-method="cash"]'); i.value = '100'; i.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
     await esperar(120);
     await check('vuelto calculado ($24.60)', `document.getElementById('ticket-change').textContent.includes('24.60')`);
+    await check('resumen Pagado refleja el monto', `document.getElementById('ticket-paid').textContent.includes('100')`);
 
     // La caja arranca cerrada: el modal confirma, pero el cobro se rechaza (gate)
     await check('badge de caja con caja cerrada (icono opaco)', `document.getElementById('cash-badge-icon').classList.contains('fa-lock') && !document.getElementById('cash-badge-icon').classList.contains('fa-cash-register')`);
@@ -534,8 +550,18 @@ async function main() {
     await check('tema aplicado al arrancar', `['dark', 'light'].includes(document.documentElement.dataset.theme)`);
     await check('botón de tema presente con icono', `!!document.getElementById('theme-toggle')?.querySelector('i')`);
     await menuAbierto();
-    await check('el tema del menú es cuadrado (icono centrado)',
-        `(() => { const r = document.getElementById('theme-toggle').getBoundingClientRect(); return r.width > 0 && Math.abs(r.width - r.height) <= 1; })()`);
+    // El tema comparte el tercio del pie con Configuración y Salir. El reparto
+    // flex de Chromium no da píxeles exactamente idénticos; se valida ancho
+    // comparable y alineación (misma fila y altura).
+    await check('el tema comparte fila en el pie del menú con ancho comparable',
+        `(() => {
+            const foot = document.querySelector('.topbar-menu__foot');
+            const rects = [...foot.children].map(c => c.getBoundingClientRect());
+            if (rects.length !== 3) return false;
+            const w = rects.map(r => r.width);
+            return Math.max(...w) - Math.min(...w) < 14
+                && rects.every(r => r.height > 0 && Math.abs(r.top - rects[0].top) < 2);
+        })()`);
 
     await evaluar(`document.getElementById('theme-toggle').click()`); // auto → dark
     await esperar(150);
@@ -826,7 +852,7 @@ async function main() {
         true`);
     await esperar(200);
     await check('método custom agregado (5)', `document.querySelectorAll('#payment-methods-list tr').length === 5`);
-    await check('el POS refleja el método nuevo al instante (5 inputs)', `document.querySelectorAll('[data-action="payment-amount"]').length === 5`);
+    await check('el POS refleja el método nuevo al instante (5 opciones)', `document.querySelectorAll('#payment-select option').length === 5 && [...document.querySelectorAll('#payment-select option')].some(o => o.textContent.includes('Zelle'))`);
     await check('el método se ve con su tipo', `(() => {
         const rows = [...document.querySelectorAll('#payment-methods-list tr')];
         const z = rows.find(r => r.textContent.includes('Zelle'));

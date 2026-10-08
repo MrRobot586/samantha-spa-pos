@@ -373,32 +373,60 @@
     padding-top: var(--space-6);
 }
 
+/* Agregar un método de pago al cobro (select + botón), en vez de fijarlos
+   todos: el cajero elige solo los métodos que va a usar. */
+.payment-add {
+    display: flex;
+    gap: var(--space-4);
+    margin-bottom: var(--space-4);
+}
+
+.payment-add__select {
+    flex: 1;
+    min-width: 0;
+}
+
 .payment-list {
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
 }
 
+.payment-empty {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+}
+
 .payment-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: var(--space-4);
+    gap: var(--space-3);
 }
 
 .payment-row__label {
     display: flex;
     align-items: center;
     gap: var(--space-3);
+    flex: 1;
+    min-width: 0;
     font-size: var(--fs-sm);
     font-weight: 600;
     color: var(--text-muted);
+}
+
+.payment-row__label span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .payment-row__label i {
     width: 1rem;
     text-align: center;
     color: var(--brand-500);
+    flex: 0 0 auto;
 }
 
 .payment-row__label .badge--fisico {
@@ -409,6 +437,10 @@
 .payment-row__label .badge--electronico {
     color: var(--brand-400);
     background: var(--brand-10);
+}
+
+.payment-row .btn--icon {
+    flex: 0 0 auto;
 }
 
 .payment-hint {

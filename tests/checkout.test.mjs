@@ -43,10 +43,10 @@ test('cobro exitoso: descuenta productos y recetas, paga comisión y registra la
 test('stock de un producto de venta insuficiente: lanza CheckoutError y NO muta el estado', () => {
     const state = createSeedState();
     openCashSession(0, state);
-    const producto = state.products.find(p => p.id === 'p3');
-    producto.stock = 0;
-
+    // Se agrega con stock suficiente y el stock se agota antes del pago
+    // (el toque de addItem ya cubre el caso "sin stock al agregar").
     addItem('product', 'p3', state);
+    state.products.find(p => p.id === 'p3').stock = 0;
     const antes = JSON.stringify(state);
 
     assert.throws(() => processPayment(state), CheckoutError);

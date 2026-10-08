@@ -28,6 +28,35 @@ test('addItem rechaza insumos de uso interno y ids inexistentes', () => {
     assert.equal(state.currentTicket.items.length, 0);
 });
 
+test('addItem y changeQty no pasan del stock disponible de un producto', () => {
+    const state = createSeedState();
+
+    // p4 tiene stock 3: se puede llenar hasta 3 y luego se bloquea.
+    addItem('product', 'p4', state);
+    addItem('product', 'p4', state);
+    addItem('product', 'p4', state);
+    assert.equal(state.currentTicket.items[0].qty, 3);
+    assert.throws(() => addItem('product', 'p4', state), /disponible/);
+
+    // El stepper (+ del checklist) también respeta el tope.
+    state.currentTicket.items[0].qty = 2;
+    changeQty(0, 1, state);
+    assert.equal(state.currentTicket.items[0].qty, 3);
+    assert.throws(() => changeQty(0, 1, state), /disponible/);
+
+    // Sin stock no se puede agregar el producto (aunque esté en el ticket).
+    state.products.find(p => p.id === 'p4').stock = 0;
+    assert.throws(() => addItem('product', 'p4', state), /stock/);
+
+    // Bajar cantidad siempre se puede, y los servicios no tienen tope.
+    changeQty(0, -1, state);
+    assert.equal(state.currentTicket.items[0].qty, 2);
+    clearTicket(state);
+    addItem('service', 's1', state);
+    addItem('service', 's1', state);
+    assert.equal(state.currentTicket.items[0].qty, 2);
+});
+
 test('changeQty incrementa, decrementa y elimina al bajar de 1', () => {
     const state = createSeedState();
     addItem('product', 'p3', state);

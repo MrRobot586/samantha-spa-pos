@@ -16,7 +16,10 @@ import { findStaff, roleCommissionRate } from './staff.js';
 import { findProduct } from './inventory.js';
 import { findService } from './services.js';
 
-/** Agrega un servicio o producto de venta al ticket (qty 1 o +1 si ya existe). */
+/**
+ * Agrega un servicio o producto de venta al ticket (qty 1 o +1 si ya existe).
+ * Un producto de venta se limita al stock disponible: no se puede pedir más.
+ */
 export function addItem(type, id, state = getState()) {
     if (type !== 'service' && type !== 'product') {
         throw new Error('Tipo de ítem no válido.');
@@ -29,8 +32,16 @@ export function addItem(type, id, state = getState()) {
         throw new Error('Los productos de uso interno no se venden por separado.');
     }
 
+    const disponible = type === 'product' ? Math.max(0, Number(item.stock) || 0) : Infinity;
+    if (disponible === 0) {
+        throw new Error(`No queda stock de "${item.name}".`);
+    }
+
     const existing = state.currentTicket.items.find(i => i.type === type && i.id === id);
     if (existing) {
+        if (existing.qty + 1 > disponible) {
+            throw new Error(`Solo hay ${disponible} disponible(s) de "${item.name}".`);
+        }
         existing.qty += 1;
     } else {
         state.currentTicket.items.push({ type, id, name: item.name, price: item.price, qty: 1 });
@@ -38,10 +49,20 @@ export function addItem(type, id, state = getState()) {
     return state.currentTicket;
 }
 
-/** Cambia la cantidad del ítem en `index`; lo elimina si baja de 1. */
+/**
+ * Cambia la cantidad del ítem en `index`; lo elimina si baja de 1. Subir a un
+ * producto de venta no puede pasar del stock disponible.
+ */
 export function changeQty(index, delta, state = getState()) {
     const item = state.currentTicket.items[index];
     if (!item) return;
+    if (delta > 0 && item.type === 'product') {
+        const product = findProduct(item.id, state);
+        const disponible = Math.max(0, Number(product?.stock) || 0);
+        if (item.qty + delta > disponible) {
+            throw new Error(`Solo hay ${disponible} disponible(s) de "${item.name}".`);
+        }
+    }
     item.qty += delta;
     if (item.qty <= 0) {
         state.currentTicket.items.splice(index, 1);

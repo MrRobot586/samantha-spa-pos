@@ -596,11 +596,24 @@
     max-width: 24rem;
 }
 
+/* El % vive DENTRO del input (sufijo del control), no debajo del campo. */
+.settings-commission__control {
+    position: relative;
+}
+
+.settings-commission__control .input {
+    width: 100%;
+    padding-right: var(--space-12);
+}
+
 .settings-commission__unit {
-    margin-left: calc(-1 * var(--space-8));
-    margin-bottom: 0.75rem;
+    position: absolute;
+    right: var(--space-6);
+    top: 50%;
+    transform: translateY(-50%);
     font-weight: 600;
     color: var(--text-muted);
+    pointer-events: none;
 }
 
 .settings-actions {
@@ -779,6 +792,14 @@
         width: 2.75rem;
         height: 2.75rem;
         min-height: 0;
+    }
+
+    /* En el pie del menú el tema deja de ser cuadrado: comparte la fila con
+       Configuración y Salir repartiendo el tercio, como el resto de botones. */
+    .topbar-menu__foot .theme-toggle {
+        width: auto;
+        height: auto;
+        min-height: 44px;
     }
 }
 

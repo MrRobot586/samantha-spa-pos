@@ -20,7 +20,7 @@ import { renderUsersList, fillUserForm, resetUserForm } from './ui/users-view.js
 import { toast, toastSuccess, toastError } from './ui/dialogs.js';
 import { openModal, closeModal, initModals } from './ui/modals.js';
 import { toggleMenu, closeMenu, initMenu } from './ui/menu.js';
-import { renderStaffSelect, renderCatalog, renderTicket, renderFilters, updateTotals, renderPayment, renderSaleConfirm, collectPayments, updatePaymentSummary, renderPosStep, goToPosStep, completePosStep, toggleItem, removeSelectedItems, clearSelected, initCatalogDrag } from './ui/pos.js';
+import { renderStaffSelect, renderCatalog, renderTicket, renderFilters, updateTotals, renderPayment, renderSaleConfirm, collectPayments, updatePaymentSummary, renderPosStep, goToPosStep, completePosStep, toggleItem, removeSelectedItems, clearSelected, initCatalogDrag, addPaymentSlot, removePaymentSlot, resetPaymentSlots } from './ui/pos.js';
 import { renderDashboard } from './ui/dashboard.js';
 import { renderServicesCards, fillServiceForm } from './ui/services-view.js';
 import { renderInventoryTable, fillProductForm } from './ui/inventory-view.js';
@@ -219,13 +219,19 @@ function handleAction(el, action) {
             break;
 
         case 'qty':
-            changeQty(Number(el.dataset.idx), Number(el.dataset.delta));
+            try {
+                changeQty(Number(el.dataset.idx), Number(el.dataset.delta));
+            } catch (err) {
+                toastError(err.message);
+                break;
+            }
             renderTicket();
             persist();
             break;
 
         case 'clear-ticket':
             clearTicket();
+            resetPaymentSlots();
             renderTicket();
             renderPayment();
             persist();
@@ -307,8 +313,17 @@ function handleAction(el, action) {
             break;
         }
 
+        case 'add-payment-method':
+            addPaymentSlot();
+            break;
+
+        case 'remove-payment-method':
+            removePaymentSlot(el.dataset.method);
+            break;
+
         case 'pos-new-sale':
             goToPosStep(1);
+            resetPaymentSlots();
             renderTicket();
             renderPayment();
             renderPosStep();
