@@ -114,6 +114,11 @@ La app arranca en la pantalla de login. Credenciales semilla:
   orden (se prunan índices que dejen de existir). El `checkbox` fuerza el
   re-render del listado para mantener el contador al día sin desincronizar el
   resto del ticket.
+- **Drag & drop del catálogo → orden:** las tarjetas son `draggable` (gesto
+  de agarrar) y se sueltan sobre la orden; el drop reusa el clic del botón,
+  así pasa por el mismo `addItem` + render + persist que el resto de las
+  entradas. El `drag` nativo no aplica en táctil, donde se mantiene el clic
+  como vía accesible.
 - El ticket se cobra con los **métodos de pago activos** (`settings.paymentMethods`):
   de fábrica son **Efectivo, Débito, Pago Móvil y Divisa**, y el administrador
   los agrega, renombra o borra desde la pestaña **Configuración**. El cobro es
@@ -447,6 +452,8 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
     servicio; marcar casillas muestra la barra con contador y *Quitar
     selección*; *Eliminar* borra todos los marcados y la barra desaparece con
     la orden vacía. La selección no persiste en F5.
+28. Arrastrar una tarjeta del catálogo hasta la orden la agrega (igual que el
+    clic, con persistencia); el clic sigue funcionando como alternativa.
 
 ## Fuera de alcance (posibles siguientes pasos)
 

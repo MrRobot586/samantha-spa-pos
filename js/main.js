@@ -20,7 +20,7 @@ import { renderUsersList, fillUserForm, resetUserForm } from './ui/users-view.js
 import { toast, toastSuccess, toastError } from './ui/dialogs.js';
 import { openModal, closeModal, initModals } from './ui/modals.js';
 import { toggleMenu, closeMenu, initMenu } from './ui/menu.js';
-import { renderStaffSelect, renderCatalog, renderTicket, renderFilters, updateTotals, renderPayment, renderSaleConfirm, collectPayments, updatePaymentSummary, renderPosStep, goToPosStep, completePosStep, toggleItem, removeSelectedItems, clearSelected } from './ui/pos.js';
+import { renderStaffSelect, renderCatalog, renderTicket, renderFilters, updateTotals, renderPayment, renderSaleConfirm, collectPayments, updatePaymentSummary, renderPosStep, goToPosStep, completePosStep, toggleItem, removeSelectedItems, clearSelected, initCatalogDrag } from './ui/pos.js';
 import { renderDashboard } from './ui/dashboard.js';
 import { renderServicesCards, fillServiceForm } from './ui/services-view.js';
 import { renderInventoryTable, fillProductForm } from './ui/inventory-view.js';
@@ -807,6 +807,7 @@ function boot() {
 
     initModals();
     initMenu();
+    initCatalogDrag();
 
     if (recovered === 'corrupto') {
         toast('Los datos guardados estaban corruptos. Se respaldaron y se reinició el inventario.', 'danger', 6000);

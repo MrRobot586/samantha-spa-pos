@@ -721,6 +721,21 @@ async function main() {
     })()`);
     await esperar(200);
     await check('POS en paso 1 para el checklist', `!document.querySelector('#tab-pos .pos-layout').classList.contains('is-hidden')`);
+    // Drag & drop del catálogo → orden (complemento del clic)
+    await check('todo el catálogo es arrastrable', `document.querySelectorAll('.catalog-card:not([draggable="true"])').length === 0`);
+    await evaluar(`(() => {
+        const card = document.querySelector('[data-action="add-item"][data-type="service"]');
+        const ticket = document.querySelector('.ticket');
+        const dt = new DataTransfer();
+        card.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
+        ticket.dispatchEvent(new DragEvent('dragover', { bubbles: true, dataTransfer: dt, cancelable: true }));
+        ticket.dispatchEvent(new DragEvent('drop', { bubbles: true, dataTransfer: dt, cancelable: true }));
+        card.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: dt }));
+        return true;
+    })()`);
+    await esperar(150);
+    await check('drag & drop agrega el ítem a la orden', `document.querySelectorAll('#ticket-items-container .ticket-item').length === 1`);
+    await check('drag & drop pasó por persistencia', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).currentTicket.items.length === 1`);
     // Dos ítems: un servicio + un producto de venta
     await evaluar(`document.querySelector('[data-action="add-item"][data-type="service"]').click(); true`);
     await esperar(80);

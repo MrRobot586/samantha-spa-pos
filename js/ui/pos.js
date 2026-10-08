@@ -12,6 +12,9 @@ const TYPE_LABELS = { fisico: 'Físico', electronico: 'Electrónico' };
 /** Índices marcados en el checklist de la orden (solo UI, no se persiste). */
 const selected = new Set();
 
+/** Payload del ítem en curso de arrastre (drag & drop del catálogo → orden). */
+let dragData = null;
+
 function clearSelection() {
     selected.clear();
 }
@@ -44,7 +47,7 @@ export function renderCatalog() {
         for (const s of state.services) {
             if (!matches(s.name)) continue;
             html += `
-                <button type="button" data-action="add-item" data-type="service" data-id="${escapeHtml(s.id)}" class="catalog-card">
+                <button type="button" data-action="add-item" data-type="service" data-id="${escapeHtml(s.id)}" draggable="true" class="catalog-card">
                     <div>
                         <span class="badge badge--tag badge--service">Servicio</span>
                         <h4 class="catalog-card__name">${escapeHtml(s.name)}</h4>
@@ -62,7 +65,7 @@ export function renderCatalog() {
             if (!matches(p.name)) continue;
             const isLow = p.stock <= p.minStock;
             html += `
-                <button type="button" data-action="add-item" data-type="product" data-id="${escapeHtml(p.id)}" class="catalog-card catalog-card--sale">
+                <button type="button" data-action="add-item" data-type="product" data-id="${escapeHtml(p.id)}" draggable="true" class="catalog-card catalog-card--sale">
                     <div>
                         <div class="catalog-card__top">
                             <span class="badge badge--tag badge--sale-tag">Producto</span>
@@ -80,6 +83,54 @@ export function renderCatalog() {
 
     grid.innerHTML = html ||
         '<p class="empty-cell" style="grid-column: 1 / -1;">No se encontraron ítems.</p>';
+}
+
+/**
+ * Drag & drop nativo del catálogo → orden (complemento del clic, que sigue
+ * siendo la vía accesible). En el drop se reutiliza el clic del botón, así el
+ * ítem pasa por el mismo addItem + render + persist que el resto de entradas.
+ */
+export function initCatalogDrag() {
+    const dropZone = document.querySelector('.ticket');
+    if (!dropZone) return;
+
+    document.addEventListener('dragstart', (e) => {
+        const card = e.target.closest('[data-action="add-item"].catalog-card');
+        if (!card) return;
+        dragData = { type: card.dataset.type, id: card.dataset.id };
+        e.dataTransfer.effectAllowed = 'copy';
+        e.dataTransfer.setData('text/plain', JSON.stringify(dragData));
+        card.classList.add('is-dragging');
+    });
+
+    document.addEventListener('dragend', (e) => {
+        const card = e.target.closest('[data-action="add-item"].catalog-card');
+        if (card) card.classList.remove('is-dragging');
+        dropZone.classList.remove('is-drag-over');
+        dragData = null;
+    });
+
+    document.addEventListener('dragover', (e) => {
+        if (!dragData || !dropZone.contains(e.target)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+        dropZone.classList.add('is-drag-over');
+    });
+
+    document.addEventListener('dragleave', (e) => {
+        if (dropZone.contains(e.target)) return;
+        dropZone.classList.remove('is-drag-over');
+    });
+
+    document.addEventListener('drop', (e) => {
+        if (!dragData || !dropZone.contains(e.target)) return;
+        e.preventDefault();
+        dropZone.classList.remove('is-drag-over');
+        const { type, id } = dragData;
+        dragData = null;
+        const card = document.querySelector(`[data-action="add-item"][data-type="${type}"][data-id="${id}"]`);
+        card?.click();
+    });
 }
 
 export function renderTicket() {
