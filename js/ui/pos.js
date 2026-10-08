@@ -5,7 +5,7 @@ import { getState } from '../core/state.js';
 import { money, escapeHtml } from '../core/utils.js';
 import { toUSD, convert } from '../core/rates.js';
 import { ticketTotals, setPaymentAmount } from '../domain/ticket.js';
-import { PAYMENT_METHODS, methodLabel, settlePayments } from '../domain/payments.js';
+import { activePaymentMethods, methodLabel, settlePayments } from '../domain/payments.js';
 
 export function renderStaffSelect() {
     const state = getState();
@@ -114,7 +114,7 @@ export function updateTotals() {
 /** Vuelca los pagos guardados a los inputs (montos en la moneda activa). */
 export function renderPayment() {
     const state = getState();
-    for (const method of PAYMENT_METHODS) {
+    for (const method of activePaymentMethods(state)) {
         const input = paymentInput(method.id);
         if (!input) continue;
         const pago = state.currentTicket.payments.find(p => p.method === method.id);
@@ -133,7 +133,7 @@ function paymentInput(method) {
  */
 export function collectPayments() {
     const state = getState();
-    for (const method of PAYMENT_METHODS) {
+    for (const method of activePaymentMethods(state)) {
         const input = paymentInput(method.id);
         const crudo = input ? input.value.trim() : '';
         const n = Number(crudo);
@@ -182,7 +182,7 @@ export function renderSaleConfirm() {
     const filasPago = pagos.length > 0
         ? pagos.map(p => `
             <div class="sale-confirm__row">
-                <span>${escapeHtml(methodLabel(p.method))}</span>
+                <span>${escapeHtml(methodLabel(p.method, activePaymentMethods(state)))}</span>
                 <span>${money(p.amountUSD)}</span>
             </div>`).join('')
         : '<div class="sale-confirm__row"><span>Sin pagos registrados</span><span>—</span></div>';

@@ -12,7 +12,7 @@
 import { getState } from '../core/state.js';
 import { TAX_RATE } from '../core/config.js';
 import { isPaymentMethod } from './payments.js';
-import { findStaff } from './staff.js';
+import { findStaff, roleCommissionRate } from './staff.js';
 import { findProduct } from './inventory.js';
 import { findService } from './services.js';
 
@@ -86,11 +86,12 @@ export function setPaymentAmount(method, amountUSD, state = getState()) {
 
 /**
  * Subtotal, IVA, total y comisión estimada del ticket actual.
- * Comisión: solo sobre servicios, con la tasa del estilista del ticket.
+ * Comisión: solo sobre servicios, con la tasa del rol (settings), y solo si
+ * hay un estilista seleccionado (sin estilista no hay a quién acreditarla).
  */
 export function ticketTotals(state = getState()) {
     const staff = findStaff(state.currentTicket.staffId, state);
-    const rate = staff ? staff.commissionRate : 0;
+    const rate = staff ? roleCommissionRate(state) : 0;
 
     let subtotal = 0;
     let commission = 0;

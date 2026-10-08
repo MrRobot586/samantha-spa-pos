@@ -25,13 +25,14 @@ const str = v => (typeof v === 'string' ? v : null);
 const signed = v => (isNum(v) ? v : 0);
 const validDate = v => nonEmpty(v) && !Number.isNaN(new Date(v).getTime());
 
-/** Métodos de pago actuales. 'other' es histórico; 'card' se migra a 'debit'. */
+/** Métodos de pago de fábrica. 'other' es histórico; 'card' se migra a 'debit'.
+ *  `known` son los ids vigentes en settings (métodos custom del admin). */
 const PAYMENT_IDS = ['cash', 'debit', 'pago_movil', 'divisa'];
 const HISTORIC_METHOD = 'other';
-function mapMethod(m) {
+function mapMethod(m, known = []) {
     if (m === 'card') return 'debit';           // migración del nombre viejo
     if (m === HISTORIC_METHOD) return 'other';  // el historial lo conserva
-    return PAYMENT_IDS.includes(m) ? m : null;
+    return PAYMENT_IDS.includes(m) || known.includes(m) ? m : null;
 }
 
 function normalizeStaff(list, fallback) {
@@ -82,7 +83,7 @@ function normalizeServices(list, fallback, products) {
     return clean.length || list.length === 0 ? clean : fallback;
 }
 
-function normalizeTicket(raw, staff, products, services) {
+function normalizeTicket(raw, staff, products, services, knownMethods = []) {
     const fallback = { items: [], staffId: staff[0]?.id ?? '', payments: [] };
     if (!isObject(raw)) return fallback;
 
@@ -104,20 +105,20 @@ function normalizeTicket(raw, staff, products, services) {
     const staffId = staff.some(s => s.id === raw.staffId) ? raw.staffId : fallback.staffId;
 
     const payments = (Array.isArray(raw.payments) ? raw.payments : [])
-        .map(p => (isObject(p) ? { method: mapMethod(p.method), amountUSD: num(p.amountUSD, 0) } : null))
+        .map(p => (isObject(p) ? { method: mapMethod(p.method, knownMethods), amountUSD: num(p.amountUSD, 0) } : null))
         .filter(p => p && p.method && p.amountUSD !== null && p.amountUSD > 0);
 
     return { items, staffId, payments };
 }
 
-function normalizeTransactions(list) {
+function normalizeTransactions(list, knownMethods = []) {
     if (!Array.isArray(list)) return [];
     return list
         .filter(t => isObject(t) && nonEmpty(t.id) && nonEmpty(t.date))
         .filter(t => !Number.isNaN(new Date(t.date).getTime()))
         .map(t => {
             const total = num(t.total, 0) ?? 0;
-            const method = mapMethod(t.method) || 'cash';
+            const method = mapMethod(t.method, knownMethods) || 'cash';
             // Ventas viejas sin recibido: se asume pago exacto.
             const receivedUSD = Math.max(total, num(t.receivedUSD, 0) ?? total);
             const changeUSD = Math.max(0, num(t.changeUSD, 0) ?? 0);
@@ -126,7 +127,7 @@ function normalizeTransactions(list) {
                 ? t.payments
                 : [{ method, amountUSD: total }];
             const payments = pagosRaw
-                .map(p => (isObject(p) ? { method: mapMethod(p.method), amountUSD: num(p.amountUSD, 0) } : null))
+                .map(p => (isObject(p) ? { method: mapMethod(p.method, knownMethods), amountUSD: num(p.amountUSD, 0) } : null))
                 .filter(p => p && p.method && p.amountUSD !== null && p.amountUSD > 0);
             return {
                 id: t.id,
@@ -209,6 +210,26 @@ const TICKET_WIDTHS = [58, 80];
 const ticketText = (v, fallback) =>
     nonEmpty(v) ? v.trim().slice(0, 80) : fallback;
 
+/** Métodos de pago válidos desde settings: id/label no vacíos, type fijado,
+ *  sin duplicados. Si no hay nada usable, vuelve a los de fábrica. */
+function normalizePaymentMethods(raw) {
+    const clean = (Array.isArray(raw) ? raw : [])
+        .filter(m => isObject(m) && nonEmpty(m.id) && nonEmpty(m.label))
+        .map(m => ({
+            id: str(m.id).trim().slice(0, 24),
+            label: str(m.label).trim().slice(0, 32),
+            icon: nonEmpty(m.icon) ? str(m.icon).trim().slice(0, 48)
+                : (m.type === 'fisico' ? 'fa-money-bill' : 'fa-credit-card'),
+            type: m.type === 'fisico' ? 'fisico' : 'electronico'
+        }))
+        .filter((m, i, arr) => arr.findIndex(x => x.id === m.id) === i);
+
+    if (clean.length === 0) return createSeedState().settings.paymentMethods;
+    // `cash` es el respaldo del cobro y del arqueo: nunca desaparece.
+    if (!clean.some(m => m.id === 'cash')) clean.unshift(createSeedState().settings.paymentMethods[0]);
+    return clean;
+}
+
 function normalizeSettings(raw) {
     const currency = isObject(raw) && CURRENCIES.includes(raw.currency) ? raw.currency : 'USD';
     const rateSource = isObject(raw) && RATE_SOURCES.includes(raw.rateSource) ? raw.rateSource : 'usd';
@@ -224,7 +245,20 @@ function normalizeSettings(raw) {
         showPrices: tRaw.showPrices !== false
     };
 
-    return { currency, theme, rateSource, ticket };
+    // Comisión del rol: 0–100 con 2 decimales (defecto 45).
+    const comm = num(raw && raw.stylistCommissionRate, 0);
+    const stylistCommissionRate = comm === null
+        ? 45
+        : Math.min(Math.max(Math.round(comm * 100) / 100, 0), 100);
+
+    return {
+        currency,
+        theme,
+        rateSource,
+        stylistCommissionRate,
+        paymentMethods: normalizePaymentMethods(raw && raw.paymentMethods),
+        ticket
+    };
 }
 
 function normalizeCashSession(raw) {
@@ -294,17 +328,19 @@ export function normalizeState(raw) {
     const products = normalizeProducts(raw.products, seed.products);
     const services = normalizeServices(raw.services, seed.services, products);
     const staff = normalizeStaff(raw.staff, seed.staff);
+    const settings = normalizeSettings(raw.settings);
+    const methodIds = settings.paymentMethods.map(m => m.id);
 
     return {
         users: normalizeUsers(raw.users, seed.users, staff),
-        settings: normalizeSettings(raw.settings),
+        settings,
         cashSession: normalizeCashSession(raw.cashSession),
         closures: normalizeClosures(raw.closures),
         staff,
         products,
         services,
-        currentTicket: normalizeTicket(raw.currentTicket, staff, products, services),
-        transactions: normalizeTransactions(raw.transactions),
+        currentTicket: normalizeTicket(raw.currentTicket, staff, products, services, methodIds),
+        transactions: normalizeTransactions(raw.transactions, methodIds),
         posFilterCategory: ['all', 'service', 'sale'].includes(
             raw.posFilterCategory === 'retail' ? 'sale' : raw.posFilterCategory
         )

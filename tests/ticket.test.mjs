@@ -96,16 +96,24 @@ test('ticketTotals: subtotal + IVA 16% + total', () => {
     assert.equal(totals.total, 75.4);
 });
 
-test('ticketTotals: la comisión usa la tasa del estilista seleccionado', () => {
+test('ticketTotals: la comisión usa la tasa global del rol (settings)', () => {
     const state = createSeedState();
     addItem('service', 's1', state); // $65.00
 
-    // Valeria (st1) = 50%
+    // Default de fábrica: 45% de 65 = 29.25
+    assert.equal(ticketTotals(state).commission, 29.25);
+
+    // El admin sube la tasa del rol → la comisión cambia para todos
+    state.settings.stylistCommissionRate = 50;
     assert.equal(ticketTotals(state).commission, 32.5);
 
-    // Sofia (st3) = 40% → la comisión cambia aunque el servicio sea el mismo
+    // Cambiar de estilista ya NO cambia la tasa: es del rol
     setTicketStaff('st3', state);
-    assert.equal(ticketTotals(state).commission, 26);
+    assert.equal(ticketTotals(state).commission, 32.5);
+
+    // Sin estilista seleccionado no se acredita comisión a nadie
+    state.currentTicket.staffId = '';
+    assert.equal(ticketTotals(state).commission, 0);
 });
 
 test('ticketTotals: el producto de venta no genera comisión', () => {

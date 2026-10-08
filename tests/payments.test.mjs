@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import {
     PAYMENT_METHODS, PAYMENT_IDS, CASH_DRAWER_METHODS,
     methodById, methodLabel, isPaymentMethod, isCashDrawerMethod,
-    normalizePayments, paymentsOf, primaryMethod, settlePayments, PaymentError
+    normalizePayments, paymentsOf, primaryMethod, settlePayments, PaymentError,
+    activePaymentMethods, cashDrawerMethods
 } from '../js/domain/payments.js';
 
 test('catálogo: cuatro métodos, efectivo y divisa en el cajón', () => {
@@ -103,4 +104,51 @@ test('settlePayments: el efectivo puede exceder el total (da vuelto)', () => {
     const s = settlePayments([{ method: 'cash', amountUSD: 100 }], 75.4);
     assert.equal(s.changeUSD, 24.6);
     assert.deepEqual(s.payments, [{ method: 'cash', amountUSD: 75.4 }]);
+});
+
+test('activePaymentMethods: lee settings, garantiza cash y descarta basura', () => {
+    // Un método custom electrónico: cash sigue presente como respaldo.
+    const methods = activePaymentMethods({
+        settings: { paymentMethods: [{ id: 'zelle', label: 'Zelle', type: 'electronico' }] }
+    });
+    assert.deepEqual(methods.map(m => m.id), ['cash', 'zelle']);
+    assert.equal(methods.find(m => m.id === 'zelle').type, 'electronico');
+    assert.equal(methods.find(m => m.id === 'zelle').icon, 'fa-credit-card');
+
+    // Sin settings no-array → los de fábrica.
+    assert.deepEqual(activePaymentMethods({ settings: {} }), PAYMENT_METHODS);
+
+    // Duplicados y sin etiqueta se descartan.
+    const dedup = activePaymentMethods({
+        settings: { paymentMethods: [
+            { id: 'cash', label: 'Efectivo', type: 'fisico' },
+            { id: 'cash', label: 'Efectivo de nuevo', type: 'fisico' },
+            { id: 'x', label: '', type: 'fisico' }
+        ] }
+    });
+    assert.deepEqual(dedup.map(m => m.id), ['cash']);
+});
+
+test('métodos custom: aplican en etiquetas, vuelto y arqueo', () => {
+    const methods = [
+        { id: 'cash', label: 'Efectivo', icon: 'fa-money-bill-wave', type: 'fisico' },
+        { id: 'efecty', label: 'Efecty', icon: 'fa-money-bill', type: 'fisico' },
+        { id: 'zelle', label: 'Zelle', icon: 'fa-mobile-screen', type: 'electronico' }
+    ];
+
+    assert.equal(methodById('zelle', methods).label, 'Zelle');
+    assert.equal(methodLabel('efecty', methods), 'Efecty');
+    assert.equal(isPaymentMethod('zelle', methods), true);
+    assert.equal(isCashDrawerMethod('efecty', methods), true, 'físico custom entra al arqueo');
+    assert.equal(isCashDrawerMethod('zelle', methods), false);
+    assert.deepEqual(cashDrawerMethods(methods), ['cash', 'efecty']);
+    assert.deepEqual(normalizePayments([{ method: 'zelle', amountUSD: 12.345 }], methods),
+        [{ method: 'zelle', amountUSD: 12.35 }]);
+
+    // Físico custom da vuelto; electrónico custom no puede exceder el total.
+    const conVuelto = settlePayments([{ method: 'efecty', amountUSD: 100 }], 75, methods);
+    assert.equal(conVuelto.changeUSD, 25);
+    assert.deepEqual(conVuelto.payments, [{ method: 'efecty', amountUSD: 75 }]);
+    assert.throws(() => settlePayments([{ method: 'zelle', amountUSD: 20 }], 10, methods),
+        /no pueden superar el total/);
 });

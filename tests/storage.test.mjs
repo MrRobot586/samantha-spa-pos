@@ -135,6 +135,8 @@ test('migración v1 → v2: conserva las ventas y añade las colecciones nuevas'
         currency: 'USD',
         theme: 'auto',
         rateSource: 'usd',
+        stylistCommissionRate: 45,
+        paymentMethods: createSeedState().settings.paymentMethods,
         ticket: {
             printerWidth: 58,
             businessName: 'Samantha Spa',
@@ -227,6 +229,8 @@ test('normalizeState: ajustes, sesión de caja y cierres', () => {
         currency: 'USD',
         theme: 'auto',
         rateSource: 'usd',
+        stylistCommissionRate: 45,
+        paymentMethods: createSeedState().settings.paymentMethods,
         ticket: {
             printerWidth: 58,
             businessName: 'Samantha Spa',
@@ -375,4 +379,42 @@ test('restoreDemo sin storage previo no guarda respaldo fantasma', () => {
     assert.deepEqual(seed, createSeedState());
     assert.equal(backend.getItem(STORAGE_DEMO_BACKUP_KEY), null);
     assert.equal(backend.getItem(STORAGE_KEY), JSON.stringify(seed));
+});
+
+test('normalizeState: métodos de pago custom y comisión del rol se normalizan', () => {
+    const state = normalizeState({
+        settings: {
+            stylistCommissionRate: 120,
+            paymentMethods: [
+                { id: 'zelle', label: 'Zelle', type: 'electronico' },
+                { id: 'zelle', label: 'Zelle duplicado', type: 'fisico' },
+                { id: 'x', label: '' },
+                { id: 'efecty', label: 'Efecty', icon: 'fa-money-bill', type: 'fisico' }
+            ]
+        }
+    });
+
+    assert.equal(state.settings.stylistCommissionRate, 100, 'se recorta al tope de 100');
+
+    const pms = state.settings.paymentMethods;
+    assert.equal(pms[0].id, 'cash', 'cash siempre queda como primer respaldo');
+    const custom = pms.slice(1).map(m => m.id).sort();
+    assert.deepEqual(custom, ['efecty', 'zelle'], 'sin duplicados ni etiquetas vacías');
+    assert.equal(pms.find(m => m.id === 'zelle').type, 'electronico');
+    assert.equal(pms.find(m => m.id === 'efecty').icon, 'fa-money-bill');
+
+    // Transacciones con métodos custom se conservan tras normalizar.
+    const state2 = normalizeState({
+        settings: { paymentMethods: [{ id: 'zelle', label: 'Zelle', type: 'electronico' }] },
+        transactions: [{
+            id: 'T1', date: '2026-10-06T10:00:00.000Z', total: 20,
+            payments: [{ method: 'zelle', amountUSD: 20 }, { method: 'nope', amountUSD: 1 }]
+        }]
+    });
+    assert.deepEqual(state2.transactions[0].payments, [{ method: 'zelle', amountUSD: 20 }]);
+
+    // Sin lista válida → la de fábrica.
+    const state3 = normalizeState({ settings: { paymentMethods: 'basura', stylistCommissionRate: -4 } });
+    assert.deepEqual(state3.settings.paymentMethods, createSeedState().settings.paymentMethods);
+    assert.equal(state3.settings.stylistCommissionRate, 45, 'negativo → defecto de fábrica');
 });

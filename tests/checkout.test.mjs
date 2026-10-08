@@ -8,6 +8,7 @@ import { openCashSession } from '../js/domain/cash.js';
 
 test('cobro exitoso: descuenta productos y recetas, paga comisión y registra la transacción', () => {
     const state = createSeedState();
+    state.settings.stylistCommissionRate = 50; // el admin fija la del rol
     openCashSession(0, state);
     addItem('service', 's1', state); // receta: 60g p1 + 90ml p2, $65
     addItem('product', 'p3', state); // venta $18, stock 12
@@ -19,7 +20,7 @@ test('cobro exitoso: descuenta productos y recetas, paga comisión y registra la
     assert.equal(state.products.find(p => p.id === 'p1').stock, 440);
     assert.equal(state.products.find(p => p.id === 'p2').stock, 1410);
 
-    // Comisión al estilista del ticket (st1 = 50% de 65 = 32.50; el producto no suma)
+    // Comisión al estilista del ticket (50% de 65 = 32.50; el producto no suma)
     const valeria = state.staff.find(s => s.id === 'st1');
     assert.equal(valeria.totalCommissions, 32.5);
     assert.equal(valeria.salesCount, 1);

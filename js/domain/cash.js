@@ -14,17 +14,17 @@ import { getState } from '../core/state.js';
 import { getCurrentUser } from '../core/auth.js';
 import { getSnapshot } from '../core/rates.js';
 import { uid } from '../core/utils.js';
-import { PAYMENT_IDS, CASH_DRAWER_METHODS, paymentsOf } from './payments.js';
+import { activePaymentMethods, cashDrawerMethods, paymentsOf } from './payments.js';
 
 export class CashError extends Error {}
 
 /** Ventas por método desde `desde` (ISO); sin fecha, de toda la historia.
- *  Devuelve un objeto con una clave por método (incluidos los históricos que
+ *  Devuelve un objeto con una clave por método (vigentes + históricos que
  *  aparezcan) más `count` con el número de transacciones. */
 export function salesByMethod(desde, state = getState()) {
     const t0 = desde ? new Date(desde).getTime() : -Infinity;
     const out = { count: 0 };
-    for (const id of PAYMENT_IDS) out[id] = 0;
+    for (const id of activePaymentMethods(state).map(m => m.id)) out[id] = 0;
 
     for (const t of state.transactions) {
         const t1 = new Date(t.date).getTime();
@@ -70,16 +70,18 @@ export function addWithdrawal(amount, note, state = getState()) {
     return w;
 }
 
-/** Ventas en dinero físico (efectivo + divisa) de un desglose por método. */
-function fisicoDe(ventas) {
-    return CASH_DRAWER_METHODS.reduce((a, m) => a + (ventas[m] || 0), 0);
+/** Ventas en dinero físico (efectivo + divisa y métodos físicos custom) de
+ *  un desglose por método. */
+function fisicoDe(ventas, state) {
+    const ids = cashDrawerMethods(activePaymentMethods(state));
+    return ids.reduce((a, m) => a + (ventas[m] || 0), 0);
 }
 
 function resumen(state) {
     const s = state.cashSession;
     const ventas = salesByMethod(s.openedAt, state);
     const retiros = s.withdrawals.reduce((a, w) => a + w.amount, 0);
-    const esperado = s.fondoInicial + fisicoDe(ventas) - retiros;
+    const esperado = s.fondoInicial + fisicoDe(ventas, state) - retiros;
     return { ventas, retiros, esperado };
 }
 

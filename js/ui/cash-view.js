@@ -6,7 +6,7 @@ import { getState } from '../core/state.js';
 import { escapeHtml, money } from '../core/utils.js';
 import { cashSummary } from '../domain/cash.js';
 import { closuresBetween } from '../domain/reports.js';
-import { methodLabel } from '../domain/payments.js';
+import { methodLabel, activePaymentMethods } from '../domain/payments.js';
 
 /** Suma todos los métodos de un desglose (ignora `count`). */
 function totalVentas(ventas) {
@@ -16,9 +16,10 @@ function totalVentas(ventas) {
 
 /** "Efectivo $X · Débito $Y · …" solo con los métodos que tienen monto. */
 function desgloseVentas(ventas) {
+    const methods = activePaymentMethods(getState());
     return Object.entries(ventas)
         .filter(([k, v]) => k !== 'count' && v > 0)
-        .map(([k, v]) => `${methodLabel(k)} ${money(v)}`)
+        .map(([k, v]) => `${methodLabel(k, methods)} ${money(v)}`)
         .join(' · ');
 }
 

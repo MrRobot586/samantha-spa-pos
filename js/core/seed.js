@@ -16,6 +16,17 @@ export function createSeedState() {
             currency: 'USD',
             theme: 'auto',
             rateSource: 'usd',
+            // Comisión única del rol estilista (editable desde Configuración).
+            stylistCommissionRate: 45,
+            // Métodos de pago vigentes para el cobro del POS. `type` es
+            // 'fisico' (admite vuelto y entra al arqueo) o 'electronico'
+            // (monto exacto, nunca supera el total).
+            paymentMethods: [
+                { id: 'cash', label: 'Efectivo', icon: 'fa-money-bill-wave', type: 'fisico' },
+                { id: 'debit', label: 'Débito', icon: 'fa-credit-card', type: 'electronico' },
+                { id: 'pago_movil', label: 'Pago Móvil', icon: 'fa-mobile-screen', type: 'electronico' },
+                { id: 'divisa', label: 'Divisa', icon: 'fa-money-bill', type: 'fisico' }
+            ],
             ticket: {
                 printerWidth: 58,
                 businessName: 'Samantha Spa',
