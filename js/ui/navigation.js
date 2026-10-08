@@ -16,7 +16,8 @@ const TITLES = {
     cash: '<i class="fa-solid fa-vault"></i> Caja & Cortes',
     services: '<i class="fa-solid fa-wand-magic-sparkles"></i> Servicios & Receta Técnica',
     inventory: '<i class="fa-solid fa-boxes-stacked"></i> Productos e Insumos',
-    commissions: '<i class="fa-solid fa-user-tag"></i> Reporte de Comisiones'
+    commissions: '<i class="fa-solid fa-user-tag"></i> Reporte de Comisiones',
+    settings: '<i class="fa-solid fa-gear"></i> Configuración'
 };
 
 function currentRole() {
@@ -24,16 +25,14 @@ function currentRole() {
     return user ? user.role : null;
 }
 
-/** Oculta/muestra los botones del nav (y de Usuarios) según el rol. */
+/** Oculta/muestra los botones del nav según el rol. El resto de utilidades
+ *  (usuarios, Restaurar demo, impresión) vivieron antes en el menú del
+ *  topbar; hoy están dentro de la pestaña Configuración, así que el menú ya
+ *  no necesita permiso propio: con alternar el nav basta. */
 export function renderNav(role) {
     for (const t of TABS) {
         document.getElementById(`nav-${t}`)?.classList.toggle('is-hidden', !can(role, t));
     }
-    document.getElementById('btn-users')?.classList.toggle('is-hidden', !can(role, 'users'));
-    document.getElementById('btn-print-settings')?.classList.toggle('is-hidden', !can(role, 'users'));
-    // Ambos botones comparten el permiso 'users': si el rol no lo tiene, la
-    // sección entera (incluida su etiqueta "Herramientas") desaparece.
-    document.getElementById('menu-group-tools')?.classList.toggle('is-hidden', !can(role, 'users'));
 }
 
 export function switchTab(tabName) {

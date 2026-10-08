@@ -133,8 +133,8 @@ async function main() {
     await esperar(300);
     await check('login admin → app visible', `!document.body.classList.contains('is-logged-out')`);
     await check('chip del usuario', `document.getElementById('user-chip-name').textContent`);
-    await check('admin ve el botón Usuarios', `!document.getElementById('btn-users').classList.contains('is-hidden')`);
-    await check('nav admin: 7 pestañas visibles', `[...document.querySelectorAll('.sidebar__nav .nav-btn')].filter(b => !b.classList.contains('is-hidden')).length === 7`);
+    await check('admin ve la pestaña Configuración', `!document.getElementById('nav-settings').classList.contains('is-hidden')`);
+    await check('nav admin: 8 pestañas visibles', `[...document.querySelectorAll('.sidebar__nav .nav-btn')].filter(b => !b.classList.contains('is-hidden')).length === 8`);
     await check('dashboard admin ve alertas de stock', `!document.getElementById('dash-stock-card').classList.contains('is-hidden')`);
     await check('badge de caja visible para admin', `!document.getElementById('cash-badge').classList.contains('is-hidden')`);
 
@@ -155,7 +155,7 @@ async function main() {
         `document.getElementById('topbar-menu-panel').contains(document.getElementById('user-chip')) && !document.getElementById('topbar-menu-panel').contains(document.getElementById('current-date'))`);
     await check('tema y fecha viven en el sidebar',
         `!document.getElementById('topbar-menu-panel').contains(document.getElementById('theme-toggle')) && document.querySelector('.sidebar__bottom').contains(document.getElementById('theme-toggle')) && document.querySelector('.sidebar__bottom').contains(document.getElementById('current-date'))`);
-    await check('grupo Herramientas visible para admin', `!document.getElementById('menu-group-tools').classList.contains('is-hidden')`);
+    await check('el menú ya no tiene grupo Herramientas', `!document.querySelector('#topbar-menu-panel #menu-group-tools')`);
     await check('el panel cabe en pantalla',
         `(() => { const r = document.getElementById('topbar-menu-panel').getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth && r.top > 0; })()`);
     await evaluar(`document.getElementById('page-title').click()`);
@@ -168,11 +168,7 @@ async function main() {
     await esperar(120);
     await check('ESC cierra el menú', `document.getElementById('topbar-menu-panel').classList.contains('is-hidden')`);
     await menuAbierto();
-    await evaluar(`document.getElementById('btn-print-settings').click()`);
-    await esperar(150);
-    await check('abrir un modal cierra el menú',
-        `document.getElementById('topbar-menu-panel').classList.contains('is-hidden') && !document.getElementById('modal-print-settings').classList.contains('is-hidden')`);
-    await evaluar(`document.querySelector('[data-action="close-modal"][data-target="modal-print-settings"]').click()`);
+    await check('el menú ya no abre modales (todo vive en Configuración)', `!document.querySelector('#topbar-menu-panel [data-action="open-modal"]')`);
     await esperar(120);
     await menuAbierto();
     await evaluar(`document.getElementById('nav-ventas').click()`);
@@ -182,8 +178,12 @@ async function main() {
     await evaluar(`document.getElementById('nav-dashboard').click()`);
     await esperar(150);
 
-    // Alta de usuarios desde la UI
-    await evaluar(`document.getElementById('btn-users').click()`);
+    // Alta de usuarios desde la UI (los usuarios viven en Configuración)
+    await evaluar(`document.getElementById('nav-settings').click()`);
+    await esperar(150);
+    await check('pestaña Configuración abierta desde el nav',
+        `!document.getElementById('tab-settings').classList.contains('is-hidden')`);
+    await evaluar(`document.querySelector('#tab-settings [data-action="open-modal"][data-target="modal-users"]').click()`);
     await esperar(150);
     await check('modal de usuarios abierto', `!document.getElementById('modal-users').classList.contains('is-hidden')`);
     await check('lista de usuarios: 4 semilla', `document.querySelectorAll('#users-list .user-row').length === 4`);
@@ -210,11 +210,9 @@ async function main() {
     await check('estilista NO ve Inventario', `document.getElementById('nav-inventory').classList.contains('is-hidden')`);
     await check('estilista NO ve Caja & Cortes', `document.getElementById('nav-cash').classList.contains('is-hidden')`);
     await check('estilista ve Ventas', `!document.getElementById('nav-ventas').classList.contains('is-hidden')`);
-    await check('estilista NO ve ajustes de ticket', `document.getElementById('btn-print-settings').classList.contains('is-hidden')`);
+    await check('estilista NO ve Configuración', `document.getElementById('nav-settings').classList.contains('is-hidden')`);
     await check('estilista NO ve el badge de caja', `document.getElementById('cash-badge').classList.contains('is-hidden')`);
-    await check('estilista NO ve Usuarios', `document.getElementById('btn-users').classList.contains('is-hidden')`);
-    await check('estilista NO ve la sección Herramientas del menú',
-        `document.getElementById('menu-group-tools').classList.contains('is-hidden')`);
+    await check('el tab de Configuración está oculto para el estilista', `document.getElementById('tab-settings').classList.contains('is-hidden')`);
     await check('dashboard estilista oculta alertas de stock', `document.getElementById('dash-stock-card').classList.contains('is-hidden') && document.getElementById('dash-alerts-card').classList.contains('is-hidden')`);
 
     // De vuelta como admin para el resto del flujo
@@ -377,11 +375,12 @@ async function main() {
     await esperar(150);
     await check('reimpresión desde Ventas', `window.__printed === true && document.getElementById('print-area').textContent.includes('Tinte Completo & Broshing')`);
 
-    // Ajustes de impresión (admin)
-    await check('admin ve el botón de ticket', `!document.getElementById('btn-print-settings').classList.contains('is-hidden')`);
-    await evaluar(`document.getElementById('btn-print-settings').click()`);
+    // Ajustes de impresión (admin): viven en la pestaña Configuración
+    await evaluar(`document.getElementById('nav-settings').click()`);
     await esperar(150);
-    await check('modal de ajustes abierto', `!document.getElementById('modal-print-settings').classList.contains('is-hidden')`);
+    await check('Configuración abierta (ticket de canje)', `!document.getElementById('tab-settings').classList.contains('is-hidden')`);
+    await check('4 métodos de pago de fábrica', `document.querySelectorAll('#payment-methods-list tr').length === 4`);
+    await check('Efectivo se muestra como fijo', `document.querySelector('#payment-methods-list tr').textContent.includes('Fijo')`);
     await evaluar(`
         document.getElementById('ticket-width').value = '80';
         document.getElementById('ticket-business-name').value = 'Samantha Spa & Estilo';
@@ -704,12 +703,65 @@ async function main() {
     await check('insumo con receta no se elimina', `
         document.getElementById('inventory-table-body').textContent.includes('Tinte Rubio Ceniza')`);
 
-    // --- Restaurar demo ----------------------------------------------------
-    await evaluar(`document.getElementById('nav-dashboard').click(); true`);
-    await esperar(150);
-    await evaluar(`document.getElementById('btn-users').click(); true`);
+    // --- Configuración: CRUD de métodos de pago + comisión del rol ----------
+    await evaluar(`document.getElementById('nav-settings').click(); true`);
     await esperar(200);
-    await evaluar(`document.querySelector('#modal-users [data-op="reset-demo"]').click(); true`);
+    await check('admin entra a Configuración (CRUD)', `!document.getElementById('tab-settings').classList.contains('is-hidden')`);
+
+    // Agregar un método custom electrónico
+    await evaluar(`
+        document.getElementById('method-label').value = 'Zelle';
+        document.getElementById('method-type').value = 'electronico';
+        document.getElementById('form-payment-method').requestSubmit();
+        true`);
+    await esperar(200);
+    await check('método custom agregado (5)', `document.querySelectorAll('#payment-methods-list tr').length === 5`);
+    await check('el método se ve con su tipo', `(() => {
+        const rows = [...document.querySelectorAll('#payment-methods-list tr')];
+        const z = rows.find(r => r.textContent.includes('Zelle'));
+        return z && z.textContent.includes('Electrónico');
+    })()`);
+
+    // Duplicado rechazado
+    await evaluar(`
+        document.getElementById('method-label').value = 'Zelle';
+        document.getElementById('method-type').value = 'electronico';
+        document.getElementById('form-payment-method').requestSubmit();
+        true`);
+    await esperar(200);
+    await check('duplicado de método se rechaza', `[...document.querySelectorAll('#toast-stack .toast')].pop()?.textContent.includes('Ya existe') || false`);
+    await check('sigue con 5 métodos', `document.querySelectorAll('#payment-methods-list tr').length === 5`);
+
+    // Editar (renombrar) mantiene el id estable
+    await evaluar(`document.querySelector('[data-action="edit-method"][data-id="zelle"]').click(); true`);
+    await esperar(120);
+    await check('edición precarga el formulario', `document.getElementById('method-label').value === 'Zelle' && document.getElementById('btn-method-save').textContent.includes('Guardar')`);
+    await evaluar(`document.getElementById('method-label').value = 'Zelle US'; document.getElementById('form-payment-method').requestSubmit(); true`);
+    await esperar(200);
+    await check('método renombrado con id estable', `(() => {
+        const txt = document.getElementById('payment-methods-list').textContent;
+        return txt.includes('Zelle US') && ['Efectivo', 'Débito', 'Pago Móvil', 'Divisa'].every(x => txt.includes(x));
+    })()`);
+
+    // Efectivo es fijo (ni editar ni borrar)
+    await check('efectivo no tiene botones Editar/Eliminar', `!document.querySelector('#payment-methods-list [data-action="delete-method"][data-id="cash"]') && !document.querySelector('#payment-methods-list [data-action="edit-method"][data-id="cash"]')`);
+
+    // Borrar pide confirmación
+    await evaluar(`document.querySelector('[data-action="delete-method"][data-id="zelle"]').click(); true`);
+    await esperar(120);
+    await check('borrar método pide confirmación', `!document.getElementById('modal-confirm').classList.contains('is-hidden')`);
+    await evaluar(`document.querySelector('#modal-confirm [data-action="confirm-action"]').click(); true`);
+    await esperar(250);
+    await check('método eliminado (volvió a 4)', `document.querySelectorAll('#payment-methods-list tr').length === 4`);
+
+    // Comisión global del rol
+    await evaluar(`document.getElementById('commission-rate').value = '50'; document.getElementById('form-commission').requestSubmit(); true`);
+    await esperar(200);
+    await check('comisión del rol guardada', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).settings.stylistCommissionRate === 50`);
+    await check('la comisión se refleja en el formulario', `document.getElementById('commission-rate').value === '50'`);
+
+    // --- Restaurar demo ----------------------------------------------------
+    await evaluar(`document.querySelector('#tab-settings [data-op="reset-demo"]').click(); true`);
     await esperar(150);
     await check('restaurar demo pide confirmación', `
         !document.getElementById('modal-confirm').classList.contains('is-hidden')`);

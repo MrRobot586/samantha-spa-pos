@@ -20,7 +20,8 @@ const PERMISSIONS = {
     inventory: ['admin'],
     commissions: ['admin'],
     cash: ['admin'],
-    users: ['admin']
+    users: ['admin'],
+    settings: ['admin']
 };
 
 export function can(role, permission) {

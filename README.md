@@ -107,27 +107,55 @@ La app arranca en la pantalla de login. Credenciales semilla:
   sigue pasando por el modal *Confirmar venta* entre los pasos 2 y 3.
   El wizard vive en memoria: la orden persiste en F5 pero se vuelve al
   paso 1.
-- El ticket se cobra con **Efectivo, Débito, Pago Móvil o Divisa**, en
-  **pago mixto**: cada método lleva su propio monto (en la moneda activa,
+- El ticket se cobra con los **métodos de pago activos** (`settings.paymentMethods`):
+  de fábrica son **Efectivo, Débito, Pago Móvil y Divisa**, y el administrador
+  los agrega, renombra o borra desde la pestaña **Configuración**. El cobro es
+  en **pago mixto**: cada método lleva su propio monto (en la moneda activa,
   guardado en USD). El resumen muestra *Pagado / Falta / Vuelto*.
 - Reglas del pago mixto:
-  - **Efectivo y Divisa** son dinero físico: pueden superar el total y
-    generan **vuelto** (se descuenta primero del efectivo y luego de la
-    divisa).
-  - **Débito y Pago Móvil** deben ir a monto exacto: si superan el total, el
-    cobro se bloquea (el vuelto no se devuelve por el punto de venta).
-  - Si falta por cubrir, `Procesar cobro` abre el **modal de confirmación**
-    de la venta y el cobro se rechaza sin descontar stock ni comisión.
-- **La caja arranca cerrada: no se puede cobrar hasta abrirla.** La
-  pestaña **Caja & Cortes** (solo admin) gestiona:
+  - **Métodos físicos** (Efectivo, Divisa…) están en el cajón: pueden superar el
+    total y generan **vuelto** (se descuenta primero del efectivo y luego de los
+    otros físicos).
+  - **Métodos electrónicos** (Débito, Pago Móvil…) cobran monto exacto: si
+    superan el total, el cobro se bloquea (el vuelto no se devuelve por el punto
+    de venta).
+  - **Efectivo es fijo**: no se borra ni se cambia de tipo; es el respaldo del
+    cobro y del arqueo (su id siempre existe aunque una lista guardada no lo
+    traiga).
+  - Si falta por cubrir, `Procesar cobro` abre el **modal de confirmación** de la
+    venta y el cobro se rechaza sin descontar stock ni comisión.
+- **La caja arranca cerrada: no se puede cobrar hasta abrirla.** La pestaña
+  **Caja & Cortes** (solo admin) gestiona:
   - **Apertura** con fondo inicial (en la moneda activa, guardado en USD).
   - **Retiros** con motivo, monto y quién lo hizo.
-  - **Corte**: efectivo esperado = fondo + **dinero físico (Efectivo +
-    Divisa)** − retiros; se ingresa el contado físico y la diferencia
+  - **Corte**: efectivo esperado = fondo + **dinero físico (los métodos físicos
+    activos)** − retiros; se ingresa el contado físico y la diferencia
     (sobrante/faltante) queda registrada en el historial junto con ventas por
     método y tasa vigente.
 - El **badge de caja** en el header muestra `Caja abierta`/`Caja cerrada`
   (solo admin) y lleva a la pestaña de caja.
+
+## Configuración (solo admin)
+
+La pestaña **Configuración** (solo admin) concentra lo que antes vivía disperso
+en el menú del topbar:
+
+- **Métodos de pago:** alta/baja y renombrado con tipo **físico** (cajón,
+  admite vuelto) o **electrónico** (monto exacto). El id se calcula solo al
+  crear y _no cambia_ al renombrar, para conservar el vínculo con las ventas
+  históricas (si se borra un método, las ventas viejas conservan sus montos y
+  el método puede verse como «desconocido»). **Efectivo** se muestra como fijo
+  y no admite edición ni borrado.
+- **Comisión del estilista:** un porcentaje único del rol
+  (`settings.stylistCommissionRate`, 45 % de fábrica) que se aplica a todos los
+  estilistas por igual y se acredita al estilista del ticket al concretar la
+  venta. El `commissionRate` por estilista quedó sin uso (se conserva en los
+  datos solo por compatibilidad).
+- **Ticket de canje:** ancho de papel 58/80 mm, nombre del negocio, línea
+  secundaria, pie y si se muestran los precios (antes vivía en un modal del
+  menú; hoy está en línea aquí).
+- **Usuarios y datos:** gestión de usuarios y accesos, y el botón
+  *Restaurar demo* (que respalda el estado actual antes de reponer la semilla).
 
 ## Tickets de canje imprimibles
 
@@ -137,8 +165,8 @@ La app arranca en la pantalla de login. Credenciales semilla:
 - El ticket es un comprobante de **canje de servicios**: incluye un **código
   único** (`C-XXXXXX`), la fecha/hora, los servicios pagados agrupados por
   estilista y el total. Los productos que acompañen la venta no se imprimen.
-- **Configurable** (botón Ticket en el menú del topbar, solo admin): ancho de
-  papel **58 mm / 80 mm**, nombre del negocio, línea secundaria, pie y si se
+- **Configurable** (pestaña Configuración, solo admin): ancho de papel
+  **58 mm / 80 mm**, nombre del negocio, línea secundaria, pie y si se
   muestran los precios.
 - La impresión usa `window.print()` con un CSS de ticket térmico
   (`css/print.css`): se elige la impresora en el diálogo del sistema y el
@@ -152,12 +180,12 @@ La app arranca en la pantalla de login. Credenciales semilla:
 
 - **Topbar ligero + menú desplegable:** la barra superior solo enseña
   título, badge de tasa, badge de caja y el botón de menú (icono de
-  usuario). Moneda, fuente de tasa, ajustes de impresión, usuarios, chip
-  de sesión y Salir viven en un panel anclado bajo la barra; se cierra con
-  un clic fuera, con ESC, al cambiar de pestaña, al abrir un modal o al
-  salir, y la sección "Herramientas" no aparece para los roles sin permiso
-  `users`. El menú no tiene estado: siempre arranca cerrado. El tema y la
-  fecha viven en el pie del sidebar (no en el menú).
+  usuario). Moneda, fuente de tasa, chip de sesión y Salir viven en un panel
+  anclado bajo la barra; se cierra con un clic fuera, con ESC, al cambiar de
+  pestaña, al abrir un modal o al salir. El menú no tiene estado: siempre
+  arranca cerrado. El tema y la fecha viven en el pie del sidebar (no en el
+  menú), y los ajustes (pagos, comisión, impresión, usuarios, Restaurar demo)
+  viven en la pestaña Configuración.
 - **Tema `auto | dark | light`** con botón de ciclo en el pie del sidebar.
   `auto` es el valor por defecto y sigue a `prefers-color-scheme` (cambia
   en vivo si el sistema cambia). El tema elegido se persiste en
@@ -176,7 +204,7 @@ La app arranca en la pantalla de login. Credenciales semilla:
 ## Pruebas
 
 ```bash
-npm test             # node --test tests/*.test.mjs — 120 pruebas, cero dependencias
+npm test             # node --test tests/*.test.mjs — 123 pruebas, cero dependencias
 ```
 
 Cubren la lógica de dominio (ticket, IVA, comisiones, cobro, stock,
@@ -185,8 +213,9 @@ el tema, el ticket de canje y el respaldo de "restaurar demo"—, reportes por
 fecha, autenticación y usuarios) y una guarda estática del CSS (toda
 variable `var(--x)` debe existir en el proyecto). La UI se verifica con el smoke de CDP
 (`npm run smoke` — requiere `python3` y Chrome: login, roles, venta,
-ticket imprimible (con `window.print` interceptado), reimpresión, ajustes de
-impresión, gate de caja, apertura, corte, moneda y tema, CRUD, restaurar
+ticket imprimible (con `window.print` interceptado), reimpresión,
+Configuración (CRUD de métodos de pago, comisión del rol y ticket),
+gate de caja, apertura, corte, moneda y tema, CRUD, restaurar
 demo, XSS, el gap de los filtros de Ventas, el wizard de 3 pasos del POS,
 el menú del topbar, la barra inferior solo con iconos y responsive en
 varios anchos) y con el checklist del final.
@@ -219,7 +248,7 @@ js/
     rates.js          tasa BCV (fetch + caché), convert/toUSD, formatMoney
     utils.js          escapeHtml, money, uid, ids de transacción, fechas
   domain/             100% sin DOM → tests en node
-    payments.js       métodos de pago, liquidación del pago mixto y vuelto
+    payments.js       métodos de pago activos (settings.paymentMethods), liquidación del pago mixto y vuelto
     ticket.js         ítems, cantidades, subtotal/IVA/comisión y pagos del ticket
     checkout.js       gate de caja → validación de stock → liquidación → transacción
     cash.js           apertura, retiros, ventas por método, corte e historial
@@ -227,7 +256,7 @@ js/
     services.js       servicios y recetas, edición y baja
     reports.js        agregados por rango de fechas (ventas, comisiones, cortes)
     receipt.js        datos del ticket de canje (código, grupos por estilista, totales)
-    staff.js          lookup y tasa de comisión
+    staff.js          lookup estilistas y tasa de comisión (global del rol)
     users.js          alta/edición/baja de usuarios, PIN, último admin
   ui/                 renders (innerHTML + escapeHtml) y modales
     header.js         toggle de moneda, selector de tasa, tema, badge de tasa y badge de caja
@@ -240,6 +269,7 @@ js/
     cash-view.js      pestaña Caja & Cortes + preview del corte
     dashboard.js      KPIs del día (acotados al rol)
     users-view.js     lista y formulario de usuarios
+    settings-view.js  pestaña Configuración: CRUD de métodos de pago, comisión, ticket y datos
     csv-export.js     descarga de CSV (Blob + marca de orden de bytes), sin dependencias
     (+ services/inventory/commissions, modales, toasts)
 tests/                node --test (payments, ticket, checkout, cash, inventory, services, reports, receipt, rates, storage, auth, users, css)
@@ -250,10 +280,19 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
 
 ## Decisiones del refactor
 
-- **Comisión = tasa del estilista seleccionado.** El original calculaba con
-  el % del servicio e ignoraba a quién se le atribuía la venta (bug #3). Los
-  servicios ya no llevan `commissionPercent`; el selector de estilista es
-  la única fuente de la tasa.
+- **Comisión = tasa global del rol.** El original calculaba con el % del
+  servicio e ignoraba a quién se le atribuía la venta (bug #3); el primer
+  refactor usaba el `commissionRate` de cada estilista. Hoy el admin fija una
+  sola tasa por rol (`settings.stylistCommissionRate`) que se aplica a todos
+  por igual y se acredita al estilista del ticket al concretar la venta. Los
+  servicios ya no llevan `commissionPercent`; el `commissionRate` por estilista
+  se conserva en los datos solo por compatibilidad (sin uso en los cálculos).
+- **Métodos de pago configurables.** Antes eran cuatro fijos. Ahora viven en
+  `settings.paymentMethods` (`{ id, label, icon, type }` con `fisico` /
+  `electronico`), se administran en la pestaña Configuración y alimentan al
+  POS, al arqueo (físicos) y a los reportes. El id refleja el nombre pero se
+  calcula solo al crear, para que renombrar no rompa el vínculo con el
+  historial.
 - **Persistencia en `localStorage`** con clave `samantha-spa-pos:v2`
   (v1 se migra automáticamente y queda como respaldo). Todo lo leído se
   normaliza campo a campo; si el JSON está corrupto se respalda en
@@ -330,10 +369,10 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
 ## Checklist de verificación manual
 
 1. `./servir.sh` → aparece el login; sin sesión no se ve nada de la app.
-2. PIN incorrecto → error inline; `admin`/`1234` → entra con 7 pestañas.
+2. PIN incorrecto → error inline; `admin`/`1234` → entra con 8 pestañas.
 3. `valeria`/`1111` → solo Dashboard, POS y Ventas; sin Inventario,
-   Comisiones, Caja ni Usuarios; su dashboard no muestra alertas de stock
-   y en Ventas solo ve sus propias ventas.
+   Comisiones, Caja, Configuración ni Usuarios; su dashboard no muestra
+   alertas de stock y en Ventas solo ve sus propias ventas.
 4. El badge de tasa muestra `Tasa USD: … Bs` y se actualiza al hacer clic.
    Con la fuente en `Tasa Euro` el badge pasa a `Tasa Euro: … Bs`.
 5. Cambiar a `Bs` y `€`: los KPIs, ticket y catálogo cambian de formato;
@@ -357,36 +396,41 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
 13. ESC cierra los modales y el menú del topbar; el catálogo es navegable
     con Tab.
 14. Menú (icono de usuario): dentro están el chip de sesión, moneda, fuente
-    de tasa, Herramientas y Salir; se cierra con clic fuera, con ESC, al
-    cambiar de pestaña y al abrir un modal. Como `valeria`, la sección
-    "Herramientas" no aparece. El tema y la fecha viven en el pie del
-    sidebar (no en el menú).
-15. A 375px de ancho: aparece la barra inferior con solo iconos (sin scroll
+    de tasa y Salir; se cierra con clic fuera, con ESC, al cambiar de pestaña
+    y al abrir un modal. Ya no abre modales (usuarios e impresión viven en
+    Configuración). El tema y la fecha viven en el pie del sidebar (no en el
+    menú).
+15. Configuración (admin): agregar un método «Zelle» electrónico → aparece en
+    la lista y en el POS; intentar duplicarlo → toast «Ya existe»; renombrarlo
+    conserva el id estable; borrarlo pide confirmación y vuelve a 4. El
+    Efectivo aparece como fijo sin botones. Cambiar la comisión del rol a
+    50 % y guardar → queda `stylistCommissionRate: 50`.
+16. A 375px de ancho: aparece la barra inferior con solo iconos (sin scroll
     horizontal); a 700 y 900px los ítems vuelven a mostrar el texto.
-16. Tema: el botón del pie del sidebar cicla Auto → Oscuro → Claro (el
+17. Tema: el botón del pie del sidebar cicla Auto → Oscuro → Claro (el
     icono cambia); con `auto` y el SO en claro/oscuro la app lo sigue en
     vivo; al recargar el tema elegido se mantiene sin parpadeo.
-17. A 700 y 900px el header no desborda; a 900 se ve la barra inferior y a
+18. A 700 y 900px el header no desborda; a 900 se ve la barra inferior y a
     1100 el sidebar lateral vuelve a la izquierda.
-18. A 1600px el contenido queda centrado (máx. ~1440) y los grids de KPIs,
+19. A 1600px el contenido queda centrado (máx. ~1440) y los grids de KPIs,
     catálogo y servicios se adaptan (sin scroll horizontal en ningún ancho).
-19. Editar un producto/servicio desde la tabla actualiza la fila; "Nuevo"
+20. Editar un producto/servicio desde la tabla actualiza la fila; "Nuevo"
     vuelve a abrir el formulario en blanco.
-20. Eliminar un insumo usado por una receta se bloquea con aviso; un
+21. Eliminar un insumo usado por una receta se bloquea con aviso; un
     producto de venta sin receta sí se elimina (con confirmación).
-21. Caja & Cortes: filtrar el historial por fechas y exportar CSV; Comisiones:
+22. Caja & Cortes: filtrar el historial por fechas y exportar CSV; Comisiones:
     elegir un rango y exportar el CSV por estilista (se abren en Excel).
-22. "Restaurar demo" (en Usuarios) pide confirmación y repone inventario,
-    ventas y caja de fábrica, dejando un respaldo previo.
-23. Vender un servicio y confirmar → el wizard pasa al paso 3 (Cierre) con
+23. "Restaurar demo" (en la pestaña Configuración) pide confirmación y repone
+    inventario, ventas y caja de fábrica, dejando un respaldo previo.
+24. Vender un servicio y confirmar → el wizard pasa al paso 3 (Cierre) con
     "Imprimir ticket" y "Nueva venta"; al pulsar imprimir se abre el
     diálogo del sistema (el ticket solo muestra los servicios, el código de
     canje y los servicios agrupados por estilista; los productos no se
     imprimen). "Nueva venta" vuelve al paso 1 con la orden vacía.
-24. Ajustes de impresión (botón Ticket dentro del menú del topbar, solo admin):
+25. Ajustes de impresión (pestaña Configuración, solo admin):
     cambiar a 80 mm y editar encabezado/pie; reimprimir desde la pestaña
     Ventas (con filtro por fecha) conserva y refleja esos ajustes.
-25. Dejar la app 20 min sin tocarla cierra la sesión sola y vuelve al login.
+26. Dejar la app 20 min sin tocarla cierra la sesión sola y vuelve al login.
 
 ## Fuera de alcance (posibles siguientes pasos)
 

@@ -27,6 +27,7 @@ import { renderInventoryTable, fillProductForm } from './ui/inventory-view.js';
 import { renderCommissions, renderCommissionsReport } from './ui/commissions-view.js';
 import { renderCash, fillCashClosePreview } from './ui/cash-view.js';
 import { renderSales } from './ui/sales-view.js';
+import { renderSettings, renderPaymentMethods, saveMethod, deleteMethod, fillMethodForm, resetMethodForm } from './ui/settings-view.js';
 
 import { addItem, changeQty, clearTicket, setTicketStaff, setPaymentAmount, ticketTotals } from './domain/ticket.js';
 import { processPayment } from './domain/checkout.js';
@@ -62,6 +63,7 @@ function renderAll() {
     renderCash();
     renderUsersList();
     renderSales();
+    renderSettings();
     renderPosStep();
 }
 
@@ -125,6 +127,18 @@ function handleConfirm({ op, id }) {
             toastSuccess(`Servicio "${s.name}" eliminado.`);
             renderAll();
             persist();
+        } catch (err) {
+            toastError(err.message);
+        }
+        return;
+    }
+
+    if (op === 'delete-method') {
+        try {
+            const m = deleteMethod(id);
+            renderAll();
+            persist();
+            toastSuccess(`Método "${m.label}" eliminado: el POS, la caja y los reportes ya no lo usan.`);
         } catch (err) {
             toastError(err.message);
         }
@@ -289,7 +303,6 @@ function handleAction(el, action) {
         case 'open-modal': {
             const target = el.dataset.target;
             closeMenu();
-            if (target === 'modal-print-settings') fillPrintSettings();
             openModal(target);
             break;
         }
@@ -414,6 +427,22 @@ function handleAction(el, action) {
             openModal('modal-service');
             break;
 
+        case 'edit-method':
+            try {
+                fillMethodForm(el.dataset.id);
+            } catch (err) {
+                toastError(err.message);
+            }
+            break;
+
+        case 'reset-method-form':
+            resetMethodForm();
+            break;
+
+        case 'delete-method':
+            openConfirm(el, 'delete-method');
+            break;
+
         case 'delete-product':
         case 'delete-service':
         case 'delete-user':
@@ -502,15 +531,6 @@ function onInput(e) {
 
 function fieldValue(id) {
     return document.getElementById(id).value.trim();
-}
-
-function fillPrintSettings() {
-    const t = getState().settings.ticket;
-    document.getElementById('ticket-width').value = String(t.printerWidth);
-    document.getElementById('ticket-business-name').value = t.businessName;
-    document.getElementById('ticket-business-line').value = t.businessLine;
-    document.getElementById('ticket-footer').value = t.footer;
-    document.getElementById('ticket-show-prices').checked = t.showPrices;
 }
 
 function onSubmit(e) {
@@ -644,10 +664,37 @@ function onSubmit(e) {
             st.ticket.businessName = document.getElementById('ticket-business-name').value.trim().slice(0, 60) || st.ticket.businessName;
             st.ticket.businessLine = document.getElementById('ticket-business-line').value.trim().slice(0, 60);
             st.ticket.footer = document.getElementById('ticket-footer').value.trim().slice(0, 80);
-            closeModal('modal-print-settings');
             persist();
             toastSuccess('Ajustes de ticket guardados.');
             renderAll();
+        } catch (err) {
+            toastError(err.message);
+        }
+        return;
+    }
+
+    if (form.id === 'form-payment-method') {
+        try {
+            const res = saveMethod();
+            renderPaymentMethods();
+            persist();
+            toastSuccess(res.added
+                ? `Método "${res.label}" agregado.`
+                : `Método "${res.label}" actualizado.`);
+        } catch (err) {
+            toastError(err.message);
+        }
+        return;
+    }
+
+    if (form.id === 'form-commission') {
+        try {
+            const v = Number(document.getElementById('commission-rate').value);
+            if (!Number.isFinite(v)) throw new Error('Escribe un porcentaje válido (0-100).');
+            getState().settings.stylistCommissionRate = Math.min(100, Math.max(0, v));
+            persist();
+            renderAll();
+            toastSuccess(`Comisión del estilista: ${getState().settings.stylistCommissionRate}%.`);
         } catch (err) {
             toastError(err.message);
         }

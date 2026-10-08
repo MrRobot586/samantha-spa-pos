@@ -47,4 +47,4 @@ export const SESSION_IDLE_MS = 20 * 60 * 1000;
 /** Cada cuánto se revisa la inactividad. */
 export const IDLE_CHECK_MS = 30 * 1000;
 
-export const TABS = ['dashboard', 'pos', 'ventas', 'cash', 'services', 'inventory', 'commissions'];
+export const TABS = ['dashboard', 'pos', 'ventas', 'cash', 'services', 'inventory', 'commissions', 'settings'];
