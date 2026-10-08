@@ -58,14 +58,14 @@ function renderTransactions(today) {
         const itemsCount = t.items.reduce((acc, i) => acc + i.qty, 0);
         return `
             <tr>
-                <td class="cell-mono">${escapeHtml(t.id)}</td>
-                <td>
+                <td data-label="ID" class="cell-mono">${escapeHtml(t.id)}</td>
+                <td data-label="Cliente / Estilista">
                     <p class="cell-strong">${escapeHtml(t.staffName)}</p>
                     <p class="cell-muted">${escapeHtml(t.time)}</p>
                 </td>
-                <td class="cell-muted">${itemsCount} ítems</td>
-                <td class="cell-amount">${money(t.total)}</td>
-                <td><span class="badge badge--success">Completado</span></td>
+                <td data-label="Items" class="cell-muted">${itemsCount} ítems</td>
+                <td data-label="Total" class="cell-amount">${money(t.total)}</td>
+                <td data-label="Estado"><span class="badge badge--success">Completado</span></td>
             </tr>`;
     }).join('');
 }

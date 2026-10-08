@@ -104,10 +104,10 @@ export function renderCash() {
     } else {
         tbodyW.innerHTML = [...s.withdrawals].reverse().map(w => `
             <tr>
-                <td class="cell-amount">${money(w.amount)}</td>
-                <td>${escapeHtml(w.note || '—')}</td>
-                <td>${fmt(w.at)}</td>
-                <td>${escapeHtml(w.by)}</td>
+                <td data-label="Monto" class="cell-amount">${money(w.amount)}</td>
+                <td data-label="Motivo">${escapeHtml(w.note || '—')}</td>
+                <td data-label="Hora">${fmt(w.at)}</td>
+                <td data-label="Por">${escapeHtml(w.by)}</td>
             </tr>`).join('');
     }
 
@@ -124,11 +124,11 @@ export function renderCash() {
             const clase = neg ? 'cash-diff cash-diff--neg' : 'cash-diff cash-diff--pos';
             return `
                 <tr>
-                    <td>${fmt(c.closedAt)}<br><span class="cell-meta">${escapeHtml(c.closedByName)}</span></td>
-                    <td class="cell-amount">${money(c.totalUSD)}<br><span class="cell-meta">${c.txCount} ventas</span></td>
-                    <td class="cell-amount">${money(c.esperadoUSD)}</td>
-                    <td class="cell-amount">${money(c.contadoUSD)}</td>
-                    <td class="cell-amount ${clase}">${money(c.diferenciaUSD)}</td>
+                    <td data-label="Fecha">${fmt(c.closedAt)}<br><span class="cell-meta">${escapeHtml(c.closedByName)}</span></td>
+                    <td data-label="Ventas" class="cell-amount">${money(c.totalUSD)}<br><span class="cell-meta">${c.txCount} ventas</span></td>
+                    <td data-label="Esperado" class="cell-amount">${money(c.esperadoUSD)}</td>
+                    <td data-label="Contado" class="cell-amount">${money(c.contadoUSD)}</td>
+                    <td data-label="Diferencia" class="cell-amount ${clase}">${money(c.diferenciaUSD)}</td>
                 </tr>`;
         }).join('');
     }

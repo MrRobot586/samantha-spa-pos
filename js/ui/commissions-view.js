@@ -48,9 +48,9 @@ export function renderCommissionsReport(desde = '', hasta = '') {
     }
     tbody.innerHTML = rows.map(r => `
         <tr>
-            <td class="cell-strong">${escapeHtml(r.staffName)}</td>
-            <td>${r.sales}</td>
-            <td class="cell-amount">${money(r.totalUSD)}</td>
-            <td class="cell-amount accent">${money(r.commissionUSD)}</td>
+            <td data-label="Estilista" class="cell-strong">${escapeHtml(r.staffName)}</td>
+            <td data-label="Ventas">${r.sales}</td>
+            <td data-label="Vendido" class="cell-amount">${money(r.totalUSD)}</td>
+            <td data-label="Comisión" class="cell-amount accent">${money(r.commissionUSD)}</td>
         </tr>`).join('');
 }

@@ -16,16 +16,16 @@ export function renderInventoryTable() {
 
         return `
             <tr>
-                <td class="cell-strong">${escapeHtml(p.name)}</td>
-                <td>
+                <td data-label="Producto / Insumo" class="cell-strong">${escapeHtml(p.name)}</td>
+                <td data-label="Tipo">
                     <span class="badge ${isInternal ? 'badge--purple' : 'badge--sale'}">
                         ${isInternal ? 'Insumo de Uso Interno' : 'Producto de Venta'}
                     </span>
                 </td>
-                <td class="cell-strong ${isLow ? 'stock-low' : ''}">${p.stock}</td>
-                <td class="cell-muted">${escapeHtml(p.unit)}</td>
-                <td class="cell-muted">${costOrPrice}</td>
-                <td>
+                <td data-label="Stock Actual" class="cell-strong ${isLow ? 'stock-low' : ''}">${p.stock}</td>
+                <td data-label="Unidad" class="cell-muted">${escapeHtml(p.unit)}</td>
+                <td data-label="Costo / Precio" class="cell-muted">${costOrPrice}</td>
+                <td data-label="Estado">
                     <span class="badge ${isLow ? 'badge--danger' : 'badge--success'}">
                         ${isLow ? 'Bajo Stock' : 'Normal'}
                     </span>

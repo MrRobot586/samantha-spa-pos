@@ -333,8 +333,14 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
   la nav inferior gana ancho y el lateral vuelve en ≥1024. Por debajo de
   640px la nav inferior queda **solo con iconos** (el texto se conserva
   como nombre accesible) y la topbar se reduce a título + tasa + menú (el
-  botón es un icono de usuario). El pie del sidebar (fecha + tema) se
-  oculta en móvil.
+botón es un icono de usuario). El pie del sidebar (fecha + tema) se
+   oculta en móvil.
+- **Tablas → tarjetas apiladas <640px:** se oculta el `thead` y cada fila es
+  una tarjeta; cada celda muestra su etiqueta tomada del `th` mediante
+  `data-label` y el contenido queda a la derecha (`space-between`). Las celdas
+  de acciones (sin `data-label`) solo se alinean a la derecha y la fila vacía
+  se centra. El dato vive en el HTML desde el render (una sola fuente), así
+  la tabla y la tarjeta no se editan por separado.
 - **Tema claro/oscuro vinculado al sistema:** `settings.theme` es
   `auto | dark | light`. Con `auto` sigue a `prefers-color-scheme` en vivo
   (listener de `matchMedia`). Un script pre-paint en `<head>` lee el tema
@@ -454,6 +460,10 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
     la orden vacía. La selección no persiste en F5.
 28. Arrastrar una tarjeta del catálogo hasta la orden la agrega (igual que el
     clic, con persistencia); el clic sigue funcionando como alternativa.
+29. A 375px, las tablas (Inventario, Ventas, Configuración…) se convierten en
+    tarjetas apiladas: el encabezado desaparece y cada celda muestra su
+    etiqueta al lado del valor; al volver a ≥640px recuperan la tabla
+    clásica.
 
 ## Fuera de alcance (posibles siguientes pasos)
 

@@ -606,6 +606,20 @@ async function main() {
             return t.scrollWidth <= t.clientWidth + 1;
         })()`);
 
+    // Tablas → tarjetas apiladas con data-label (<640px)
+    await evaluar(`document.getElementById('nav-inventory').click(); true`);
+    await esperar(300);
+    await check('tabla de inventario se vuelve tarjetas a 375px', `
+        (() => {
+            const th = document.querySelector('#tab-inventory thead');
+            const tr = document.querySelector('#tab-inventory tbody tr');
+            const td = document.querySelector('#tab-inventory tbody td');
+            return getComputedStyle(th).display === 'none'
+                && getComputedStyle(tr).borderRadius !== '0px'
+                && getComputedStyle(td).display === 'flex'
+                && td.dataset.label === 'Producto / Insumo';
+        })()`);
+
     // Tablet portrait: aquí el badge de caja (≥640) y la nav con texto vuelven
     await send('Emulation.setDeviceMetricsOverride', { width: 700, height: 900, deviceScaleFactor: 1, mobile: false }, sessionId);
     await esperar(300);
@@ -616,6 +630,8 @@ async function main() {
             const t = document.querySelector('.topbar');
             return t.scrollWidth <= t.clientWidth + 1;
         })()`);
+    await check('tabla clásica de vuelta ≥640px', `
+        getComputedStyle(document.querySelector('#tab-inventory thead')).display !== 'none'`);
     await menuAbierto();
     await check('selector de tasa en el menú (700px)',
         `document.querySelector('.rate-source').offsetParent !== null`);

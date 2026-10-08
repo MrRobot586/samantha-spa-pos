@@ -49,11 +49,11 @@ export function renderSales() {
         const canPrint = hasServices(t);
         return `
             <tr>
-                <td>${formatDate(t.date)}</td>
-                <td class="cell-mono">${escapeHtml(t.id)}</td>
-                <td>${escapeHtml(t.staffName)}</td>
-                <td>${servicesCount}</td>
-                <td>${money(t.total)}</td>
+                <td data-label="Fecha/Hora">${formatDate(t.date)}</td>
+                <td data-label="ID" class="cell-mono">${escapeHtml(t.id)}</td>
+                <td data-label="Estilista">${escapeHtml(t.staffName)}</td>
+                <td data-label="Servicios">${servicesCount}</td>
+                <td data-label="Total">${money(t.total)}</td>
                 <td class="cell-right">
                     <button type="button" data-action="print-ticket" data-tx-id="${escapeHtml(t.id)}" class="btn btn--neutral btn--sm" ${canPrint ? '' : 'disabled'}>
                         <i class="fa-solid fa-print"></i> Imprimir ticket

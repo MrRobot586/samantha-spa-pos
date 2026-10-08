@@ -42,8 +42,8 @@ export function renderPaymentMethods() {
             : `<button type="button" data-action="edit-method" data-id="${m.id}" class="btn btn--neutral btn--sm">Editar</button>
                <button type="button" data-action="delete-method" data-id="${m.id}" class="btn btn--danger btn--ghost btn--sm">Eliminar</button>`;
         return `<tr>
-            <td><i class="fa-solid ${escapeHtml(m.icon || 'fa-credit-card')}"></i> ${escapeHtml(m.label)}</td>
-            <td class="cell-muted">${escapeHtml(TYPE_LABELS[m.type] || m.type)}</td>
+            <td data-label="Método"><i class="fa-solid ${escapeHtml(m.icon || 'fa-credit-card')}"></i> ${escapeHtml(m.label)}</td>
+            <td data-label="Tipo" class="cell-muted">${escapeHtml(TYPE_LABELS[m.type] || m.type)}</td>
             <td class="cell-right">${acciones}</td>
         </tr>`;
     }).join('');
