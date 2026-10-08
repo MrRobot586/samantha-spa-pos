@@ -32,8 +32,9 @@ export function renderInventoryTable() {
                 </td>
                 <td class="col-actions">
                     <div class="row-actions">
-                        <button type="button" data-action="edit-product" data-id="${escapeHtml(p.id)}" class="btn btn--mini">
-                            Editar
+                        <button type="button" data-action="edit-product" data-id="${escapeHtml(p.id)}"
+                                class="btn btn--mini btn--icon" title="Editar producto" aria-label="Editar ${escapeHtml(p.name)}">
+                            <i class="fa-solid fa-pen" aria-hidden="true"></i>
                         </button>
                         <button type="button" data-action="restock" data-id="${escapeHtml(p.id)}" class="btn btn--mini">
                             + Reponer
@@ -41,7 +42,10 @@ export function renderInventoryTable() {
                         <button type="button" data-action="delete-product" data-id="${escapeHtml(p.id)}"
                                 data-title="¿Eliminar producto?"
                                 data-message="Se eliminará &quot;${escapeHtml(p.name)}&quot; del inventario. Si algún servicio lo usa como insumo, no se podrá borrar."
-                                class="btn btn--mini btn--mini-danger">Eliminar</button>
+                                class="btn btn--mini btn--mini-danger btn--icon"
+                                title="Eliminar producto" aria-label="Eliminar ${escapeHtml(p.name)}">
+                            <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                        </button>
                     </div>
                 </td>
             </tr>`;

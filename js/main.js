@@ -77,7 +77,17 @@ function renderSessionChrome() {
     document.getElementById('user-chip-name').textContent = user.name;
     document.getElementById('user-chip').title =
         `${user.name} · ${user.role === 'admin' ? 'Administrador' : 'Estilista'}`;
+    const topbarNombre = document.getElementById('topbar-user-name');
+    if (topbarNombre) topbarNombre.textContent = user.name;
     renderNav(user.role);
+}
+
+/** Fecha larga del día en el grupo "Sesión" del menú. */
+function renderCurrentDate() {
+    const fecha = new Date()
+        .toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' });
+    const menu = document.getElementById('menu-date');
+    if (menu) menu.textContent = fecha;
 }
 
 /* -------------------------------------------------------- confirmaciones -- */
@@ -815,8 +825,7 @@ function boot() {
         toast('Datos actualizados a la nueva versión. La copia anterior se conservó como respaldo.', 'success', 5000);
     }
 
-    document.getElementById('current-date').textContent = new Date()
-        .toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' });
+    renderCurrentDate();
 
     // Puerta de acceso: sin sesión válida, solo se ve la pantalla de login.
     const usuario = getCurrentUser(state);

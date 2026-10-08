@@ -196,17 +196,24 @@ en el menú del topbar:
 
 - **Topbar ligero + menú desplegable:** la barra superior solo enseña
   título, badge de tasa, badge de caja y el botón de menú (icono de
-  usuario). Moneda, fuente de tasa, chip de sesión y Salir viven en un panel
-  anclado bajo la barra; se cierra con un clic fuera, con ESC, al cambiar de
-  pestaña, al abrir un modal o al salir. El menú no tiene estado: siempre
-  arranca cerrado. El tema y la fecha viven en el pie del sidebar (no en el
-  menú), y los ajustes (pagos, comisión, impresión, usuarios, Restaurar demo)
-  viven en la pestaña Configuración.
-- **Tema `auto | dark | light`** con botón de ciclo en el pie del sidebar.
-  `auto` es el valor por defecto y sigue a `prefers-color-scheme` (cambia
-  en vivo si el sistema cambia). El tema elegido se persiste en
-  `settings.theme` y lo restaura antes del primer render un script
-  pre-paint de `<head>`.
+  usuario + nombre activo; en teléfonos queda solo el icono). El badge de
+  caja lleva la fecha del día y un icono de estado (verde `lock-open`
+  abierta / opaco `lock` cerrada). Moneda y fuente de tasa, tema, chip de
+  sesión con la fecha y Salir viven en un panel anclado bajo la barra; se
+  cierra con un clic fuera, con ESC, al cambiar de pestaña, al abrir un
+  modal o al salir. El menú no tiene estado: siempre arranca cerrado. Los
+  ajustes (pagos, comisión, impresión, usuarios, Restaurar demo) viven en
+  la pestaña Configuración.
+- **Tema `auto | dark | light`** con botón de ciclo cuadrado dentro del
+  menú (ya no en el pie del sidebar, que queda vacío). `auto` es el valor
+  por defecto y sigue a `prefers-color-scheme` (cambia en vivo si el
+  sistema cambia). El tema elegido se persiste en `settings.theme` y lo
+  restaura antes del primer render un script pre-paint de `<head>`.
+- **Estilo propio en los controles:** los `<select>` usan un caret SVG y
+  `color-scheme` en vez de la apariencia nativa; las acciones de fila
+  (Editar/Eliminar) son iconos cuadrados con `aria-label` y tooltip; y los
+  modales entran con animación, sombra y un botón de cerrar circular al
+  lenguaje de la app.
 - **Escala:** tipografía `--fs-2xs…--fs-5xl`, espaciado `--space-1…--space-20`
   y breakpoints canónicos **640 / 768 / 1024 / 1280** (todo documentado en
   `css/tokens.css`).
@@ -229,12 +236,13 @@ el tema, el ticket de canje y el respaldo de "restaurar demo"—, reportes por
 fecha, autenticación y usuarios) y una guarda estática del CSS (toda
 variable `var(--x)` debe existir en el proyecto). La UI se verifica con el smoke de CDP
 (`npm run smoke` — requiere `python3` y Chrome: login, roles, venta,
-ticket imprimible (con `window.print` interceptado), reimpresión,
-Configuración (CRUD de métodos de pago, comisión del rol y ticket),
-gate de caja, apertura, corte, moneda y tema, CRUD, restaurar
-demo, XSS, el gap de los filtros de Ventas, el wizard de 3 pasos del POS,
-el menú del topbar, la barra inferior solo con iconos y responsive en
-varios anchos) y con el checklist del final.
+impresión y reimpresión, Configuración (CRUD de métodos de pago, comisión
+del rol y ticket), gate de caja, apertura, corte, moneda y tema, CRUD,
+restaurar demo, XSS, el gap de los filtros de Ventas, el wizard de 3 pasos
+del POS, el menú del topbar (moneda+tasa en dos columnas, tema cuadrado,
+sesión con la fecha, nombre del usuario en el botón), el badge de caja con
+icono de estado, barra inferior solo con iconos, checks en 7 anchos,
+0 errores de consola) y con el checklist del final.
 El CI de GitHub Actions (`.github/workflows/ci.yml`) corre ambas cosas en
 cada push.
 
@@ -332,9 +340,9 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
   contenido a 512px y la topbar desbordaba (defecto del original), así que
   la nav inferior gana ancho y el lateral vuelve en ≥1024. Por debajo de
   640px la nav inferior queda **solo con iconos** (el texto se conserva
-  como nombre accesible) y la topbar se reduce a título + tasa + menú (el
-botón es un icono de usuario). El pie del sidebar (fecha + tema) se
-   oculta en móvil.
+como nombre accesible) y la topbar se reduce a título + tasa + caja + menú
+   (el botón es un icono de usuario; el nombre queda oculto en <640px). El
+   pie del sidebar se eliminó: tema y fecha viven en el menú desplegable.
 - **Tablas → tarjetas apiladas <640px:** se oculta el `thead` y cada fila es
   una tarjeta; cada celda muestra su etiqueta tomada del `th` mediante
   `data-label` y el contenido queda a la derecha (`space-between`). Las celdas
@@ -417,22 +425,26 @@ botón es un icono de usuario). El pie del sidebar (fecha + tema) se
 12. Producto llamado `<img src=x onerror=alert(1)>` → se muestra como texto.
 13. ESC cierra los modales y el menú del topbar; el catálogo es navegable
     con Tab.
-14. Menú (icono de usuario): dentro están el chip de sesión, moneda, fuente
-    de tasa y Salir; se cierra con clic fuera, con ESC, al cambiar de pestaña
-    y al abrir un modal. Ya no abre modales (usuarios e impresión viven en
-    Configuración). El tema y la fecha viven en el pie del sidebar (no en el
-    menú).
+14. Menú (icono de usuario + nombre activo): dentro están el chip de sesión
+    con la fecha del día, moneda y fuente de tasa en la misma fila (dos
+    columnas), el botón de tema cuadrado y Salir; se cierra con clic fuera,
+    con ESC, al cambiar de pestaña y al abrir un modal. Ya no abre modales
+    (usuarios e impresión viven en Configuración).
 15. Configuración (admin): agregar un método «Zelle» electrónico → aparece en
     la lista y al instante en las filas de pago del POS (cada una muestra su
     badge **Físico/Electrónico**); intentar duplicarlo → toast «Ya existe»;
     renombrarlo conserva el id estable; borrarlo pide confirmación y vuelve a
-    4. El Efectivo aparece como fijo sin botones. Cambiar la comisión del rol
-    a 50 % y guardar → queda `stylistCommissionRate: 50`.
+    4. El Efectivo aparece como fijo (iconos de editar/eliminar solo en los
+    métodos no fijos). Cambiar la comisión del rol a 50 % y guardar → queda
+    `stylistCommissionRate: 50`.
 16. A 375px de ancho: aparece la barra inferior con solo iconos (sin scroll
     horizontal); a 700 y 900px los ítems vuelven a mostrar el texto.
-17. Tema: el botón del pie del sidebar cicla Auto → Oscuro → Claro (el
+17. Tema: el botón cuadrado del menú cicla Auto → Oscuro → Claro (el
     icono cambia); con `auto` y el SO en claro/oscuro la app lo sigue en
     vivo; al recargar el tema elegido se mantiene sin parpadeo.
+18. Badge de caja: con la caja abierta muestra el candado abierto en verde y
+    la fecha; al cerrarla, el candado se vuelve opaco. Los modales entran con
+    animación y su botón de cerrar es circular.
 18. A 700 y 900px el header no desborda; a 900 se ve la barra inferior y a
     1100 el sidebar lateral vuelve a la izquierda.
 19. A 1600px el contenido queda centrado (máx. ~1440) y los grids de KPIs,

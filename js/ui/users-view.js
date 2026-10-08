@@ -24,11 +24,17 @@ export function renderUsersList() {
                 <p class="user-row__meta">@${escapeHtml(u.username)} · ${roleLabel(u.role)}${u.active ? '' : ' · Desactivado'}</p>
             </div>
             <div class="row-actions">
-                <button type="button" class="btn btn--mini" data-action="edit-user" data-id="${escapeHtml(u.id)}">Editar</button>
-                ${esYo ? '' : `<button type="button" class="btn btn--mini btn--mini-danger" data-action="delete-user"
+                <button type="button" class="btn btn--mini btn--icon" data-action="edit-user" data-id="${escapeHtml(u.id)}"
+                        title="Editar usuario" aria-label="Editar ${escapeHtml(u.name)}">
+                    <i class="fa-solid fa-pen" aria-hidden="true"></i>
+                </button>
+                ${esYo ? '' : `<button type="button" class="btn btn--mini btn--mini-danger btn--icon" data-action="delete-user"
                         data-id="${escapeHtml(u.id)}"
                         data-title="¿Eliminar usuario?"
-                        data-message="Se eliminará ${escapeHtml(u.name)} (@${escapeHtml(u.username)}). Esta acción no se puede deshacer.">Eliminar</button>`}
+                        data-message="Se eliminará ${escapeHtml(u.name)} (@${escapeHtml(u.username)}). Esta acción no se puede deshacer."
+                        title="Eliminar usuario" aria-label="Eliminar ${escapeHtml(u.name)}">
+                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                </button>`}
             </div>
         </div>`;
     }).join('');

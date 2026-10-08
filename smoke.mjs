@@ -149,12 +149,13 @@ async function main() {
     await check('clic en el botón de usuario abre el menú',
         `!document.getElementById('topbar-menu-panel').classList.contains('is-hidden') && document.getElementById('btn-menu').getAttribute('aria-expanded') === 'true'`);
     await check('el botón del menú lleva el icono de usuario', `document.querySelector('#btn-menu i').classList.contains('fa-circle-user')`);
+    await check('el botón del menú muestra el usuario activo', `document.getElementById('topbar-user-name').textContent.trim() !== ''`);
     await check('moneda dentro del menú',
         `document.getElementById('topbar-menu-panel').contains(document.querySelector('.currency-toggle'))`);
-    await check('sesión dentro del menú (fecha fuera)',
-        `document.getElementById('topbar-menu-panel').contains(document.getElementById('user-chip')) && !document.getElementById('topbar-menu-panel').contains(document.getElementById('current-date'))`);
-    await check('tema y fecha viven en el sidebar',
-        `!document.getElementById('topbar-menu-panel').contains(document.getElementById('theme-toggle')) && document.querySelector('.sidebar__bottom').contains(document.getElementById('theme-toggle')) && document.querySelector('.sidebar__bottom').contains(document.getElementById('current-date'))`);
+    await check('sesión dentro del menú (con la fecha del día)',
+        `document.getElementById('topbar-menu-panel').contains(document.getElementById('user-chip')) && document.getElementById('topbar-menu-panel').contains(document.getElementById('menu-date'))`);
+    await check('tema y fecha viven en el menú, no en el sidebar',
+        `document.getElementById('topbar-menu-panel').contains(document.getElementById('theme-toggle')) && document.getElementById('topbar-menu-panel').contains(document.getElementById('menu-date')) && !document.querySelector('.sidebar__bottom')`);
     await check('el menú ya no tiene grupo Herramientas', `!document.querySelector('#topbar-menu-panel #menu-group-tools')`);
     await check('el panel cabe en pantalla',
         `(() => { const r = document.getElementById('topbar-menu-panel').getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth && r.top > 0; })()`);
@@ -281,7 +282,7 @@ async function main() {
     await check('vuelto calculado ($24.60)', `document.getElementById('ticket-change').textContent.includes('24.60')`);
 
     // La caja arranca cerrada: el modal confirma, pero el cobro se rechaza (gate)
-    await check('badge de caja dice Cerrada', `document.getElementById('cash-badge-text').textContent.includes('cerrada')`);
+    await check('badge de caja con caja cerrada (icono opaco)', `document.getElementById('cash-badge-icon').classList.contains('fa-lock') && !document.getElementById('cash-badge-icon').classList.contains('fa-lock-open')`);
     await evaluar(`document.querySelector('[data-action="pay"]').click()`);
     await esperar(200);
     await check('modal de confirmación de venta abierto', `!document.getElementById('modal-sale-confirm').classList.contains('is-hidden')`);
@@ -302,7 +303,7 @@ async function main() {
     await check('modal de apertura abierto', `!document.getElementById('modal-cash-open').classList.contains('is-hidden')`);
     await evaluar(`document.getElementById('cash-open-fondo').value = '500'; document.getElementById('form-cash-open').requestSubmit(); true`);
     await esperar(250);
-    await check('badge de caja dice Abierta', `document.getElementById('cash-badge-text').textContent.includes('abierta')`);
+    await check('badge de caja con caja abierta (icono verde)', `document.getElementById('cash-badge-icon').classList.contains('fa-lock-open') && !document.getElementById('cash-badge-icon').classList.contains('fa-lock')`);
     await check('sesión de caja persistida', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).cashSession.open === true`);
     await check('resumen muestra el fondo 500', `document.getElementById('cash-summary').textContent.includes('500')`);
 
@@ -415,7 +416,7 @@ async function main() {
     await esperar(300);
     await check('corte cuadra exacto (toast)', `[...document.querySelectorAll('#toast-stack .toast')].pop()?.textContent.includes('cuadra') || false`);
     await check('corte en el historial', `document.getElementById('cash-closures-list').textContent.includes('565.40')`);
-    await check('caja volvió a cerrarse', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).cashSession.open === false && document.getElementById('cash-badge-text').textContent.includes('cerrada')`);
+    await check('caja volvió a cerrarse', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).cashSession.open === false && document.getElementById('cash-badge-icon').classList.contains('fa-lock')`);
 
     // Moneda en tiempo real: siembra la caché de tasas antes del F5 para que
     // la conversión funcione con la tasa guardada (con o sin red).
@@ -504,7 +505,9 @@ async function main() {
     // --- Tema (oscuro/claro/auto) ------------------------------------------
     await check('tema aplicado al arrancar', `['dark', 'light'].includes(document.documentElement.dataset.theme)`);
     await check('botón de tema presente con icono', `!!document.getElementById('theme-toggle')?.querySelector('i')`);
-    await check('el tema vive en el sidebar', `document.querySelector('.sidebar__bottom').contains(document.getElementById('theme-toggle'))`);
+    await menuAbierto();
+    await check('el tema del menú es cuadrado (icono centrado)',
+        `(() => { const r = document.getElementById('theme-toggle').getBoundingClientRect(); return r.width > 0 && Math.abs(r.width - r.height) <= 1; })()`);
 
     await evaluar(`document.getElementById('theme-toggle').click()`); // auto → dark
     await esperar(150);
@@ -822,7 +825,7 @@ async function main() {
     })()`);
 
     // Efectivo es fijo (ni editar ni borrar)
-    await check('efectivo no tiene botones Editar/Eliminar', `!document.querySelector('#payment-methods-list [data-action="delete-method"][data-id="cash"]') && !document.querySelector('#payment-methods-list [data-action="edit-method"][data-id="cash"]')`);
+    await check('efectivo no tiene iconos Editar/Eliminar', `!document.querySelector('#payment-methods-list [data-action="delete-method"][data-id="cash"]') && !document.querySelector('#payment-methods-list [data-action="edit-method"][data-id="cash"]')`);
 
     // Borrar pide confirmación
     await evaluar(`document.querySelector('[data-action="delete-method"][data-id="zelle"]').click(); true`);

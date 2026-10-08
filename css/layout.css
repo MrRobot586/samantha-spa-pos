@@ -86,38 +86,6 @@ body.is-logged-out .toast-stack {
     gap: var(--space-2);
 }
 
-/* Pie del sidebar: tema (cycle) + fecha. Reemplaza a la antigua tarjeta de
-   sucursal: es un experimento que reparte el control de tema y la fecha
-   fuera del menú del topbar. */
-.sidebar__bottom {
-    margin-top: auto;
-    padding: var(--space-8);
-    border-top: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-4);
-}
-
-.sidebar__bottom .theme-toggle {
-    width: 100%;
-    justify-content: flex-start;
-    text-align: left;
-}
-
-.sidebar__date {
-    text-align: left;
-}
-
-.sidebar__date p {
-    font-size: var(--fs-sm);
-    color: var(--text-muted);
-}
-
-.sidebar__date .sidebar__status {
-    font-weight: 600;
-    color: var(--text-dim);
-}
-
 /* --- Main + header -------------------------------------------------------- */
 
 .main {
@@ -181,6 +149,7 @@ body.is-logged-out .toast-stack {
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: var(--space-2);
     padding: var(--space-3) var(--space-5);
     font-size: var(--fs-sm);
     color: var(--text-muted);
@@ -188,6 +157,22 @@ body.is-logged-out .toast-stack {
     border: 1px solid var(--border-strong);
     border-radius: var(--radius);
     transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+/* Nombre del usuario activo dentro del botón de menú; en pantallas pequeñas
+   se queda solo el icono para no pelear por espacio con la tasa y el título. */
+.topbar-menu__btn .btn-menu__name {
+    font-weight: 600;
+    max-width: 8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 640px) {
+    .topbar-menu__btn .btn-menu__name {
+        display: none;
+    }
 }
 
 .topbar-menu__btn:hover,
@@ -242,6 +227,14 @@ body.is-logged-out .toast-stack {
 
 /* Controles a ancho completo dentro del panel (no desbordan: son los mismos
    elementos que antes peleaban por espacio en la barra). */
+.topbar-menu__controls {
+    /* Moneda de visualización y tasa BCV en la misma fila, dos columnas. */
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4);
+    align-items: stretch;
+}
+
 .topbar-menu__panel .currency-toggle {
     width: 100%;
 }
@@ -260,14 +253,21 @@ body.is-logged-out .toast-stack {
     min-width: 0;
 }
 
-.topbar-menu__panel .theme-toggle,
+/* El botón de tema es cuadrado (control puntual), no una fila a lo ancho
+   del panel; el resto de botones del panel siguen a ancho completo. */
+.topbar-menu__panel .theme-toggle {
+    width: 2.25rem;
+    height: 2.25rem;
+    min-height: 2.25rem;
+    padding: 0;
+    justify-content: center;
+    text-align: center;
+    align-self: flex-start;
+}
+
 .topbar-menu__panel .btn {
     width: 100%;
     justify-content: flex-start;
-}
-
-.topbar-menu__panel .theme-toggle {
-    text-align: left;
 }
 
 /* El chip se alinea a la izquierda: dentro del panel ya no juega contra el
@@ -306,6 +306,13 @@ body.is-logged-out .toast-stack {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* Fecha del día en el grupo "Sesión" del menú. */
+.topbar-menu__date {
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+    text-transform: capitalize;
 }
 
 /* --- Moneda de visualización + tasa BCV ------------------------------------ */
@@ -463,12 +470,13 @@ body.is-logged-out .toast-stack {
     border-color: var(--brand-400);
 }
 
-.cash-badge__dot {
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: 50%;
-    background: var(--text-dim);
-    flex-shrink: 0;
+/* El badge de caja es admin y solo desde 640: en el teléfono ya caben el
+   título, el de tasa y el botón de menú, pero no dos badges. El estado se
+   lee del icono (verde abierta / opaco cerrada); el texto lleva la fecha. */
+.cash-badge i {
+    font-size: var(--fs-sm);
+    color: var(--text-dim);
+    transition: color 0.2s;
 }
 
 .cash-badge.is-open {
@@ -476,12 +484,10 @@ body.is-logged-out .toast-stack {
     border-color: var(--success);
 }
 
-.cash-badge.is-open .cash-badge__dot {
-    background: var(--success);
+.cash-badge.is-open i {
+    color: var(--success);
 }
 
-/* El badge de caja es admin y solo desde 640: en el teléfono ya caben el
-   título, el de tasa y el botón de menú, pero no dos badges. */
 @media (min-width: 640px) {
     .cash-badge {
         display: inline-flex;
@@ -523,8 +529,7 @@ body.is-logged-out .toast-stack {
         padding-bottom: env(safe-area-inset-bottom, 0px);
     }
 
-    .sidebar__brand,
-    .sidebar__bottom {
+    .sidebar__brand {
         display: none;
     }
 

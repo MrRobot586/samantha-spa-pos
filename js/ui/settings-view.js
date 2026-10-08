@@ -39,8 +39,12 @@ export function renderPaymentMethods() {
         const esFijo = m.id === 'cash';
         const acciones = esFijo
             ? '<span class="cell-muted">Fijo</span>'
-            : `<button type="button" data-action="edit-method" data-id="${m.id}" class="btn btn--neutral btn--sm">Editar</button>
-               <button type="button" data-action="delete-method" data-id="${m.id}" class="btn btn--danger btn--ghost btn--sm">Eliminar</button>`;
+            : `<button type="button" data-action="edit-method" data-id="${m.id}" class="btn btn--neutral btn--icon" title="Editar método" aria-label="Editar ${m.label}">
+                            <i class="fa-solid fa-pen" aria-hidden="true"></i>
+                        </button>
+                        <button type="button" data-action="delete-method" data-id="${m.id}" class="btn btn--danger btn--ghost btn--icon" title="Eliminar método" aria-label="Eliminar ${m.label}">
+                            <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                        </button>`;
         return `<tr>
             <td data-label="Método"><i class="fa-solid ${escapeHtml(m.icon || 'fa-credit-card')}"></i> ${escapeHtml(m.label)}</td>
             <td data-label="Tipo" class="cell-muted">${escapeHtml(TYPE_LABELS[m.type] || m.type)}</td>

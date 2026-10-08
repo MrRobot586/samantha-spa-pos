@@ -31,14 +31,16 @@ export function renderServicesCards() {
                     </div>
                 </div>
                 <div class="row-actions">
-                    <button type="button" data-action="edit-service" data-id="${escapeHtml(s.id)}" class="btn btn--mini">
-                        Editar
+                    <button type="button" data-action="edit-service" data-id="${escapeHtml(s.id)}" class="btn btn--mini btn--icon"
+                            title="Editar servicio" aria-label="Editar ${escapeHtml(s.name)}">
+                        <i class="fa-solid fa-pen" aria-hidden="true"></i>
                     </button>
                     <button type="button" data-action="delete-service" data-id="${escapeHtml(s.id)}"
                             data-title="¿Eliminar servicio?"
                             data-message="Se eliminará &quot;${escapeHtml(s.name)}&quot; del catálogo. El historial de ventas ya cobradas no se altera."
-                            class="btn btn--mini btn--mini-danger">
-                        Eliminar
+                            class="btn btn--mini btn--mini-danger btn--icon"
+                            title="Eliminar servicio" aria-label="Eliminar ${escapeHtml(s.name)}">
+                        <i class="fa-solid fa-trash" aria-hidden="true"></i>
                     </button>
                 </div>
             </article>`;

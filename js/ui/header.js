@@ -1,9 +1,10 @@
 /* Header: moneda de visualización, badge de tasa BCV y estado de caja.
  *
  * El toggle solo cambia settings.currency (persistido); el badge de tasa
- * muestra la tasa vigente (sin fecha — vive en el sidebar) y funciona como
- * botón de actualización manual. El badge de caja es solo para quien tiene
- * permiso 'cash' (admin): abre la pestaña Caja & Cortes. */
+ * muestra la tasa vigente y funciona como botón de actualización manual.
+ * El badge de caja es solo para quien tiene permiso 'cash' (admin): el
+ * icono lee el estado (verde = abierta, opaco = cerrada) y la fecha del
+ * día es el texto; al tocar abre la pestaña Caja & Cortes. */
 
 import { getState } from '../core/state.js';
 import { getSnapshot, bsRate } from '../core/rates.js';
@@ -49,6 +50,11 @@ export function renderRateBadge() {
         : 'Tocar para actualizar la tasa';
 }
 
+/** Fecha corta del día (la lleva el badge de caja). */
+function fechaCorta() {
+    return new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+}
+
 export function renderCashBadge() {
     const badge = document.getElementById('cash-badge');
     if (!badge) return;
@@ -60,10 +66,15 @@ export function renderCashBadge() {
 
     const abierta = getState().cashSession.open === true;
     badge.classList.toggle('is-open', abierta);
-    document.getElementById('cash-badge-text').textContent = abierta
-        ? 'Caja abierta'
-        : 'Caja cerrada';
     badge.title = abierta ? 'Caja abierta · ir a Caja & Cortes' : 'Caja cerrada · ir a Caja & Cortes';
+
+    const icon = document.getElementById('cash-badge-icon');
+    if (icon) {
+        icon.className = `fa-solid ${abierta ? 'fa-lock-open' : 'fa-lock'}`;
+        icon.setAttribute('aria-hidden', 'true');
+    }
+    const texto = document.getElementById('cash-badge-text');
+    if (texto) texto.textContent = fechaCorta();
 }
 
 /** Resuelve el tema efectivo y lo escribe en <html data-theme>.

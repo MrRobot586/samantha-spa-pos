@@ -133,17 +133,6 @@
                 <span>Configuración</span>
             </button>
         </nav>
-
-        <div class="sidebar__bottom">
-            <button type="button" id="theme-toggle" data-action="set-theme"
-                    class="theme-toggle" data-theme="auto" title="Tema">
-                <i class="fa-solid fa-desktop" aria-hidden="true"></i>
-            </button>
-            <div class="sidebar__date">
-                <p id="current-date">Cargando fecha...</p>
-                <p class="sidebar__status">Turno en curso</p>
-            </div>
-        </div>
     </aside>
 
     <!-- CONTENIDO PRINCIPAL -->
@@ -153,18 +142,18 @@
                 <i class="fa-solid fa-chart-pie"></i> Dashboard General
             </h2>
             <!-- Solo lo que se lee de un vistazo: título + estado de la tasa +
-                 estado de la caja. Todo lo demás (moneda, fuente de tasa, tema)
-                 vive en el menú desplegable; el tema y la fecha en el pie del
-                 sidebar; y los ajustes (pagos, comisión, impresión, usuarios,
-                 Restaurar demo) en la pestaña Configuración. -->
+                 estado de la caja (con la fecha). Todo lo demás (moneda, fuente
+                 de tasa, tema, usuario, fecha) vive en el menú desplegable; y
+                 los ajustes (pagos, comisión, impresión, usuarios, Restaurar
+                 demo) en la pestaña Configuración. -->
             <div class="topbar__right">
                 <button type="button" id="rate-badge" data-action="refresh-rates" class="rate-badge">
                     Cargando tasa…
                 </button>
                 <button type="button" id="cash-badge" data-action="switch-tab" data-tab="cash"
                         class="cash-badge is-hidden" title="Estado de la caja">
-                    <span class="cash-badge__dot"></span>
-                    <span id="cash-badge-text">Caja cerrada</span>
+                    <i id="cash-badge-icon" class="fa-solid fa-lock" aria-hidden="true"></i>
+                    <span id="cash-badge-text">—</span>
                 </button>
 
                 <div class="topbar-menu" id="topbar-menu">
@@ -172,6 +161,7 @@
                             class="topbar-menu__btn" aria-expanded="false"
                             aria-controls="topbar-menu-panel" title="Menú de usuario" aria-label="Menú de usuario">
                         <i class="fa-solid fa-circle-user" aria-hidden="true"></i>
+                        <span id="topbar-user-name" class="btn-menu__name">—</span>
                     </button>
 
                     <div id="topbar-menu-panel" class="topbar-menu__panel is-hidden">
@@ -181,24 +171,27 @@
                                 <div class="topbar__avatar" id="user-initials">—</div>
                                 <p class="topbar__user-name" id="user-chip-name">—</p>
                             </div>
+                            <p class="topbar-menu__date" id="menu-date"></p>
                         </section>
 
                         <section class="topbar-menu__group">
                             <p class="topbar-menu__label">Vista</p>
-                            <div class="currency-toggle" role="group" aria-label="Moneda de visualización">
-                                <button type="button" data-action="set-currency" data-currency="USD" class="currency-btn is-active">USD</button>
-                                <button type="button" data-action="set-currency" data-currency="VES" class="currency-btn">Bs</button>
-                                <button type="button" data-action="set-currency" data-currency="EUR" class="currency-btn">€</button>
-                            </div>
-                            <!-- Tasa BCV de referencia: elige qué tasa del BCV alimenta la
-                                 conversión a bolívares (y lo que enseña el badge). -->
-                            <div class="rate-source" title="Tasa BCV de referencia">
-                                <i class="fa-solid fa-money-bill-transfer rate-source__icon" aria-hidden="true"></i>
-                                <select id="rate-source" data-action="set-rate-source" class="rate-source__select"
-                                        aria-label="Tasa BCV de referencia">
-                                    <option value="usd">Tasa USD</option>
-                                    <option value="eur">Tasa Euro</option>
-                                </select>
+                            <div class="topbar-menu__controls">
+                                <div class="currency-toggle" role="group" aria-label="Moneda de visualización">
+                                    <button type="button" data-action="set-currency" data-currency="USD" class="currency-btn is-active">USD</button>
+                                    <button type="button" data-action="set-currency" data-currency="VES" class="currency-btn">Bs</button>
+                                    <button type="button" data-action="set-currency" data-currency="EUR" class="currency-btn">€</button>
+                                </div>
+                                <!-- Tasa BCV de referencia: elige qué tasa del BCV alimenta la
+                                     conversión a bolívares (y lo que enseña el badge). -->
+                                <div class="rate-source" title="Tasa BCV de referencia">
+                                    <i class="fa-solid fa-money-bill-transfer rate-source__icon" aria-hidden="true"></i>
+                                    <select id="rate-source" data-action="set-rate-source" class="rate-source__select"
+                                            aria-label="Tasa BCV de referencia">
+                                        <option value="usd">Tasa USD</option>
+                                        <option value="eur">Tasa Euro</option>
+                                    </select>
+                                </div>
                             </div>
                             <button type="button" id="theme-toggle" data-action="set-theme"
                                     class="theme-toggle" data-theme="auto" title="Tema">
