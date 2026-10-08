@@ -223,34 +223,7 @@ body.is-logged-out .toast-stack {
     border-top: 1px solid var(--border);
     padding-top: var(--space-6);
     display: flex;
-}
-
-/* Controles a ancho completo dentro del panel (no desbordan: son los mismos
-   elementos que antes peleaban por espacio en la barra). */
-.topbar-menu__controls {
-    /* Moneda de visualización y tasa BCV en la misma fila, dos columnas. */
-    display: grid;
-    grid-template-columns: 1fr 1fr;
     gap: var(--space-4);
-    align-items: stretch;
-}
-
-.topbar-menu__panel .currency-toggle {
-    width: 100%;
-}
-
-.topbar-menu__panel .currency-btn {
-    flex: 1;
-    text-align: center;
-}
-
-.topbar-menu__panel .rate-source {
-    width: 100%;
-}
-
-.topbar-menu__panel .rate-source__select {
-    flex: 1;
-    min-width: 0;
 }
 
 /* El botón de tema es cuadrado (control puntual), no una fila a lo ancho
@@ -270,9 +243,10 @@ body.is-logged-out .toast-stack {
     justify-content: flex-start;
 }
 
-/* El chip se alinea a la izquierda: dentro del panel ya no juega contra el
-   título de la barra. */
-.topbar-menu__panel .topbar-menu__logout {
+/* El pie reparte el ancho entre Configuración (si el rol lo permite) y
+   Salir, centrando el icono y el texto de cada uno. */
+.topbar-menu__foot .btn {
+    flex: 1;
     justify-content: center;
 }
 
@@ -443,9 +417,87 @@ body.is-logged-out .toast-stack {
     }
 }
 
-.rate-badge:hover {
+.rate-badge:hover,
+.rate-badge[aria-expanded="true"] {
     color: var(--text-strong);
     border-color: var(--brand-400);
+}
+
+/* --- Menu desplegable del badge de tasa ------------------------------------
+   El badge abre un panel con la moneda, la fuente de la tasa y el refresco;
+   mismos comportamientos que el menú del topbar (clic fuera / ESC). */
+.rate-dropdown {
+    position: relative;
+}
+
+.rate-dropdown__panel {
+    position: absolute;
+    top: calc(100% + var(--space-4));
+    right: 0;
+    width: 16rem;
+    max-width: calc(100vw - var(--space-16));
+    background: var(--card);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.4);
+    padding: var(--space-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    z-index: 21;
+}
+
+.rate-dropdown__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: var(--space-4);
+}
+
+.rate-dropdown__title {
+    font-size: var(--fs-2xs);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.rate-dropdown__refresh {
+    width: 2rem;
+    height: 2rem;
+    min-height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.rate-dropdown__refresh:hover {
+    color: var(--text-strong);
+}
+
+/* Controles a ancho completo dentro del panel delgado (no desbordan). */
+.rate-dropdown .currency-toggle {
+    width: 100%;
+}
+
+.rate-dropdown .currency-btn {
+    flex: 1;
+    text-align: center;
+}
+
+.rate-dropdown .rate-source {
+    width: 100%;
+}
+
+.rate-dropdown .rate-source__select {
+    flex: 1;
+    min-width: 0;
 }
 
 /* --- Estado de la caja (topbar) ----------------------------------------------------- */

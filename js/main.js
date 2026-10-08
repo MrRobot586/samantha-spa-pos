@@ -11,11 +11,11 @@ import { loadState, saveState, restoreDemo } from './core/storage.js';
 import { login, logout, getCurrentUser } from './core/auth.js';
 import { loadRatesCache, refreshRates, isStale, toUSD } from './core/rates.js';
 import { CURRENCIES, THEMES, RATE_SOURCES, SESSION_IDLE_MS, IDLE_CHECK_MS } from './core/config.js';
-import { money } from './core/utils.js';
+import { money, shortDate } from './core/utils.js';
 
 import { switchTab, renderNav, ensureAllowedTab } from './ui/navigation.js';
 import { showLogin, showApp, showLoginError } from './ui/login-view.js';
-import { renderHeader, applyTheme } from './ui/header.js';
+import { renderHeader, applyTheme, initRateMenu, toggleRateMenu } from './ui/header.js';
 import { renderUsersList, fillUserForm, resetUserForm } from './ui/users-view.js';
 import { toast, toastSuccess, toastError } from './ui/dialogs.js';
 import { openModal, closeModal, initModals } from './ui/modals.js';
@@ -82,10 +82,9 @@ function renderSessionChrome() {
     renderNav(user.role);
 }
 
-/** Fecha larga del día en el grupo "Sesión" del menú. */
+/** Fecha corta dd/mm/aaaa en el grupo "Sesión" del menú y en el badge de caja. */
 function renderCurrentDate() {
-    const fecha = new Date()
-        .toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' });
+    const fecha = shortDate();
     const menu = document.getElementById('menu-date');
     if (menu) menu.textContent = fecha;
 }
@@ -193,6 +192,10 @@ function handleAction(el, action) {
 
         case 'toggle-menu':
             toggleMenu();
+            break;
+
+        case 'toggle-rate-menu':
+            toggleRateMenu();
             break;
 
         case 'filter-cat': {
@@ -817,6 +820,7 @@ function boot() {
 
     initModals();
     initMenu();
+    initRateMenu();
     initCatalogDrag();
 
     if (recovered === 'corrupto') {

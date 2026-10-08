@@ -117,6 +117,17 @@ async function main() {
         await evaluar(`document.getElementById('btn-menu').click()`);
         await esperar(120);
     };
+    /** Abre/cierra el panel del badge de tasa (moneda + fuente + refresco). */
+    const rateAbierto = async () => {
+        if (await evaluar(`!document.getElementById('rate-menu-panel').classList.contains('is-hidden')`)) return;
+        await evaluar(`document.getElementById('rate-badge').click()`);
+        await esperar(120);
+    };
+    const rateCerrado = async () => {
+        if (!(await evaluar(`!document.getElementById('rate-menu-panel').classList.contains('is-hidden')`))) return;
+        await evaluar(`document.getElementById('rate-badge').click()`);
+        await esperar(120);
+    };
 
     await check('título', `document.title`);
 
@@ -133,8 +144,8 @@ async function main() {
     await esperar(300);
     await check('login admin → app visible', `!document.body.classList.contains('is-logged-out')`);
     await check('chip del usuario', `document.getElementById('user-chip-name').textContent`);
-    await check('admin ve la pestaña Configuración', `!document.getElementById('nav-settings').classList.contains('is-hidden')`);
-    await check('nav admin: 8 pestañas visibles', `[...document.querySelectorAll('.sidebar__nav .nav-btn')].filter(b => !b.classList.contains('is-hidden')).length === 8`);
+    await check('admin ve Configuración en el menú de sesión', `!document.getElementById('menu-settings').classList.contains('is-hidden')`);
+    await check('nav admin: 7 pestañas visibles', `[...document.querySelectorAll('.sidebar__nav .nav-btn')].filter(b => !b.classList.contains('is-hidden')).length === 7`);
     await check('dashboard admin ve alertas de stock', `!document.getElementById('dash-stock-card').classList.contains('is-hidden')`);
     await check('badge de caja visible para admin', `!document.getElementById('cash-badge').classList.contains('is-hidden')`);
 
@@ -144,14 +155,25 @@ async function main() {
     await check('el topbar solo enseña título + badges + menú',
         `!document.querySelector('.topbar__right > .currency-toggle') && !document.querySelector('.topbar__right > .rate-source') && !document.querySelector('.topbar__right > .topbar__date')`);
     await check('badge de tasa visible en la barra', `document.getElementById('rate-badge').offsetParent !== null`);
+
+    // Badge de tasa: abre su propio panel (moneda + fuente + refresco)
+    await evaluar(`document.getElementById('rate-badge').click()`);
+    await esperar(120);
+    await check('clic en el badge abre el panel de tasa',
+        `!document.getElementById('rate-menu-panel').classList.contains('is-hidden') && document.getElementById('rate-badge').getAttribute('aria-expanded') === 'true'`);
+    await check('el panel de la tasa tiene moneda, fuente y refresco (ya no en el menú)',
+        `document.getElementById('rate-menu-panel').contains(document.querySelector('.currency-toggle')) && document.getElementById('rate-menu-panel').contains(document.querySelector('.rate-source')) && document.getElementById('rate-menu-panel').contains(document.querySelector('[data-action="refresh-rates"]')) && !document.getElementById('topbar-menu-panel').contains(document.querySelector('.currency-toggle'))`);
+    await evaluar(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+    await esperar(120);
+    await check('ESC cierra el panel de tasa', `document.getElementById('rate-menu-panel').classList.contains('is-hidden')`);
     await evaluar(`document.getElementById('btn-menu').click()`);
     await esperar(120);
     await check('clic en el botón de usuario abre el menú',
         `!document.getElementById('topbar-menu-panel').classList.contains('is-hidden') && document.getElementById('btn-menu').getAttribute('aria-expanded') === 'true'`);
     await check('el botón del menú lleva el icono de usuario', `document.querySelector('#btn-menu i').classList.contains('fa-circle-user')`);
     await check('el botón del menú muestra el usuario activo', `document.getElementById('topbar-user-name').textContent.trim() !== ''`);
-    await check('moneda dentro del menú',
-        `document.getElementById('topbar-menu-panel').contains(document.querySelector('.currency-toggle'))`);
+    await check('moneda ya no está en el menú de sesión',
+        `!document.getElementById('topbar-menu-panel').contains(document.querySelector('.currency-toggle')) && !document.getElementById('topbar-menu-panel').contains(document.querySelector('.rate-source'))`);
     await check('sesión dentro del menú (con la fecha del día)',
         `document.getElementById('topbar-menu-panel').contains(document.getElementById('user-chip')) && document.getElementById('topbar-menu-panel').contains(document.getElementById('menu-date'))`);
     await check('tema y fecha viven en el menú, no en el sidebar',
@@ -180,7 +202,9 @@ async function main() {
     await esperar(150);
 
     // Alta de usuarios desde la UI (los usuarios viven en Configuración)
-    await evaluar(`document.getElementById('nav-settings').click()`);
+    await evaluar(`document.getElementById('btn-menu').click(); true`);
+    await esperar(120);
+    await evaluar(`document.getElementById('menu-settings').click()`);
     await esperar(150);
     await check('pestaña Configuración abierta desde el nav',
         `!document.getElementById('tab-settings').classList.contains('is-hidden')`);
@@ -211,7 +235,7 @@ async function main() {
     await check('estilista NO ve Inventario', `document.getElementById('nav-inventory').classList.contains('is-hidden')`);
     await check('estilista NO ve Caja & Cortes', `document.getElementById('nav-cash').classList.contains('is-hidden')`);
     await check('estilista ve Ventas', `!document.getElementById('nav-ventas').classList.contains('is-hidden')`);
-    await check('estilista NO ve Configuración', `document.getElementById('nav-settings').classList.contains('is-hidden')`);
+    await check('estilista NO ve Configuración', `document.getElementById('menu-settings').classList.contains('is-hidden')`);
     await check('estilista NO ve el badge de caja', `document.getElementById('cash-badge').classList.contains('is-hidden')`);
     await check('el tab de Configuración está oculto para el estilista', `document.getElementById('tab-settings').classList.contains('is-hidden')`);
     await check('dashboard estilista oculta alertas de stock', `document.getElementById('dash-stock-card').classList.contains('is-hidden') && document.getElementById('dash-alerts-card').classList.contains('is-hidden')`);
@@ -282,7 +306,7 @@ async function main() {
     await check('vuelto calculado ($24.60)', `document.getElementById('ticket-change').textContent.includes('24.60')`);
 
     // La caja arranca cerrada: el modal confirma, pero el cobro se rechaza (gate)
-    await check('badge de caja con caja cerrada (icono opaco)', `document.getElementById('cash-badge-icon').classList.contains('fa-lock') && !document.getElementById('cash-badge-icon').classList.contains('fa-lock-open')`);
+    await check('badge de caja con caja cerrada (icono opaco)', `document.getElementById('cash-badge-icon').classList.contains('fa-lock') && !document.getElementById('cash-badge-icon').classList.contains('fa-cash-register')`);
     await evaluar(`document.querySelector('[data-action="pay"]').click()`);
     await esperar(200);
     await check('modal de confirmación de venta abierto', `!document.getElementById('modal-sale-confirm').classList.contains('is-hidden')`);
@@ -303,7 +327,9 @@ async function main() {
     await check('modal de apertura abierto', `!document.getElementById('modal-cash-open').classList.contains('is-hidden')`);
     await evaluar(`document.getElementById('cash-open-fondo').value = '500'; document.getElementById('form-cash-open').requestSubmit(); true`);
     await esperar(250);
-    await check('badge de caja con caja abierta (icono verde)', `document.getElementById('cash-badge-icon').classList.contains('fa-lock-open') && !document.getElementById('cash-badge-icon').classList.contains('fa-lock')`);
+    await check('badge de caja con caja abierta (máquina registradora en verde)', `document.getElementById('cash-badge-icon').classList.contains('fa-cash-register') && !document.getElementById('cash-badge-icon').classList.contains('fa-lock')`);
+    await check('badge de caja con la fecha dd/mm/aaaa', `/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(document.getElementById('cash-badge-text').textContent.trim())`);
+    await check('fecha dd/mm/aaaa en el menú de sesión', `/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(document.getElementById('menu-date').textContent.trim())`);
     await check('sesión de caja persistida', `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).cashSession.open === true`);
     await check('resumen muestra el fondo 500', `document.getElementById('cash-summary').textContent.includes('500')`);
 
@@ -383,7 +409,9 @@ async function main() {
     await check('reimpresión desde Ventas', `window.__printed === true && document.getElementById('print-area').textContent.includes('Tinte Completo & Broshing')`);
 
     // Ajustes de impresión (admin): viven en la pestaña Configuración
-    await evaluar(`document.getElementById('nav-settings').click()`);
+    await evaluar(`document.getElementById('btn-menu').click(); true`);
+    await esperar(120);
+    await evaluar(`document.getElementById('menu-settings').click()`);
     await esperar(150);
     await check('Configuración abierta (ticket de canje)', `!document.getElementById('tab-settings').classList.contains('is-hidden')`);
     await check('4 métodos de pago de fábrica', `document.querySelectorAll('#payment-methods-list tr').length === 4`);
@@ -635,17 +663,17 @@ async function main() {
         })()`);
     await check('tabla clásica de vuelta ≥640px', `
         getComputedStyle(document.querySelector('#tab-inventory thead')).display !== 'none'`);
-    await menuAbierto();
-    await check('selector de tasa en el menú (700px)',
+    await rateAbierto();
+    await check('selector de tasa en el desplegable (700px)',
         `document.querySelector('.rate-source').offsetParent !== null`);
 
     // Bandas intermedias: 768–1023 (etiquetas ocultas) y 1024–1279 (compacto)
-    // El selector de tasa ya no depende del ancho: vive en el menú.
+    // El selector de tasa ya no depende del ancho: vive en el desplegable.
     await send('Emulation.setDeviceMetricsOverride', { width: 768, height: 900, deviceScaleFactor: 1, mobile: false }, sessionId);
     await esperar(300);
-    await check('selector de tasa sigue en el menú a 768px',
+    await check('selector de tasa sigue en el desplegable a 768px',
         `document.querySelector('.rate-source').offsetParent !== null`);
-    await menuCerrado();
+    await rateCerrado();
     for (const ancho of [768, 900, 1100]) {
         await send('Emulation.setDeviceMetricsOverride', { width: ancho, height: 900, deviceScaleFactor: 1, mobile: false }, sessionId);
         await esperar(300);
@@ -784,7 +812,9 @@ async function main() {
     await check('acciones masivas vacían la orden', `document.querySelectorAll('#ticket-items-container .ticket-item').length === 0`);
 
     // --- Configuración: CRUD de métodos de pago + comisión del rol ----------
-    await evaluar(`document.getElementById('nav-settings').click(); true`);
+    await evaluar(`document.getElementById('btn-menu').click(); true`);
+    await esperar(120);
+    await evaluar(`document.getElementById('menu-settings').click(); true`);
     await esperar(200);
     await check('admin entra a Configuración (CRUD)', `!document.getElementById('tab-settings').classList.contains('is-hidden')`);
 

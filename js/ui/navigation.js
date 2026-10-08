@@ -25,14 +25,15 @@ function currentRole() {
     return user ? user.role : null;
 }
 
-/** Oculta/muestra los botones del nav según el rol. El resto de utilidades
- *  (usuarios, Restaurar demo, impresión) vivieron antes en el menú del
- *  topbar; hoy están dentro de la pestaña Configuración, así que el menú ya
- *  no necesita permiso propio: con alternar el nav basta. */
+/** Oculta/muestra los botones del nav según el rol. La Configuración ya no
+ *  vive en la sidebar sino en el menú de sesión, así que renderNav también
+ *  alterna su acceso. El resto de utilidades (usuarios, Restaurar demo,
+ *  impresión) viven dentro de la pestaña Configuración. */
 export function renderNav(role) {
     for (const t of TABS) {
         document.getElementById(`nav-${t}`)?.classList.toggle('is-hidden', !can(role, t));
     }
+    document.getElementById('menu-settings')?.classList.toggle('is-hidden', !can(role, 'settings'));
 }
 
 export function switchTab(tabName) {

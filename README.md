@@ -194,16 +194,19 @@ en el menú del topbar:
 
 ## Tema y responsive
 
-- **Topbar ligero + menú desplegable:** la barra superior solo enseña
-  título, badge de tasa, badge de caja y el botón de menú (icono de
-  usuario + nombre activo; en teléfonos queda solo el icono). El badge de
-  caja lleva la fecha del día y un icono de estado (verde `lock-open`
-  abierta / opaco `lock` cerrada). Moneda y fuente de tasa, tema, chip de
-  sesión con la fecha y Salir viven en un panel anclado bajo la barra; se
+- **Topbar ligero + menús desplegables:** la barra superior solo enseña
+  título, badge de tasa, badge de caja y el botón de sesión (icono de
+  usuario + nombre activo; en teléfonos queda solo el icono). El **badge de
+  tasa abre su propio panel** con la moneda de visualización, la fuente de
+  la tasa (Tasa USD/Euro) y el botón de actualización, y se cierra con un
+  clic fuera o ESC. El **badge de caja** lleva la fecha dd/mm/aaaa y un
+  icono de estado (máquina registradora verde = abierta / candado opaco =
+  cerrada). El **menú de sesión** guarda el chip con el nombre y la fecha,
+  el tema cuadrado, el acceso a Configuración (solo admin) y Salir; se
   cierra con un clic fuera, con ESC, al cambiar de pestaña, al abrir un
   modal o al salir. El menú no tiene estado: siempre arranca cerrado. Los
   ajustes (pagos, comisión, impresión, usuarios, Restaurar demo) viven en
-  la pestaña Configuración.
+  la pestaña Configuración, a la que ya no se llega desde la sidebar.
 - **Tema `auto | dark | light`** con botón de ciclo cuadrado dentro del
   menú (ya no en el pie del sidebar, que queda vacío). `auto` es el valor
   por defecto y sigue a `prefers-color-scheme` (cambia en vivo si el
@@ -239,10 +242,10 @@ variable `var(--x)` debe existir en el proyecto). La UI se verifica con el smoke
 impresión y reimpresión, Configuración (CRUD de métodos de pago, comisión
 del rol y ticket), gate de caja, apertura, corte, moneda y tema, CRUD,
 restaurar demo, XSS, el gap de los filtros de Ventas, el wizard de 3 pasos
-del POS, el menú del topbar (moneda+tasa en dos columnas, tema cuadrado,
-sesión con la fecha, nombre del usuario en el botón), el badge de caja con
-icono de estado, barra inferior solo con iconos, checks en 7 anchos,
-0 errores de consola) y con el checklist del final.
+del POS, el menú del topbar (tema cuadrado, sesión con la fecha, acceso a
+Configuración), el panel de la tasa (moneda+fuente+refresco), el badge de
+caja con icono de estado y fecha, barra inferior solo con iconos, checks en
+7 anchos, 0 errores de consola) y con el checklist del final.
 El CI de GitHub Actions (`.github/workflows/ci.yml`) corre ambas cosas en
 cada push.
 
@@ -340,9 +343,10 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
   contenido a 512px y la topbar desbordaba (defecto del original), así que
   la nav inferior gana ancho y el lateral vuelve en ≥1024. Por debajo de
   640px la nav inferior queda **solo con iconos** (el texto se conserva
-como nombre accesible) y la topbar se reduce a título + tasa + caja + menú
+como nombre accesible) y la topbar se reduce a título + caja + tasa + menú
    (el botón es un icono de usuario; el nombre queda oculto en <640px). El
-   pie del sidebar se eliminó: tema y fecha viven en el menú desplegable.
+   pie del sidebar se eliminó: tema, fecha y Configuración viven en el menú;
+   la moneda y la fuente de la tasa en el panel del badge de tasa.
 - **Tablas → tarjetas apiladas <640px:** se oculta el `thead` y cada fila es
   una tarjeta; cada celda muestra su etiqueta tomada del `th` mediante
   `data-label` y el contenido queda a la derecha (`space-between`). Las celdas
@@ -423,56 +427,58 @@ como nombre accesible) y la topbar se reduce a título + tasa + caja + menú
     del estilista acumula en Comisiones.
 11. Recargar (F5): la sesión, ventas, stock, moneda y caja siguen ahí.
 12. Producto llamado `<img src=x onerror=alert(1)>` → se muestra como texto.
-13. ESC cierra los modales y el menú del topbar; el catálogo es navegable
-    con Tab.
-14. Menú (icono de usuario + nombre activo): dentro están el chip de sesión
-    con la fecha del día, moneda y fuente de tasa en la misma fila (dos
-    columnas), el botón de tema cuadrado y Salir; se cierra con clic fuera,
-    con ESC, al cambiar de pestaña y al abrir un modal. Ya no abre modales
-    (usuarios e impresión viven en Configuración).
-15. Configuración (admin): agregar un método «Zelle» electrónico → aparece en
+13. ESC cierra los modales, el menú de sesión y el panel de la tasa; el
+    catálogo es navegable con Tab.
+14. Badge de tasa: al tocarlo abre un panel con la moneda (USD/Bs/€), la
+    fuente de la tasa (Tasa USD/Euro) y el botón de actualización; se cierra
+    con clic fuera o ESC. La fecha se muestra como dd/mm/aaaa.
+15. Menú de sesión (icono de usuario + nombre activo): chip con iniciales y
+    nombre + la fecha dd/mm/aaaa, botón de tema cuadrado, **Configuración**
+    (solo admin, ya no vive en la sidebar) y Salir; se cierra con clic
+    fuera, con ESC, al cambiar de pestaña y al abrir un modal.
+16. Configuración (admin): agregar un método «Zelle» electrónico → aparece en
     la lista y al instante en las filas de pago del POS (cada una muestra su
     badge **Físico/Electrónico**); intentar duplicarlo → toast «Ya existe»;
     renombrarlo conserva el id estable; borrarlo pide confirmación y vuelve a
     4. El Efectivo aparece como fijo (iconos de editar/eliminar solo en los
     métodos no fijos). Cambiar la comisión del rol a 50 % y guardar → queda
     `stylistCommissionRate: 50`.
-16. A 375px de ancho: aparece la barra inferior con solo iconos (sin scroll
+17. A 375px de ancho: aparece la barra inferior con solo iconos (sin scroll
     horizontal); a 700 y 900px los ítems vuelven a mostrar el texto.
-17. Tema: el botón cuadrado del menú cicla Auto → Oscuro → Claro (el
+18. Tema: el botón cuadrado del menú cicla Auto → Oscuro → Claro (el
     icono cambia); con `auto` y el SO en claro/oscuro la app lo sigue en
     vivo; al recargar el tema elegido se mantiene sin parpadeo.
-18. Badge de caja: con la caja abierta muestra el candado abierto en verde y
-    la fecha; al cerrarla, el candado se vuelve opaco. Los modales entran con
-    animación y su botón de cerrar es circular.
-18. A 700 y 900px el header no desborda; a 900 se ve la barra inferior y a
+19. Badge de caja: con la caja abierta muestra la máquina registradora en
+    verde + la fecha; al cerrarla, el candado se vuelve opaco. Los modales
+    entran con animación y su botón de cerrar es circular.
+20. A 700 y 900px el header no desborda; a 900 se ve la barra inferior y a
     1100 el sidebar lateral vuelve a la izquierda.
-19. A 1600px el contenido queda centrado (máx. ~1440) y los grids de KPIs,
+21. A 1600px el contenido queda centrado (máx. ~1440) y los grids de KPIs,
     catálogo y servicios se adaptan (sin scroll horizontal en ningún ancho).
-20. Editar un producto/servicio desde la tabla actualiza la fila; "Nuevo"
+22. Editar un producto/servicio desde la tabla actualiza la fila; "Nuevo"
     vuelve a abrir el formulario en blanco.
-21. Eliminar un insumo usado por una receta se bloquea con aviso; un
+23. Eliminar un insumo usado por una receta se bloquea con aviso; un
     producto de venta sin receta sí se elimina (con confirmación).
-22. Caja & Cortes: filtrar el historial por fechas y exportar CSV; Comisiones:
+24. Caja & Cortes: filtrar el historial por fechas y exportar CSV; Comisiones:
     elegir un rango y exportar el CSV por estilista (se abren en Excel).
-23. "Restaurar demo" (en la pestaña Configuración) pide confirmación y repone
+25. "Restaurar demo" (en la pestaña Configuración) pide confirmación y repone
     inventario, ventas y caja de fábrica, dejando un respaldo previo.
-24. Vender un servicio y confirmar → el wizard pasa al paso 3 (Cierre) con
+26. Vender un servicio y confirmar → el wizard pasa al paso 3 (Cierre) con
     "Imprimir ticket" y "Nueva venta"; al pulsar imprimir se abre el
     diálogo del sistema (el ticket solo muestra los servicios, el código de
     canje y los servicios agrupados por estilista; los productos no se
     imprimen). "Nueva venta" vuelve al paso 1 con la orden vacía.
-25. Ajustes de impresión (pestaña Configuración, solo admin):
+27. Ajustes de impresión (pestaña Configuración, solo admin):
     cambiar a 80 mm y editar encabezado/pie; reimprimir desde la pestaña
     Ventas (con filtro por fecha) conserva y refleja esos ajustes.
-26. Dejar la app 20 min sin tocarla cierra la sesión sola y vuelve al login.
-27. Checklist del ticket: borrar un ítem con su ✕ deja la orden sin ese
+28. Dejar la app 20 min sin tocarla cierra la sesión sola y vuelve al login.
+29. Checklist del ticket: borrar un ítem con su ✕ deja la orden sin ese
     servicio; marcar casillas muestra la barra con contador y *Quitar
     selección*; *Eliminar* borra todos los marcados y la barra desaparece con
     la orden vacía. La selección no persiste en F5.
-28. Arrastrar una tarjeta del catálogo hasta la orden la agrega (igual que el
+30. Arrastrar una tarjeta del catálogo hasta la orden la agrega (igual que el
     clic, con persistencia); el clic sigue funcionando como alternativa.
-29. A 375px, las tablas (Inventario, Ventas, Configuración…) se convierten en
+31. A 375px, las tablas (Inventario, Ventas, Configuración…) se convierten en
     tarjetas apiladas: el encabezado desaparece y cada celda muestra su
     etiqueta al lado del valor; al volver a ≥640px recuperan la tabla
     clásica.

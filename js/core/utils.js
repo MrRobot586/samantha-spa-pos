@@ -49,6 +49,13 @@ export function dayKey(date = new Date()) {
     return `${y}-${m}-${d}`;
 }
 
+/** Fecha corta local dd/mm/aaaa (badge de caja y menú de sesión). */
+export function shortDate(date = new Date()) {
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${d}/${m}/${date.getFullYear()}`;
+}
+
 /** true si la fecha ISO guardada cae en el día local de hoy (bug #12:
  *  "Ventas del Día" debe filtrar por fecha, no contar toda la sesión). */
 export function isToday(isoString) {

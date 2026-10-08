@@ -1,14 +1,16 @@
 /* Header: moneda de visualización, badge de tasa BCV y estado de caja.
  *
- * El toggle solo cambia settings.currency (persistido); el badge de tasa
- * muestra la tasa vigente y funciona como botón de actualización manual.
- * El badge de caja es solo para quien tiene permiso 'cash' (admin): el
- * icono lee el estado (verde = abierta, opaco = cerrada) y la fecha del
- * día es el texto; al tocar abre la pestaña Caja & Cortes. */
+ * El badge de tasa también abre el panel desplegable con la moneda y la
+ * fuente de la tasa (además de su botón de actualización). El badge de caja
+ * es solo para quien tiene permiso 'cash' (admin): el icono lee el estado
+ * (máquina registradora verde = abierta, candado opaco = cerrada) y la fecha
+ * del día dd/mm/aaaa es el texto; al tocar abre la pestaña Caja & Cortes. */
 
 import { getState } from '../core/state.js';
 import { getSnapshot, bsRate } from '../core/rates.js';
 import { can, getCurrentUser } from '../core/auth.js';
+import { shortDate } from '../core/utils.js';
+import { closeMenu } from './menu.js';
 
 /** Etiqueta corta de la tasa BCV elegida (Tasa USD / Tasa Euro). */
 function rateSourceLabel(source) {
@@ -39,20 +41,18 @@ export function renderRateBadge() {
 
     if (!tasa) {
         badge.textContent = s.offline ? 'Tasa no disponible' : 'Cargando tasa…';
-        badge.title = 'Sin respuesta de ve.dolarapi.com: toca para reintentar';
+        badge.title = 'Tasa BCV · tocar para abrir el panel';
         return;
     }
 
     badge.textContent = `${rateSourceLabel(src)}: ${tasa.toLocaleString('es-VE', { maximumFractionDigits: 2 })} Bs`
         + (s.offline ? ' · sin conexión' : '');
-    badge.title = s.offline
-        ? `${rateSourceLabel(src)} guardada (sin conexión): toca para reintentar`
-        : 'Tocar para actualizar la tasa';
+    badge.title = 'Tasa BCV · tocar para abrir el panel';
 }
 
-/** Fecha corta del día (la lleva el badge de caja). */
+/** Fecha corta dd/mm/aaaa (la lleva el badge de caja). */
 function fechaCorta() {
-    return new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+    return shortDate();
 }
 
 export function renderCashBadge() {
@@ -70,7 +70,8 @@ export function renderCashBadge() {
 
     const icon = document.getElementById('cash-badge-icon');
     if (icon) {
-        icon.className = `fa-solid ${abierta ? 'fa-lock-open' : 'fa-lock'}`;
+        // Máquina registradora = caja abierta; candado = cerrada.
+        icon.className = `fa-solid ${abierta ? 'fa-cash-register' : 'fa-lock'}`;
         icon.setAttribute('aria-hidden', 'true');
     }
     const texto = document.getElementById('cash-badge-text');
@@ -105,4 +106,43 @@ export function renderHeader() {
     renderRateBadge();
     renderCashBadge();
     renderTheme();
+}
+
+/* --- Panel desplegable de la tasa -------------------------------------------
+   El badge de tasa abre un panel con la moneda de visualización y la fuente
+   de la tasa (antes vivían en el menú de sesión) más un botón de
+   actualización. Cierra igual que el menú del topbar: clic fuera o ESC. */
+
+export function toggleRateMenu() {
+    const panel = document.getElementById('rate-menu-panel');
+    const btn = document.getElementById('rate-badge');
+    if (!panel || !btn) return;
+    const abrir = panel.classList.contains('is-hidden');
+    panel.classList.toggle('is-hidden', !abrir);
+    btn.setAttribute('aria-expanded', String(abrir));
+    if (abrir) closeMenu();
+}
+
+export function closeRateMenu() {
+    const panel = document.getElementById('rate-menu-panel');
+    const btn = document.getElementById('rate-badge');
+    if (panel) panel.classList.add('is-hidden');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
+export function isRateMenuOpen() {
+    const panel = document.getElementById('rate-menu-panel');
+    return Boolean(panel) && !panel.classList.contains('is-hidden');
+}
+
+/** Listeners globales: clic fuera del panel y ESC. */
+export function initRateMenu() {
+    document.addEventListener('click', e => {
+        if (!isRateMenuOpen()) return;
+        if (e.target.closest('#rate-dropdown')) return;
+        closeRateMenu();
+    });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && isRateMenuOpen()) closeRateMenu();
+    });
 }

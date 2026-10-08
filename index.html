@@ -128,10 +128,6 @@
                 <i class="fa-solid fa-user-tag"></i>
                 <span>Comisiones</span>
             </button>
-            <button type="button" data-action="switch-tab" data-tab="settings" id="nav-settings" class="nav-btn is-hidden">
-                <i class="fa-solid fa-gear"></i>
-                <span>Configuración</span>
-            </button>
         </nav>
     </aside>
 
@@ -141,15 +137,44 @@
             <h2 id="page-title" class="topbar__title">
                 <i class="fa-solid fa-chart-pie"></i> Dashboard General
             </h2>
-            <!-- Solo lo que se lee de un vistazo: título + estado de la tasa +
-                 estado de la caja (con la fecha). Todo lo demás (moneda, fuente
-                 de tasa, tema, usuario, fecha) vive en el menú desplegable; y
-                 los ajustes (pagos, comisión, impresión, usuarios, Restaurar
-                 demo) en la pestaña Configuración. -->
+            <!-- Solo lo que se lee de un vistazo: título + estado de la caja (con la
+                 fecha). El badge de tasa abre su propio panel con la moneda, la
+                 fuente de la tasa y el refresco; el menú desplegable guarda el
+                 tema, el chip de sesión con la fecha, Configuración (admin) y
+                 Salir; y los ajustes (pagos, comisión, impresión, usuarios,
+                 Restaurar demo) en la pestaña Configuración. -->
             <div class="topbar__right">
-                <button type="button" id="rate-badge" data-action="refresh-rates" class="rate-badge">
-                    Cargando tasa…
-                </button>
+                <div class="rate-dropdown" id="rate-dropdown">
+                    <button type="button" id="rate-badge" data-action="toggle-rate-menu"
+                            class="rate-badge" aria-expanded="false" aria-controls="rate-menu-panel"
+                            title="Tasa BCV · tocar para abrir el panel">
+                        Cargando tasa…
+                    </button>
+                    <div id="rate-menu-panel" class="rate-dropdown__panel is-hidden">
+                        <div class="rate-dropdown__head">
+                            <span class="rate-dropdown__title">Tasa BCV</span>
+                            <button type="button" data-action="refresh-rates" class="rate-dropdown__refresh"
+                                    title="Actualizar la tasa" aria-label="Actualizar la tasa BCV">
+                                <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <div class="currency-toggle" role="group" aria-label="Moneda de visualización">
+                            <button type="button" data-action="set-currency" data-currency="USD" class="currency-btn is-active">USD</button>
+                            <button type="button" data-action="set-currency" data-currency="VES" class="currency-btn">Bs</button>
+                            <button type="button" data-action="set-currency" data-currency="EUR" class="currency-btn">€</button>
+                        </div>
+                        <!-- Tasa BCV de referencia: elige qué tasa del BCV alimenta la
+                             conversión a bolívares (y lo que enseña el badge). -->
+                        <div class="rate-source" title="Tasa BCV de referencia">
+                            <i class="fa-solid fa-money-bill-transfer rate-source__icon" aria-hidden="true"></i>
+                            <select id="rate-source" data-action="set-rate-source" class="rate-source__select"
+                                    aria-label="Tasa BCV de referencia">
+                                <option value="usd">Tasa USD</option>
+                                <option value="eur">Tasa Euro</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
                 <button type="button" id="cash-badge" data-action="switch-tab" data-tab="cash"
                         class="cash-badge is-hidden" title="Estado de la caja">
                     <i id="cash-badge-icon" class="fa-solid fa-lock" aria-hidden="true"></i>
@@ -176,23 +201,6 @@
 
                         <section class="topbar-menu__group">
                             <p class="topbar-menu__label">Vista</p>
-                            <div class="topbar-menu__controls">
-                                <div class="currency-toggle" role="group" aria-label="Moneda de visualización">
-                                    <button type="button" data-action="set-currency" data-currency="USD" class="currency-btn is-active">USD</button>
-                                    <button type="button" data-action="set-currency" data-currency="VES" class="currency-btn">Bs</button>
-                                    <button type="button" data-action="set-currency" data-currency="EUR" class="currency-btn">€</button>
-                                </div>
-                                <!-- Tasa BCV de referencia: elige qué tasa del BCV alimenta la
-                                     conversión a bolívares (y lo que enseña el badge). -->
-                                <div class="rate-source" title="Tasa BCV de referencia">
-                                    <i class="fa-solid fa-money-bill-transfer rate-source__icon" aria-hidden="true"></i>
-                                    <select id="rate-source" data-action="set-rate-source" class="rate-source__select"
-                                            aria-label="Tasa BCV de referencia">
-                                        <option value="usd">Tasa USD</option>
-                                        <option value="eur">Tasa Euro</option>
-                                    </select>
-                                </div>
-                            </div>
                             <button type="button" id="theme-toggle" data-action="set-theme"
                                     class="theme-toggle" data-theme="auto" title="Tema">
                                 <i class="fa-solid fa-desktop"></i>
@@ -200,6 +208,10 @@
                         </section>
 
                         <div class="topbar-menu__foot">
+                            <button type="button" data-action="switch-tab" data-tab="settings" id="menu-settings"
+                                    class="btn btn--neutral topbar-menu__admin is-hidden">
+                                <i class="fa-solid fa-gear"></i> <span>Configuración</span>
+                            </button>
                             <button type="button" data-action="logout" class="btn btn--neutral topbar-menu__logout">
                                 <i class="fa-solid fa-right-from-bracket"></i> <span>Salir</span>
                             </button>
