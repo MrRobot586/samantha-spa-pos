@@ -146,12 +146,15 @@ async function main() {
     await check('badge de tasa visible en la barra', `document.getElementById('rate-badge').offsetParent !== null`);
     await evaluar(`document.getElementById('btn-menu').click()`);
     await esperar(120);
-    await check('clic en ⋯ abre el menú',
+    await check('clic en el botón de usuario abre el menú',
         `!document.getElementById('topbar-menu-panel').classList.contains('is-hidden') && document.getElementById('btn-menu').getAttribute('aria-expanded') === 'true'`);
-    await check('moneda y tema dentro del menú',
-        `document.getElementById('topbar-menu-panel').contains(document.querySelector('.currency-toggle')) && document.getElementById('topbar-menu-panel').contains(document.getElementById('theme-toggle'))`);
-    await check('sesión y fecha dentro del menú',
-        `document.getElementById('topbar-menu-panel').contains(document.getElementById('user-chip')) && document.getElementById('topbar-menu-panel').contains(document.getElementById('current-date'))`);
+    await check('el botón del menú lleva el icono de usuario', `document.querySelector('#btn-menu i').classList.contains('fa-circle-user')`);
+    await check('moneda dentro del menú',
+        `document.getElementById('topbar-menu-panel').contains(document.querySelector('.currency-toggle'))`);
+    await check('sesión dentro del menú (fecha fuera)',
+        `document.getElementById('topbar-menu-panel').contains(document.getElementById('user-chip')) && !document.getElementById('topbar-menu-panel').contains(document.getElementById('current-date'))`);
+    await check('tema y fecha viven en el sidebar',
+        `!document.getElementById('topbar-menu-panel').contains(document.getElementById('theme-toggle')) && document.querySelector('.sidebar__bottom').contains(document.getElementById('theme-toggle')) && document.querySelector('.sidebar__bottom').contains(document.getElementById('current-date'))`);
     await check('grupo Herramientas visible para admin', `!document.getElementById('menu-group-tools').classList.contains('is-hidden')`);
     await check('el panel cabe en pantalla',
         `(() => { const r = document.getElementById('topbar-menu-panel').getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth && r.top > 0; })()`);
@@ -424,6 +427,7 @@ async function main() {
     // Moneda de visualización: badge de tasa + toggle USD/Bs/€
     await esperar(900); // deja tiempo al fetch de la tasa (si falla, manda la caché)
     await check('badge de tasa BCV', `document.getElementById('rate-badge').textContent.includes('Tasa USD:')`);
+    await check('el badge ya no enseña la fecha', `!/\\d\\d\\/\\d\\d\\/\\d\\d/.test(document.getElementById('rate-badge').textContent)`);
     await check('USD activo por defecto', `document.querySelector('[data-action="set-currency"].is-active').dataset.currency === 'USD'`);
     await check('KPI en USD', `document.getElementById('dash-today-sales').textContent.includes('$')`);
 
@@ -495,8 +499,7 @@ async function main() {
     // --- Tema (oscuro/claro/auto) ------------------------------------------
     await check('tema aplicado al arrancar', `['dark', 'light'].includes(document.documentElement.dataset.theme)`);
     await check('botón de tema presente con icono', `!!document.getElementById('theme-toggle')?.querySelector('i')`);
-    await menuAbierto();
-    await check('el tema vive en el menú', `document.getElementById('topbar-menu-panel').contains(document.getElementById('theme-toggle'))`);
+    await check('el tema vive en el sidebar', `document.querySelector('.sidebar__bottom').contains(document.getElementById('theme-toggle'))`);
 
     await evaluar(`document.getElementById('theme-toggle').click()`); // auto → dark
     await esperar(150);

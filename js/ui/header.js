@@ -1,8 +1,8 @@
 /* Header: moneda de visualización, badge de tasa BCV y estado de caja.
  *
  * El toggle solo cambia settings.currency (persistido); el badge de tasa
- * muestra la tasa vigente con su fecha y funciona como botón de
- * actualización manual. El badge de caja es solo para quien tiene
+ * muestra la tasa vigente (sin fecha — vive en el sidebar) y funciona como
+ * botón de actualización manual. El badge de caja es solo para quien tiene
  * permiso 'cash' (admin): abre la pestaña Caja & Cortes. */
 
 import { getState } from '../core/state.js';
@@ -42,11 +42,7 @@ export function renderRateBadge() {
         return;
     }
 
-    const fecha = s.fecha && !Number.isNaN(new Date(s.fecha).getTime())
-        ? new Date(s.fecha).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: '2-digit' })
-        : '';
     badge.textContent = `${rateSourceLabel(src)}: ${tasa.toLocaleString('es-VE', { maximumFractionDigits: 2 })} Bs`
-        + (fecha ? ` · ${fecha}` : '')
         + (s.offline ? ' · sin conexión' : '');
     badge.title = s.offline
         ? `${rateSourceLabel(src)} guardada (sin conexión): toca para reintentar`
@@ -78,18 +74,18 @@ export function applyTheme() {
     document.documentElement.dataset.theme = modo === 'auto' ? sistema : modo;
 }
 
-/** Refresca el icono/aria del botón que cicla el tema. */
+/** Refresca el icono/aria de todos los botones que ciclan el tema. */
 export function renderTheme() {
-    const btn = document.getElementById('theme-toggle');
-    if (!btn) return;
     const modo = getState().settings.theme;
     const ICONOS = { auto: 'fa-desktop', dark: 'fa-moon', light: 'fa-sun' };
     const NOMBRES = { auto: 'Auto (según el sistema)', dark: 'Oscuro', light: 'Claro' };
-    const icon = btn.querySelector('i');
-    if (icon) icon.className = `fa-solid ${ICONOS[modo] || ICONOS.auto}`;
-    btn.dataset.theme = modo;
-    btn.title = `Tema: ${NOMBRES[modo] || NOMBRES.auto} · tocar para cambiar`;
-    btn.setAttribute('aria-label', `Tema actual: ${NOMBRES[modo] || NOMBRES.auto}. Tocar para cambiar de tema`);
+    document.querySelectorAll('.theme-toggle').forEach(btn => {
+        const icon = btn.querySelector('i');
+        if (icon) icon.className = `fa-solid ${ICONOS[modo] || ICONOS.auto}`;
+        btn.dataset.theme = modo;
+        btn.title = `Tema: ${NOMBRES[modo] || NOMBRES.auto} · tocar para cambiar`;
+        btn.setAttribute('aria-label', `Tema actual: ${NOMBRES[modo] || NOMBRES.auto}. Tocar para cambiar de tema`);
+    });
 }
 
 export function renderHeader() {

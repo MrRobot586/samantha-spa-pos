@@ -150,17 +150,19 @@ La app arranca en la pantalla de login. Credenciales semilla:
 
 ## Tema y responsive
 
-- **Topbar ligero + menú desplegable (⋯):** la barra superior solo enseña
-  título, badge de tasa, badge de caja y el botón de menú. Moneda, fuente
-  de tasa, tema, ajustes de impresión, usuarios, fecha/turno, chip de
-  sesión y Salir viven en un panel anclado bajo la barra; se cierra con un
-  clic fuera, con ESC, al cambiar de pestaña, al abrir un modal o al salir,
-  y la sección "Herramientas" no aparece para los roles sin permiso
-  `users`. El menú no tiene estado: siempre arranca cerrado.
-- **Tema `auto | dark | light`** con botón de ciclo en el menú del topbar. con botón de ciclo en el menú del topbar. `auto` es
-  el valor por defecto y sigue a `prefers-color-scheme` (cambia en vivo si
-  el sistema cambia). El tema elegido se persiste en `settings.theme` y lo
-  restaura antes del primer render un script pre-paint de `<head>`.
+- **Topbar ligero + menú desplegable:** la barra superior solo enseña
+  título, badge de tasa, badge de caja y el botón de menú (icono de
+  usuario). Moneda, fuente de tasa, ajustes de impresión, usuarios, chip
+  de sesión y Salir viven en un panel anclado bajo la barra; se cierra con
+  un clic fuera, con ESC, al cambiar de pestaña, al abrir un modal o al
+  salir, y la sección "Herramientas" no aparece para los roles sin permiso
+  `users`. El menú no tiene estado: siempre arranca cerrado. El tema y la
+  fecha viven en el pie del sidebar (no en el menú).
+- **Tema `auto | dark | light`** con botón de ciclo en el pie del sidebar.
+  `auto` es el valor por defecto y sigue a `prefers-color-scheme` (cambia
+  en vivo si el sistema cambia). El tema elegido se persiste en
+  `settings.theme` y lo restaura antes del primer render un script
+  pre-paint de `<head>`.
 - **Escala:** tipografía `--fs-2xs…--fs-5xl`, espaciado `--space-1…--space-20`
   y breakpoints canónicos **640 / 768 / 1024 / 1280** (todo documentado en
   `css/tokens.css`).
@@ -274,10 +276,10 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
   del layout roto del original; en 768–1023 el sidebar de 16rem dejaba el
   contenido a 512px y la topbar desbordaba (defecto del original), así que
   la nav inferior gana ancho y el lateral vuelve en ≥1024. Por debajo de
-  640px la nav inferior queda **solo con iconos** (los 7 ítems con texto no
-  cabían: desbordaban y se cortaban) y la topbar se reduce a título + tasa
-  + menú; el resto vive en el menú (⋯), donde la tasa se trunca con "…"
-  (completa en el tooltip).
+  640px la nav inferior queda **solo con iconos** (el texto se conserva
+  como nombre accesible) y la topbar se reduce a título + tasa + menú (el
+  botón es un icono de usuario). El pie del sidebar (fecha + tema) se
+  oculta en móvil.
 - **Tema claro/oscuro vinculado al sistema:** `settings.theme` es
   `auto | dark | light`. Con `auto` sigue a `prefers-color-scheme` en vivo
   (listener de `matchMedia`). Un script pre-paint en `<head>` lee el tema
@@ -354,14 +356,16 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
 12. Producto llamado `<img src=x onerror=alert(1)>` → se muestra como texto.
 13. ESC cierra los modales y el menú del topbar; el catálogo es navegable
     con Tab.
-14. Menú (⋯): dentro están moneda, fuente de tasa, tema, fecha y sesión; se
-    cierra con clic fuera, con ESC, al cambiar de pestaña y al abrir un
-    modal. Como `valeria`, la sección "Herramientas" no aparece.
+14. Menú (icono de usuario): dentro están el chip de sesión, moneda, fuente
+    de tasa, Herramientas y Salir; se cierra con clic fuera, con ESC, al
+    cambiar de pestaña y al abrir un modal. Como `valeria`, la sección
+    "Herramientas" no aparece. El tema y la fecha viven en el pie del
+    sidebar (no en el menú).
 15. A 375px de ancho: aparece la barra inferior con solo iconos (sin scroll
     horizontal); a 700 y 900px los ítems vuelven a mostrar el texto.
-16. Tema: el botón del menú cicla Auto → Oscuro → Claro (el icono cambia);
-    con `auto` y el SO en claro/oscuro la app lo sigue en vivo; al recargar
-    el tema elegido se mantiene sin parpadeo.
+16. Tema: el botón del pie del sidebar cicla Auto → Oscuro → Claro (el
+    icono cambia); con `auto` y el SO en claro/oscuro la app lo sigue en
+    vivo; al recargar el tema elegido se mantiene sin parpadeo.
 17. A 700 y 900px el header no desborda; a 900 se ve la barra inferior y a
     1100 el sidebar lateral vuelve a la izquierda.
 18. A 1600px el contenido queda centrado (máx. ~1440) y los grids de KPIs,

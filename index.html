@@ -130,13 +130,14 @@
             </button>
         </nav>
 
-        <div class="sidebar__branch">
-            <div class="branch-card">
-                <div class="branch-card__icon"><i class="fa-solid fa-store"></i></div>
-                <div>
-                    <p class="branch-card__label">Sucursal Principal</p>
-                    <p class="branch-card__name">Samantha Spa Centro</p>
-                </div>
+        <div class="sidebar__bottom">
+            <button type="button" id="theme-toggle" data-action="set-theme"
+                    class="theme-toggle" data-theme="auto" title="Tema">
+                <i class="fa-solid fa-desktop" aria-hidden="true"></i>
+            </button>
+            <div class="sidebar__date">
+                <p id="current-date">Cargando fecha...</p>
+                <p class="sidebar__status">Turno en curso</p>
             </div>
         </div>
     </aside>
@@ -149,8 +150,8 @@
             </h2>
             <!-- Solo lo que se lee de un vistazo: título + estado de la tasa +
                  estado de la caja. Todo lo demás (moneda, fuente de tasa, tema,
-                 ajustes de impresión, usuarios, fecha, sesión y salir) vive en
-                 el menú desplegable para no saturar la barra. -->
+                 ajustes de impresión, usuarios, sesión y salir) vive en el menú
+                 desplegable; el tema y la fecha viven en el pie del sidebar. -->
             <div class="topbar__right">
                 <button type="button" id="rate-badge" data-action="refresh-rates" class="rate-badge">
                     Cargando tasa…
@@ -164,8 +165,8 @@
                 <div class="topbar-menu" id="topbar-menu">
                     <button type="button" id="btn-menu" data-action="toggle-menu"
                             class="topbar-menu__btn" aria-expanded="false"
-                            aria-controls="topbar-menu-panel" title="Opciones" aria-label="Opciones">
-                        <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
+                            aria-controls="topbar-menu-panel" title="Menú de usuario" aria-label="Menú de usuario">
+                        <i class="fa-solid fa-circle-user" aria-hidden="true"></i>
                     </button>
 
                     <div id="topbar-menu-panel" class="topbar-menu__panel is-hidden">
@@ -174,10 +175,6 @@
                             <div class="topbar__user" id="user-chip" title="">
                                 <div class="topbar__avatar" id="user-initials">—</div>
                                 <p class="topbar__user-name" id="user-chip-name">—</p>
-                            </div>
-                            <div class="topbar__date">
-                                <p id="current-date">Cargando fecha...</p>
-                                <p class="topbar__status">Turno en curso</p>
                             </div>
                         </section>
 

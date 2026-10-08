@@ -86,47 +86,36 @@ body.is-logged-out .toast-stack {
     gap: var(--space-2);
 }
 
-.sidebar__branch {
+/* Pie del sidebar: tema (cycle) + fecha. Reemplaza a la antigua tarjeta de
+   sucursal: es un experimento que reparte el control de tema y la fecha
+   fuera del menú del topbar. */
+.sidebar__bottom {
     margin-top: auto;
     padding: var(--space-8);
     border-top: 1px solid var(--border);
-}
-
-.branch-card {
-    background: var(--card);
-    padding: var(--space-6);
-    border-radius: var(--radius);
-    border: 1px solid var(--border-strong);
     display: flex;
-    align-items: center;
-    gap: var(--space-6);
+    flex-direction: column;
+    gap: var(--space-4);
 }
 
-.branch-card__icon {
-    width: 2.25rem;
-    height: 2.25rem;
-    border-radius: 50%;
-    background: var(--success-10);
-    color: var(--success);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: var(--fs-sm);
-    flex-shrink: 0;
+.sidebar__bottom .theme-toggle {
+    width: 100%;
+    justify-content: flex-start;
+    text-align: left;
 }
 
-.branch-card__label {
+.sidebar__date {
+    text-align: left;
+}
+
+.sidebar__date p {
     font-size: var(--fs-sm);
     color: var(--text-muted);
 }
 
-.branch-card__name {
-    font-size: var(--fs-base);
+.sidebar__date .sidebar__status {
     font-weight: 600;
-    color: var(--text-strong);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    color: var(--text-dim);
 }
 
 /* --- Main + header -------------------------------------------------------- */
@@ -281,25 +270,10 @@ body.is-logged-out .toast-stack {
     text-align: left;
 }
 
-/* El chip y la fecha se alinean a la izquierda: dentro del panel ya no
-   juegan contra el título de la barra. */
-.topbar-menu__panel .topbar__date {
-    text-align: left;
-}
-
+/* El chip se alinea a la izquierda: dentro del panel ya no juega contra el
+   título de la barra. */
 .topbar-menu__panel .topbar-menu__logout {
     justify-content: center;
-}
-
-.topbar__date p {
-    font-size: var(--fs-sm);
-    color: var(--text-muted);
-}
-
-.topbar__status {
-    font-size: var(--fs-sm);
-    font-weight: 600;
-    color: var(--text-dim);
 }
 
 .topbar__avatar {
@@ -550,7 +524,7 @@ body.is-logged-out .toast-stack {
     }
 
     .sidebar__brand,
-    .sidebar__branch {
+    .sidebar__bottom {
         display: none;
     }
 
