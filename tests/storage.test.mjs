@@ -463,3 +463,27 @@ test('comprobante malformado o gigante se descarta y el pago queda con su monto'
         { method: 'debit', amountUSD: 9, reference: 'R-1' }
     ]);
 });
+
+test('normalizeState: requiresReference sobrevive (defecto: opcional)', () => {
+    const state = normalizeState({
+        settings: { paymentMethods: [
+            { id: 'zelle', label: 'Zelle', type: 'electronico', requiresReference: true },
+            { id: 'efecty', label: 'Efecty', type: 'fisico' },
+            { id: 'otro', label: 'Otro', type: 'fisico', requiresReference: 'sí' }
+        ] }
+    });
+    const pms = state.settings.paymentMethods;
+    assert.equal(pms.find(m => m.id === 'zelle').requiresReference, true);
+    assert.equal(pms.find(m => m.id === 'efecty').requiresReference, false, 'sin flag → opcional');
+    assert.equal(pms.find(m => m.id === 'otro').requiresReference, false, 'no-booleano → opcional');
+    assert.equal(pms.find(m => m.id === 'cash').requiresReference, false, 'los de fábrica siguen opcionales');
+});
+
+test('round trip: requiresReference se guarda y se recupera desde backend', () => {
+    const backend = createMemoryBackend();
+    const state = createSeedState();
+    state.settings.paymentMethods.find(m => m.id === 'pago_movil').requiresReference = true;
+    assert.equal(saveState(state, backend), true);
+    const { state: cargado } = loadState(backend);
+    assert.equal(cargado.settings.paymentMethods.find(m => m.id === 'pago_movil').requiresReference, true);
+});

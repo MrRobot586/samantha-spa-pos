@@ -200,3 +200,55 @@ test('caja cerrada: el cobro se bloquea antes de tocar nada', () => {
     assert.throws(() => processPayment(state), /caja está cerrada/);
     assert.equal(JSON.stringify(state), antes, 'sin caja abierta no se descuenta stock ni comisión');
 });
+
+test('método con referencia necesaria: sin número ni comprobante → CheckoutError', () => {
+    const state = createSeedState();
+    openCashSession(0, state);
+    state.settings.paymentMethods.find(m => m.id === 'pago_movil').requiresReference = true;
+    addItem('service', 's1', state); // $65 + IVA → total 75.40
+    const { total } = ticketTotals(state);
+    const antes = JSON.stringify(state);
+
+    assert.throws(
+        () => processPayment(state, { payments: [{ method: 'pago_movil', amountUSD: total }] }),
+        err => {
+            assert.ok(err instanceof CheckoutError);
+            assert.match(err.message, /Falta la referencia/);
+            assert.match(err.message, /Pago Móvil/);
+            return true;
+        });
+    assert.equal(JSON.stringify(state), antes, 'un cobro sin referencia no toca stock ni comisión');
+});
+
+test('método con referencia necesaria: cumple con número o con comprobante', () => {
+    const state = createSeedState();
+    openCashSession(0, state);
+    state.settings.paymentMethods.find(m => m.id === 'pago_movil').requiresReference = true;
+    addItem('service', 's1', state);
+    const { total } = ticketTotals(state);
+    const adjunto = { name: 'foto.png', data: 'data:image/png;base64,QUJD' };
+
+    const tx1 = processPayment(state, { payments: [{ method: 'pago_movil', amountUSD: total, reference: '001234567890' }] });
+    assert.equal(tx1.method, 'pago_movil');
+    assert.equal(tx1.receivedUSD, total);
+    assert.equal(tx1.payments[0].reference, '001234567890');
+
+    addItem('service', 's1', state);
+    const total2 = ticketTotals(state).total;
+    const tx2 = processPayment(state, { payments: [{ method: 'pago_movil', amountUSD: total2, attachment: adjunto }] });
+    assert.equal(tx2.method, 'pago_movil');
+    assert.equal(tx2.receivedUSD, total2);
+    assert.deepEqual(tx2.payments[0].attachment, { name: 'foto.png', mime: '', data: 'data:image/png;base64,QUJD' });
+});
+
+test('método opcional: cobra sin referencia y conserva la que trae', () => {
+    const state = createSeedState();
+    openCashSession(0, state);
+    addItem('service', 's1', state);
+    const { total } = ticketTotals(state);
+
+    const tx = processPayment(state, { payments: [{ method: 'debit', amountUSD: total, reference: 'ABC-123' }] });
+    assert.equal(tx.method, 'debit');
+    assert.equal(tx.receivedUSD, total);
+    assert.equal(tx.payments[0].reference, 'ABC-123');
+});

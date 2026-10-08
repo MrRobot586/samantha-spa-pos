@@ -966,6 +966,78 @@ async function main() {
     await esperar(250);
     await check('método eliminado (volvió a 4)', `document.querySelectorAll('#payment-methods-list tr').length === 4`);
 
+    // Referencia «necesaria» por método: columna nueva y bloqueo antes del modal
+    await evaluar(`document.querySelector('[data-action="edit-method"][data-id="pago_movil"]').click(); true`);
+    await esperar(120);
+    await check('editar método precarga «Comprobante» en Opcional',
+        `document.getElementById('method-reference').value === 'opcional'`);
+    await evaluar(`document.getElementById('method-reference').value = 'necesario'; document.getElementById('form-payment-method').requestSubmit(); true`);
+    await esperar(200);
+    await check('columna Comprobante marca Necesario', `(() => {
+        const rows = [...document.querySelectorAll('#payment-methods-list tr')];
+        const r = rows.find(x => x.textContent.includes('Pago Móvil'));
+        return r.textContent.includes('Necesario');
+    })()`);
+    await check('requisito persistido en la configuración',
+        `JSON.parse(localStorage.getItem('samantha-spa-pos:v2')).settings.paymentMethods.find(m => m.id === 'pago_movil').requiresReference === true`);
+
+    // POS: el método marcado exige número o comprobante antes de confirmar
+    await evaluar(`document.querySelector('[data-action="switch-tab"][data-tab="pos"]').click(); true`);
+    await esperar(200);
+    await evaluar(`document.querySelector('[data-action="add-item"][data-type="service"]').click(); true`);
+    await esperar(100);
+    await evaluar(`document.querySelector('.pos__next').click(); true`);
+    await esperar(150);
+    await evaluar(`(() => {
+        document.getElementById('payment-select').value = 'pago_movil';
+        document.querySelector('[data-action="add-payment-method"]').click();
+        return true;
+    })(); true`);
+    await esperar(150);
+    await check('badge «Ref. obligatoria» en la fila del método',
+        `!!document.querySelector('#payment-list .payment-row .badge--required')`);
+    await check('placeholder del campo anuncia el requisito',
+        `document.querySelector('[data-action="payment-reference"][data-method="pago_movil"]').placeholder.includes('obligatorio')`);
+    await evaluar(`document.querySelector('[data-action="fill-payment-amount"][data-method="pago_movil"]').click(); true`);
+    await esperar(120);
+    await evaluar(`document.querySelector('[data-action="pay"]').click(); true`);
+    await esperar(200);
+    await check('cobro bloqueado sin referencia (modal cerrado)',
+        `document.getElementById('modal-sale-confirm').classList.contains('is-hidden')`);
+    await check('toast avisa la referencia faltante',
+        `[...document.querySelectorAll('#toast-stack .toast')].pop()?.textContent.includes('Falta la referencia') || false`);
+    await evaluar(`(() => {
+        const i = document.querySelector('[data-action="payment-reference"][data-method="pago_movil"]');
+        i.value = '9898833';
+        i.dispatchEvent(new Event('input', { bubbles: true }));
+        i.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+    })(); true`);
+    await esperar(150);
+    await evaluar(`document.querySelector('[data-action="pay"]').click(); true`);
+    await esperar(200);
+    await check('con referencia sí abre la confirmación',
+        `!document.getElementById('modal-sale-confirm').classList.contains('is-hidden')`);
+    await check('la referencia viaja al resumen de la venta',
+        `document.getElementById('sale-confirm-preview').textContent.includes('9898833')`);
+    await evaluar(`document.querySelector('[data-action="close-modal"][data-target="modal-sale-confirm"]').click(); true`);
+    await esperar(150);
+
+    // Dejar el método en Opcional y volver a Configuración
+    await evaluar(`document.getElementById('btn-menu').click(); true`);
+    await esperar(120);
+    await evaluar(`document.getElementById('menu-settings').click(); true`);
+    await esperar(200);
+    await evaluar(`document.querySelector('[data-action="edit-method"][data-id="pago_movil"]').click(); true`);
+    await esperar(120);
+    await evaluar(`document.getElementById('method-reference').value = 'opcional'; document.getElementById('form-payment-method').requestSubmit(); true`);
+    await esperar(200);
+    await check('vuelto a Opcional en la tabla', `(() => {
+        const rows = [...document.querySelectorAll('#payment-methods-list tr')];
+        const r = rows.find(x => x.textContent.includes('Pago Móvil'));
+        return r.textContent.includes('Opcional');
+    })()`);
+
     // Comisión global del rol
     await evaluar(`document.getElementById('commission-rate').value = '50'; document.getElementById('form-commission').requestSubmit(); true`);
     await esperar(200);

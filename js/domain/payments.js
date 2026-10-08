@@ -12,11 +12,14 @@
  *
  *  Cada pago puede traer campos opcionales de comprobante: `reference`
  *  (número de operación, texto corto) y `attachment` ({ name, mime, data }
- *  con data URL en base64). Ambos viajan hasta la venta registrada.
+ *  con data URL en base64). Ambos viajan hasta la venta registrada. El
+ *  cobro de un método marcado `requiresReference` exige al menos uno de los
+ *  dos (ver `missingReferenceMethods`); los demás lo dejan opcional.
  *
  * Métodos dinámicos: la lista de métodos vigentes vive en
  * `settings.paymentMethods` (admin las edita desde Configuración). Cada
- * método es `{ id, label, icon, type }` con `type` ∈ 'fisico' | 'electronico'.
+ * método es `{ id, label, icon, type, requiresReference }` con `type` ∈
+ * 'fisico' | 'electronico'.
  * Las reglas se derivan del type: físicos admiten vuelto y entran al arqueo;
  * electrónicos deben ir a monto exacto. Estas funciones aceptan un parámetro
  * `methods` opcional (default = los 4 de fábrica) para no acoplarlas al DOM
@@ -30,10 +33,10 @@ export class PaymentError extends Error {}
 const FISICO = 'fisico';
 
 export const DEFAULT_PAYMENT_METHODS = [
-    { id: 'cash', label: 'Efectivo', icon: 'fa-money-bill-wave', type: FISICO },
-    { id: 'debit', label: 'Débito', icon: 'fa-credit-card', type: 'electronico' },
-    { id: 'pago_movil', label: 'Pago Móvil', icon: 'fa-mobile-screen', type: 'electronico' },
-    { id: 'divisa', label: 'Divisa', icon: 'fa-money-bill', type: FISICO }
+    { id: 'cash', label: 'Efectivo', icon: 'fa-money-bill-wave', type: FISICO, requiresReference: false },
+    { id: 'debit', label: 'Débito', icon: 'fa-credit-card', type: 'electronico', requiresReference: false },
+    { id: 'pago_movil', label: 'Pago Móvil', icon: 'fa-mobile-screen', type: 'electronico', requiresReference: false },
+    { id: 'divisa', label: 'Divisa', icon: 'fa-money-bill', type: FISICO, requiresReference: false }
 ];
 
 /** Alias de compatibilidad: la lista de fábrica. */
@@ -58,7 +61,8 @@ export function activePaymentMethods(state = getState()) {
             label: m.label,
             icon: typeof m.icon === 'string' && m.icon.trim() ? m.icon
                 : (m.type === FISICO ? 'fa-money-bill' : 'fa-credit-card'),
-            type: m.type === FISICO ? FISICO : 'electronico'
+            type: m.type === FISICO ? FISICO : 'electronico',
+            requiresReference: m.requiresReference === true
         }));
 
     const unicos = [];
@@ -125,6 +129,26 @@ export function isCashDrawerMethod(id, methods = PAYMENT_METHODS) {
 /** Ids de los métodos físicos de una lista (dinero que entra al arqueo). */
 export function cashDrawerMethods(methods = PAYMENT_METHODS) {
     return methods.filter(m => m.type === FISICO).map(m => m.id);
+}
+
+/**
+ * Métodos que requieren referencia/comprobante pero no la cumplen: ya tienen
+ * monto > 0 y no traen ni referencia ni adjunto. Devuelve sus etiquetas.
+ */
+export function missingReferenceMethods(payments, methods = PAYMENT_METHODS) {
+    const list = Array.isArray(payments) ? payments : [];
+    const faltantes = [];
+    for (const p of list) {
+        if (!p || typeof p.method !== 'string') continue;
+        if (!Number.isFinite(p.amountUSD) || p.amountUSD <= 0) continue;
+        const m = methodById(p.method, methods);
+        if (!m || !m.requiresReference) continue;
+        const tieneRef = typeof p.reference === 'string' && p.reference.trim().length > 0;
+        const tieneAtt = Boolean(p.attachment) && typeof p.attachment === 'object'
+            && typeof p.attachment.data === 'string' && p.attachment.data.startsWith('data:');
+        if (!tieneRef && !tieneAtt) faltantes.push(m.label);
+    }
+    return faltantes;
 }
 
 /**

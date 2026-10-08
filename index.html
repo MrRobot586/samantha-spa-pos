@@ -471,7 +471,7 @@
                         <div class="payment-list" id="payment-list">
                             <!-- Lo llena el JS: solo los métodos agregados tienen fila de monto -->
                         </div>
-                        <p class="payment-hint">Agrega cada método de pago usado y escribe su monto (el botón de la mira completa con el total pendiente). Puedes anotar el número de referencia y adjuntar el comprobante de cada método. El vuelto solo se entrega por los físicos (Efectivo y otros); los electrónicos cobran el importe exacto.</p>
+                        <p class="payment-hint">Agrega cada método de pago usado y escribe su monto (el botón de la mira completa con el total pendiente). Los métodos marcados como «Necesario» exigen su número de referencia o comprobante para poder cobrar. El vuelto solo se entrega por los físicos (Efectivo y otros); los electrónicos cobran el importe exacto.</p>
 
                         <div class="pos-checkout__summary">
                             <div class="ticket__row ticket__row--paid">
@@ -735,7 +735,8 @@
                 </div>
                 <p class="settings-hint">
                     Físico: abre el cajón y admite vuelto. Electrónico: cobra el monto exacto.
-                    <strong>Efectivo</strong> no se puede borrar ni cambiar de tipo.
+                    <strong>Comprobante</strong> marca si el método exige número de referencia o
+                    comprobante al cobrar. <strong>Efectivo</strong> no se puede borrar ni cambiar de tipo.
                 </p>
                 <form id="form-payment-method">
                     <input type="hidden" id="method-id">
@@ -751,6 +752,13 @@
                                 <option value="electronico">Electrónico (monto exacto)</option>
                             </select>
                         </div>
+                        <div class="field">
+                            <label for="method-reference" class="field__label field__label--sm">Referencia / comprobante</label>
+                            <select id="method-reference" class="select" aria-label="Si el método exige referencia o comprobante">
+                                <option value="opcional">Opcional</option>
+                                <option value="necesario">Necesario</option>
+                            </select>
+                        </div>
                         <button type="submit" id="btn-method-save" class="btn btn--brand">Agregar método</button>
                         <button type="button" id="btn-method-cancel" data-action="reset-method-form"
                                 class="btn btn--neutral is-hidden">Cancelar</button>
@@ -762,11 +770,12 @@
                             <tr>
                                 <th>Método</th>
                                 <th>Tipo</th>
+                                <th>Comprobante</th>
                                 <th class="cell-right">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="payment-methods-list">
-                            <tr><td colspan="3" class="empty-cell">Sin métodos de pago.</td></tr>
+                            <tr><td colspan="4" class="empty-cell">Sin métodos de pago.</td></tr>
                         </tbody>
                     </table>
                 </div>

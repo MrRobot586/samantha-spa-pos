@@ -5,7 +5,7 @@ import {
     PAYMENT_METHODS, PAYMENT_IDS, CASH_DRAWER_METHODS,
     methodById, methodLabel, isPaymentMethod, isCashDrawerMethod,
     normalizePayments, paymentsOf, primaryMethod, settlePayments, PaymentError,
-    activePaymentMethods, cashDrawerMethods
+    activePaymentMethods, cashDrawerMethods, missingReferenceMethods
 } from '../js/domain/payments.js';
 
 test('catálogo: cuatro métodos, efectivo y divisa en el cajón', () => {
@@ -185,4 +185,56 @@ test('settlePayments: el vuelto ajusta el monto sin borrar la referencia ni el c
     assert.throws(() => settlePayments(
         [{ method: 'cash', amountUSD: 5, reference: 'REF-2' }], 100), /Faltan/,
         'un pago corto sigue fallando aunque lleve referencia');
+});
+
+test('activePaymentMethods conserva requiresReference (defecto: opcional)', () => {
+    const methods = activePaymentMethods({
+        settings: { paymentMethods: [
+            { id: 'zelle', label: 'Zelle', type: 'electronico', requiresReference: true },
+            { id: 'efecty', label: 'Efecty', type: 'fisico' }
+        ] }
+    });
+    assert.equal(methods.find(m => m.id === 'zelle').requiresReference, true);
+    assert.equal(methods.find(m => m.id === 'efecty').requiresReference, false);
+    assert.equal(methods.find(m => m.id === 'cash').requiresReference, false, 'los de fábrica arrancan opcionales');
+    assert.equal(activePaymentMethods({ settings: {} })[0].requiresReference, false);
+});
+
+test('catalogo: los cuatro métodos de fábrica son de referencia opcional', () => {
+    assert.equal(PAYMENT_METHODS.every(m => m.requiresReference === false), true);
+});
+
+test('missingReferenceMethods: solo cuentan los necesarios con monto y sin ref ni adjunto', () => {
+    const methods = [
+        { id: 'cash', label: 'Efectivo', type: 'fisico', requiresReference: false },
+        { id: 'pago_movil', label: 'Pago Móvil', type: 'electronico', requiresReference: true },
+        { id: 'debit', label: 'Débito', type: 'electronico', requiresReference: true }
+    ];
+
+    // Sin número ni comprobante: aparecen las etiquetas de los necesarios.
+    assert.deepEqual(
+        missingReferenceMethods([
+            { method: 'cash', amountUSD: 10 },
+            { method: 'pago_movil', amountUSD: 40 },
+            { method: 'debit', amountUSD: 20 }
+        ], methods),
+        ['Pago Móvil', 'Débito']);
+
+    // Cumple con referencia sola, con adjunto, o con ambas cosas.
+    const adjunto = { name: 'foto.png', data: 'data:image/png;base64,QUJD' };
+    assert.deepEqual(
+        missingReferenceMethods([
+            { method: 'pago_movil', amountUSD: 40, reference: '001234567890' },
+            { method: 'debit', amountUSD: 20, attachment: adjunto }
+        ], methods),
+        []);
+
+    // Monto 0, método desconocido y opcional no se bloquean.
+    assert.deepEqual(
+        missingReferenceMethods([
+            { method: 'pago_movil', amountUSD: 0 },
+            { method: 'cash', amountUSD: 75.4 },
+            { method: 'zzz', amountUSD: 100 }
+        ], methods),
+        []);
 });

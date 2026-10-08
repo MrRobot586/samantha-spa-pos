@@ -255,7 +255,8 @@ function normalizePaymentMethods(raw) {
             label: str(m.label).trim().slice(0, 32),
             icon: nonEmpty(m.icon) ? str(m.icon).trim().slice(0, 48)
                 : (m.type === 'fisico' ? 'fa-money-bill' : 'fa-credit-card'),
-            type: m.type === 'fisico' ? 'fisico' : 'electronico'
+            type: m.type === 'fisico' ? 'fisico' : 'electronico',
+            requiresReference: m.requiresReference === true
         }))
         .filter((m, i, arr) => arr.findIndex(x => x.id === m.id) === i);
 

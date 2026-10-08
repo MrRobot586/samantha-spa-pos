@@ -142,6 +142,14 @@ La app arranca en la pantalla de login. Credenciales semilla:
   **modal de confirmación** (`Ref. …` y enlace *Ver comprobante*) y quedan en
   el **registro de la venta**; al recargar (F5) el ticket en cobro los
   recupera.
+- **Referencia/comprobante «Opcional o Necesario» por método:** en
+  Configuración cada método elige si su comprobante es opcional o
+  imprescindible (los de fábrica arrancan opcionales). Cuando es
+  **Necesario**, el POS lo anuncia con un badge *Ref. obligatoria* y el
+  botón **Cobrar** se bloquea antes de abrir la confirmación si no hay ni
+  número ni adjunto; se cumple con cualquiera de los dos. La regla también
+  se valida en el dominio al confirmar (el efectivo es fijo y queda siempre
+  opcional).
 - Reglas del pago mixto:
   - **Métodos físicos** (Efectivo, Divisa…) están en el cajón: pueden superar el
     total y generan **vuelto** (se descuenta primero del efectivo y luego de los
@@ -174,11 +182,12 @@ La pestaña **Configuración** (solo admin) concentra lo que antes vivía disper
 en el menú del topbar:
 
 - **Métodos de pago:** alta/baja y renombrado con tipo **físico** (cajón,
-  admite vuelto) o **electrónico** (monto exacto). El id se calcula solo al
-  crear y _no cambia_ al renombrar, para conservar el vínculo con las ventas
-  históricas (si se borra un método, las ventas viejas conservan sus montos y
-  el método puede verse como «desconocido»). **Efectivo** se muestra como fijo
-  y no admite edición ni borrado.
+  admite vuelto) o **electrónico** (monto exacto), y con su **comprobante**
+  **Opcional** o **Necesario** (columna «Comprobante»; ver POS). El id se
+  calcula solo al crear y _no cambia_ al renombrar, para conservar el vínculo
+  con las ventas históricas (si se borra un método, las ventas viejas conservan
+  sus montos y el método puede verse como «desconocido»). **Efectivo** se
+  muestra como fijo y no admite edición ni borrado.
 - **Comisión del estilista:** un porcentaje único del rol
   (`settings.stylistCommissionRate`, 45 % de fábrica) que se aplica a todos los
   estilistas por igual y se acredita al estilista del ticket al concretar la
@@ -251,7 +260,7 @@ en el menú del topbar:
 ## Pruebas
 
 ```bash
-npm test             # node --test tests/*.test.mjs — 136 pruebas, cero dependencias
+npm test             # node --test tests/*.test.mjs — 144 pruebas, cero dependencias
 ```
 
 Cubren la lógica de dominio (ticket, IVA, comisiones, cobro, stock,
@@ -269,7 +278,9 @@ Configuración), el panel de la tasa (moneda+fuente+refresco), el badge de
 caja con icono de estado y fecha, barra inferior solo con iconos, el tope de
 stock del ticket, el cobro a elección (select + Agregar), el botón de
 completar el monto (total/falta), la referencia y el comprobante adjunto de
-cada método (fila, modal y venta guardada), la tarjeta de
+cada método (fila, modal y venta guardada) y la opción de que sean
+Opcionales o Necesarios (columna en Configuración, badge _Ref. obligatoria_,
+bloqueo antes del modal y paso de la referencia al resumen), la tarjeta de
 comisión y el tema compartiendo el tercio del pie, checks en
 7 anchos, 0 errores de consola) y con el checklist del final.
 El CI de GitHub Actions (`.github/workflows/ci.yml`) corre ambas cosas en
@@ -302,9 +313,9 @@ js/
     rates.js          tasa BCV (fetch + caché), convert/toUSD, formatMoney
     utils.js          escapeHtml, money, uid, ids de transacción, fechas
   domain/             100% sin DOM → tests en node
-    payments.js       métodos de pago activos (settings.paymentMethods), liquidación del pago mixto y vuelto, referencia/comprobante por pago
+    payments.js       métodos de pago activos (settings.paymentMethods), liquidación del pago mixto y vuelto, referencia/comprobante por pago y métodos que la exigen (missingReferenceMethods)
     ticket.js         ítems, cantidades, subtotal/IVA/comisión, pagos y monto pendiente por método
-    checkout.js       gate de caja → validación de stock → liquidación → transacción
+    checkout.js       gate de caja → validación de stock → referencia necesaria → liquidación → transacción
     cash.js           apertura, retiros, ventas por método, corte e historial
     inventory.js      altas, edición, bajas (bloqueadas si están en una receta), low-stock
     services.js       servicios y recetas, edición y baja
@@ -323,7 +334,7 @@ js/
     cash-view.js      pestaña Caja & Cortes + preview del corte
     dashboard.js      KPIs del día (acotados al rol)
     users-view.js     lista y formulario de usuarios
-    settings-view.js  pestaña Configuración: CRUD de métodos de pago, comisión, ticket y datos
+    settings-view.js  pestaña Configuración: CRUD de métodos de pago (tipo + comprobante opcional/necesario), comisión, ticket y datos
     csv-export.js     descarga de CSV (Blob + marca de orden de bytes), sin dependencias
     (+ services/inventory/commissions, modales, toasts)
 tests/                node --test (assets, payments, ticket, checkout, cash, inventory, services, reports, receipt, rates, storage, auth, users, css)
@@ -343,11 +354,12 @@ servir.sh             servidor estático local (Python o Node, sin instalar)
   servicios ya no llevan `commissionPercent`; el `commissionRate` por estilista
   se conserva en los datos solo por compatibilidad (sin uso en los cálculos).
 - **Métodos de pago configurables.** Antes eran cuatro fijos. Ahora viven en
-  `settings.paymentMethods` (`{ id, label, icon, type }` con `fisico` /
-  `electronico`), se administran en la pestaña Configuración y alimentan al
-  POS, al arqueo (físicos) y a los reportes. El id refleja el nombre pero se
-  calcula solo al crear, para que renombrar no rompa el vínculo con el
-  historial.
+  `settings.paymentMethods` (`{ id, label, icon, type, requiresReference }`
+  con `fisico` / `electronico`), se administran en la pestaña Configuración y
+  alimentan al POS, al arqueo (físicos) y a los reportes. El id refleja el
+  nombre pero se calcula solo al crear, para que renombrar no rompa el vínculo
+  con el historial. El requisito de comprobante se resuelve con
+  `missingReferenceMethods` (repite la regla en el dominio al confirmar).
 - **Persistencia en `localStorage`** con clave `samantha-spa-pos:v2`
   (v1 se migra automáticamente y queda como respaldo). Todo lo leído se
   normaliza campo a campo; si el JSON está corrupto se respalda en
@@ -531,6 +543,13 @@ como nombre accesible) y la topbar se reduce a título + caja + tasa + menú
 35. La pestaña del navegador muestra el favicon (la «S» con el degradado de
     marca) en el SVG y en los PNG de respaldo; `node generar-favicon.mjs`
     lo regenera desde `assets/favicon.svg` si cambia el diseño.
+36. Referencia opcional/necesaria: en Configuración, editar un método deja
+    elegir «Opcional» o «Necesario» (columna Comprobante; los de fábrica son
+    opcionales). Si un método es Necesario, su fila en el POS muestra el badge
+    *Ref. obligatoria* y **Cobrar** avisa (toast) sin abrir la confirmación
+    mientras no haya número o comprobante; con cualquiera de los dos, la
+    confirmación abre con la referencia en el resumen. El efectivo se mantiene
+    opcional porque no admite edición.
 
 ## Fuera de alcance (posibles siguientes pasos)
 

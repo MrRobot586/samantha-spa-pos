@@ -1,7 +1,7 @@
 /* Pestaña Configuración (solo admin): métodos de pago, comisión del rol,
  * ticket de canje y datos. Los métodos viven en settings.paymentMethods
- * ({ id, label, icon, type }) y alimentan al POS, la caja y los reportes
- * junto con los de fábrica (ver domain/payments.js). */
+ * ({ id, label, icon, type, requiresReference }) y alimentan al POS, la caja
+ * y los reportes junto con los de fábrica (ver domain/payments.js). */
 
 import { getState } from '../core/state.js';
 import { escapeHtml } from '../core/utils.js';
@@ -48,11 +48,12 @@ export function renderPaymentMethods() {
         return `<tr>
             <td data-label="Método"><i class="fa-solid ${escapeHtml(m.icon || 'fa-credit-card')}"></i> ${escapeHtml(m.label)}</td>
             <td data-label="Tipo" class="cell-muted">${escapeHtml(TYPE_LABELS[m.type] || m.type)}</td>
+            <td data-label="Comprobante" class="cell-muted">${m.requiresReference ? 'Necesario' : 'Opcional'}</td>
             <td class="cell-right">${acciones}</td>
         </tr>`;
     }).join('');
     list.innerHTML = rows
-        || '<tr><td colspan="3" class="empty-cell">Sin métodos de pago.</td></tr>';
+        || '<tr><td colspan="4" class="empty-cell">Sin métodos de pago.</td></tr>';
 }
 
 export function renderCommission() {
@@ -73,6 +74,7 @@ export function resetMethodForm() {
     document.getElementById('method-id').value = '';
     document.getElementById('method-label').value = '';
     document.getElementById('method-type').value = 'fisico';
+    document.getElementById('method-reference').value = 'opcional';
     document.getElementById('btn-method-save').textContent = 'Agregar método';
     document.getElementById('btn-method-cancel').classList.add('is-hidden');
 }
@@ -84,6 +86,7 @@ export function fillMethodForm(id) {
     document.getElementById('method-id').value = m.id;
     document.getElementById('method-label').value = m.label;
     document.getElementById('method-type').value = m.type;
+    document.getElementById('method-reference').value = m.requiresReference ? 'necesario' : 'opcional';
     document.getElementById('btn-method-save').textContent = 'Guardar cambios';
     document.getElementById('btn-method-cancel').classList.remove('is-hidden');
     document.getElementById('method-label').focus();
@@ -95,6 +98,7 @@ export function saveMethod() {
     const id = document.getElementById('method-id').value;
     const label = document.getElementById('method-label').value.trim().slice(0, 24);
     const type = document.getElementById('method-type').value === 'electronico' ? 'electronico' : 'fisico';
+    const requiresReference = document.getElementById('method-reference').value === 'necesario';
 
     if (!label) throw new Error('Escribe un nombre para el método.');
     if (!Array.isArray(state.settings.paymentMethods)) state.settings.paymentMethods = [];
@@ -104,6 +108,7 @@ export function saveMethod() {
         if (!m) throw new Error('Método no encontrado.');
         m.label = label;
         m.type = type;
+        m.requiresReference = requiresReference;
         resetMethodForm();
         return { added: false, label };
     }
@@ -114,7 +119,8 @@ export function saveMethod() {
         id: newId,
         label,
         icon: DEFAULT_ICONS[(nextIcon++) % DEFAULT_ICONS.length],
-        type
+        type,
+        requiresReference
     });
     resetMethodForm();
     return { added: true, label };

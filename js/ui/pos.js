@@ -343,6 +343,7 @@ export function renderPayment() {
                     <i class="fa-solid ${escapeHtml(m.icon || 'fa-credit-card')}" aria-hidden="true"></i>
                     <span>${escapeHtml(m.label)}</span>
                     <span class="badge badge--tag badge--${escapeHtml(m.type)}">${escapeHtml(TYPE_LABELS[m.type] || m.type)}</span>
+                    ${m.requiresReference ? '<span class="badge badge--tag badge--required">Ref. obligatoria</span>' : ''}
                 </label>
                 <input type="number" id="pay-${escapeHtml(m.id)}" min="0" step="0.01" inputmode="decimal"
                        placeholder="0.00" value="${escapeHtml(valor)}" data-action="payment-amount" data-method="${escapeHtml(m.id)}"
@@ -360,7 +361,8 @@ export function renderPayment() {
                 <div class="payment-ref">
                     <input type="text" id="ref-${escapeHtml(m.id)}" maxlength="60" autocomplete="off"
                            data-action="payment-reference" data-method="${escapeHtml(m.id)}"
-                           class="input payment-ref__input" placeholder="Nro. de referencia / comprobante (opcional)"
+                           class="input payment-ref__input"
+                           placeholder="${m.requiresReference ? 'Nro. de referencia o comprobante (obligatorio)' : 'Nro. de referencia / comprobante (opcional)'}"
                            value="${escapeHtml(slot.reference)}" aria-label="Referencia de ${escapeHtml(m.label)}">
                     <input type="file" accept="image/*,application/pdf" class="payment-ref__file"
                            data-action="payment-attachment" data-method="${escapeHtml(m.id)}"

@@ -1,5 +1,7 @@
-/* Cobro del ticket: valida stock, descuenta productos y consume los insumos
- * de cada servicio, acumula la comisión del estilista y registra la venta.
+/* Cobro del ticket: valida stock, exige la referencia/comprobante de los
+ * métodos marcados como necesarios, descuenta productos y consume los
+ * insumos de cada servicio, acumula la comisión del estilista y registra la
+ * venta.
  *
  * La validación ocurre ANTES de cualquier mutación: si algo falta, se lanza
  * CheckoutError y el estado queda intacto (el original podía dejar el stock
@@ -10,7 +12,7 @@
 import { getState } from '../core/state.js';
 import { nextTransactionId } from '../core/utils.js';
 import { getSnapshot } from '../core/rates.js';
-import { settlePayments, primaryMethod } from './payments.js';
+import { settlePayments, primaryMethod, missingReferenceMethods, activePaymentMethods } from './payments.js';
 import { findStaff, commissionRateOf } from './staff.js';
 import { findProduct } from './inventory.js';
 import { findService } from './services.js';
@@ -97,6 +99,13 @@ export function processPayment(state = getState(), opts = {}) {
     const rawPayments = Array.isArray(opts.payments) && opts.payments.length > 0
         ? opts.payments
         : [{ method: 'cash', amountUSD: total }];
+
+    // Métodos con mayor cantidad de referencia: exigen número o comprobante.
+    const faltanRef = missingReferenceMethods(rawPayments, activePaymentMethods(state));
+    if (faltanRef.length > 0) {
+        throw new CheckoutError(
+            `Falta la referencia de ${faltanRef.join(', ')}: escribe el número de operación o adjunta el comprobante.`);
+    }
 
     let settle;
     try {

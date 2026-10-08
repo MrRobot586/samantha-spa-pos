@@ -22,10 +22,10 @@ export function createSeedState() {
             // 'fisico' (admite vuelto y entra al arqueo) o 'electronico'
             // (monto exacto, nunca supera el total).
             paymentMethods: [
-                { id: 'cash', label: 'Efectivo', icon: 'fa-money-bill-wave', type: 'fisico' },
-                { id: 'debit', label: 'Débito', icon: 'fa-credit-card', type: 'electronico' },
-                { id: 'pago_movil', label: 'Pago Móvil', icon: 'fa-mobile-screen', type: 'electronico' },
-                { id: 'divisa', label: 'Divisa', icon: 'fa-money-bill', type: 'fisico' }
+                { id: 'cash', label: 'Efectivo', icon: 'fa-money-bill-wave', type: 'fisico', requiresReference: false },
+                { id: 'debit', label: 'Débito', icon: 'fa-credit-card', type: 'electronico', requiresReference: false },
+                { id: 'pago_movil', label: 'Pago Móvil', icon: 'fa-mobile-screen', type: 'electronico', requiresReference: false },
+                { id: 'divisa', label: 'Divisa', icon: 'fa-money-bill', type: 'fisico', requiresReference: false }
             ],
             ticket: {
                 printerWidth: 58,

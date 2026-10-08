@@ -12,6 +12,7 @@ import { login, logout, getCurrentUser } from './core/auth.js';
 import { loadRatesCache, refreshRates, isStale, toUSD } from './core/rates.js';
 import { CURRENCIES, THEMES, RATE_SOURCES, SESSION_IDLE_MS, IDLE_CHECK_MS } from './core/config.js';
 import { money, shortDate } from './core/utils.js';
+import { missingReferenceMethods, activePaymentMethods } from './domain/payments.js';
 
 import { switchTab, renderNav, ensureAllowedTab } from './ui/navigation.js';
 import { showLogin, showApp, showLoginError } from './ui/login-view.js';
@@ -260,8 +261,16 @@ function handleAction(el, action) {
 
         case 'pay': {
             try {
+                const payments = collectPayments();
+                // Métodos marcados como «Necesario»: se avisa antes de abrir el
+                // modal y el cobro se queda en el paso 2 hasta cumplirlo.
+                const sinRef = missingReferenceMethods(payments, activePaymentMethods(getState()));
+                if (sinRef.length > 0) {
+                    toastError(`Falta la referencia de ${sinRef.join(', ')}: escribe el número de operación o adjunta el comprobante.`);
+                    break;
+                }
                 // Sin montos: se precarga el total en efectivo (lo habitual).
-                if (collectPayments().length === 0) {
+                if (payments.length === 0) {
                     const { total } = ticketTotals();
                     setPaymentAmount('cash', total);
                     renderPayment();
